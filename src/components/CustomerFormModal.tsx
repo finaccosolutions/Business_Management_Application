@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { getCountryConfig } from '../config/countryConfig';
 import {
   X,
   User,
@@ -13,6 +14,7 @@ import {
   Upload,
   FileText,
   CreditCard,
+  Briefcase,
 } from 'lucide-react';
 
 interface CustomerFormData {
@@ -30,11 +32,18 @@ interface CustomerFormData {
   state: string;
   pincode: string;
   country: string;
-  gstin: string;
+  
+  // Dynamic tax fields
+  gstin?: string;
+  vat_number?: string;
+  ein?: string;
+  
   pan_number: string;
   tax_registration_type: string;
   msme_number: string;
   tan_number: string;
+  trade_license: string;
+  company_number: string;
   bank_name: string;
   bank_account_number: string;
   bank_ifsc_code: string;
@@ -51,6 +60,8 @@ interface CustomerFormModalProps {
   title?: string;
 }
 
+type TabType = 'basic' | 'address' | 'tax' | 'bank';
+
 export default function CustomerFormModal({
   onClose,
   onSuccess,
@@ -59,11 +70,16 @@ export default function CustomerFormModal({
   customerId,
   title,
 }: CustomerFormModalProps) {
-  const { user } = useAuth();
+  const { user, userCountry } = useAuth();
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(
     initialData.image_url || null
   );
+  const [activeTab, setActiveTab] = useState<TabType>('basic');
+
+  // Get country from initialData, userCountry, or default to IN
+  const customerCountry = initialData.country || userCountry || 'IN';
+  const countryConfig = getCountryConfig(customerCountry);
 
   const [formData, setFormData] = useState<CustomerFormData>({
     name: initialData.name || '',
@@ -79,18 +95,29 @@ export default function CustomerFormModal({
     city: initialData.city || '',
     state: initialData.state || '',
     pincode: initialData.pincode || '',
-    country: initialData.country || 'India',
+    country: customerCountry,
     gstin: initialData.gstin || '',
+    vat_number: initialData.vat_number || '',
+    ein: initialData.ein || '',
     pan_number: initialData.pan_number || '',
     tax_registration_type: initialData.tax_registration_type || 'registered',
     msme_number: initialData.msme_number || '',
     tan_number: initialData.tan_number || '',
+    trade_license: initialData.trade_license || '',
+    company_number: initialData.company_number || '',
     bank_name: initialData.bank_name || '',
     bank_account_number: initialData.bank_account_number || '',
     bank_ifsc_code: initialData.bank_ifsc_code || '',
     bank_branch: initialData.bank_branch || '',
     notes: initialData.notes || '',
   });
+
+  const tabs: Array<{ id: TabType; label: string; icon: any }> = [
+    { id: 'basic', label: 'Basic Info', icon: User },
+    { id: 'address', label: 'Address', icon: MapPin },
+    { id: 'tax', label: 'Tax & Statutory', icon: FileText },
+    { id: 'bank', label: 'Bank Details', icon: CreditCard },
+  ];
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -159,9 +186,77 @@ export default function CustomerFormModal({
     }
   };
 
+  const renderTaxFields = () => {
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Tax Registration Type
+          </label>
+          <select
+            value={formData.tax_registration_type}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                tax_registration_type: e.target.value,
+              })
+            }
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          >
+            {countryConfig.registrationTypes.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Render country-specific tax fields */}
+        {countryConfig.taxFields.map((field) => (
+          <div key={field.name}>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {field.label}
+            </label>
+            <input
+              type="text"
+              value={(formData as any)[field.name] || ''}
+              onChange={(e) =>
+                setFormData({ ...formData, [field.name]: e.target.value })
+              }
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              placeholder={field.placeholder}
+              maxLength={field.maxLength}
+              pattern={field.pattern}
+            />
+          </div>
+        ))}
+
+        {/* Render other statutory fields */}
+        {countryConfig.otherStatutoryFields?.map((field) => (
+          <div key={field.name}>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {field.label}
+            </label>
+            <input
+              type="text"
+              value={(formData as any)[field.name] || ''}
+              onChange={(e) =>
+                setFormData({ ...formData, [field.name]: e.target.value })
+              }
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              placeholder={field.placeholder}
+              maxLength={field.maxLength}
+              pattern={field.pattern}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-green-600 to-green-700">
           <h2 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -176,68 +271,73 @@ export default function CustomerFormModal({
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 bg-gray-50 px-6">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+                  activeTab === tab.id
+                    ? 'border-green-600 text-green-600 bg-white'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <Icon size={18} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-8">
-            {/* Image Upload */}
-            <div className="flex justify-center">
-              <div className="relative">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-4xl font-bold overflow-hidden">
-                  {imagePreview || formData.image_url ? (
-                    <img
-                      src={imagePreview || formData.image_url}
-                      alt="Customer"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User size={48} />
-                  )}
-                </div>
-                <label className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <Upload size={20} className="text-green-600" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
+          {/* Image Upload - Always visible */}
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-4xl font-bold overflow-hidden">
+                {imagePreview || formData.image_url ? (
+                  <img
+                    src={imagePreview || formData.image_url}
+                    alt="Customer"
+                    className="w-full h-full object-cover"
                   />
-                </label>
-                {(imagePreview || formData.image_url) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImagePreview(null);
-                      setFormData({ ...formData, image_url: '' });
-                    }}
-                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
+                ) : (
+                  <User size={48} />
                 )}
               </div>
+              <label className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <Upload size={20} className="text-green-600" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
             </div>
+          </div>
 
-            {/* Basic Information */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <User size={20} className="text-green-600" />
-                Basic Information
-              </h3>
+          {/* Tab Content */}
+          {activeTab === 'basic' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Customer Name / Company Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="ABC Company"
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Customer Name / Company Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="ABC Company"
-                  />
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Company Name
@@ -348,7 +448,7 @@ export default function CustomerFormModal({
                   </div>
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Website
                   </label>
@@ -368,164 +468,90 @@ export default function CustomerFormModal({
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Address Information */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MapPin size={20} className="text-green-600" />
-                Address Information
-              </h3>
-              <div className="grid grid-cols-1 gap-4">
+          {activeTab === 'address' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Street Address
+                </label>
+                <textarea
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="Enter full address"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Street Address
-                  </label>
-                  <textarea
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    rows={2}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter full address"
+                    placeholder="City"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="City"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                  <input
+                    type="text"
+                    value={formData.state}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="State"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
-                    <input
-                      type="text"
-                      value={formData.state}
-                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="State"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    PIN Code
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pincode}
+                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="123456"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      PIN Code
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.pincode}
-                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="123456"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Country
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.country}
-                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="India"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.country}
+                    readOnly
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    placeholder="India"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Based on your account settings
+                  </p>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Tax & Statutory Details */}
+          {activeTab === 'tax' && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <FileText size={20} className="text-green-600" />
-                Tax & Statutory Details
+                {countryConfig.taxName} & Statutory Details
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tax Registration Type
-                  </label>
-                  <select
-                    value={formData.tax_registration_type}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        tax_registration_type: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  >
-                    <option value="registered">GST Registered</option>
-                    <option value="unregistered">Unregistered</option>
-                    <option value="composition">Composition Scheme</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">GSTIN</label>
-                  <input
-                    type="text"
-                    value={formData.gstin}
-                    onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="22AAAAA0000A1Z5"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    PAN Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.pan_number}
-                    onChange={(e) => setFormData({ ...formData, pan_number: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="AAAAA0000A"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    TAN Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.tan_number}
-                    onChange={(e) => setFormData({ ...formData, tan_number: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="AAAA00000A"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    MSME/Udyam Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.msme_number}
-                    onChange={(e) => setFormData({ ...formData, msme_number: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="UDYAM-XX-00-0000000"
-                  />
-                </div>
-              </div>
+              {renderTaxFields()}
             </div>
+          )}
 
-            {/* Bank Account Details */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <CreditCard size={20} className="text-green-600" />
-                Bank Account Details
-              </h3>
+          {activeTab === 'bank' && (
+            <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -573,7 +599,7 @@ export default function CustomerFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    IFSC Code
+                    {formData.country === 'IN' ? 'IFSC Code' : 'Swift/Routing Code'}
                   </label>
                   <input
                     type="text"
@@ -582,26 +608,25 @@ export default function CustomerFormModal({
                       setFormData({ ...formData, bank_ifsc_code: e.target.value })
                     }
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="SBIN0000000"
+                    placeholder={formData.country === 'IN' ? 'SBIN0000000' : 'Enter code'}
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Additional Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Additional Notes
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={4}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Any additional information about the customer..."
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Additional Notes
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="Any additional information about the customer..."
+                />
+              </div>
             </div>
-          </div>
+          )}
         </form>
 
         {/* Footer */}

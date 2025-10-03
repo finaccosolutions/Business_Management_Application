@@ -20,14 +20,14 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
-  // Minimal form data for quick lead capture
   const [formData, setFormData] = useState({
-    name: '',           // Lead/Company Name (Required)
-    phone: '',          // Primary Phone (Main contact)
-    email: '',          // Email (Optional)
-    source: '',         // Lead Source (Optional)
-    notes: '',          // Brief Notes (Optional)
-    status: 'new',      // Default status
+    name: '',
+    phone: '',
+    email: '',
+    source: '',
+    referred_by: '', // NEW FIELD
+    notes: '',
+    status: 'new',
   });
 
   useEffect(() => {
@@ -54,7 +54,6 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
     setLoading(true);
 
     try {
-      // Insert lead with minimal data
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert({
@@ -66,7 +65,6 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
 
       if (leadError) throw leadError;
 
-      // Insert lead services if any selected
       if (selectedServices.length > 0) {
         const leadServices = selectedServices.map((serviceId) => ({
           lead_id: leadData.id,
@@ -93,7 +91,6 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
           <h2 className="text-2xl font-bold text-white flex items-center gap-3">
             <UserPlus size={28} />
@@ -107,10 +104,8 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
-            {/* Lead Name - Required */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Lead Name / Company Name *
@@ -125,7 +120,6 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
               />
             </div>
 
-            {/* Phone - Primary Contact */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Phone Number *
@@ -140,7 +134,6 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
               />
             </div>
 
-            {/* Email - Optional */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
@@ -154,7 +147,6 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
               />
             </div>
 
-            {/* Source - Optional */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Lead Source
@@ -168,7 +160,23 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
               />
             </div>
 
-            {/* Interested Services - Optional */}
+            {/* NEW: Referred By Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Referred By
+              </label>
+              <input
+                type="text"
+                value={formData.referred_by}
+                onChange={(e) => setFormData({ ...formData, referred_by: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Name of person who referred this lead"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter the name of the person or company that referred this lead
+              </p>
+            </div>
+
             {services.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -203,7 +211,6 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
               </div>
             )}
 
-            {/* Notes - Optional */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Brief Notes
@@ -219,7 +226,6 @@ export default function AddLeadModal({ onClose, onSuccess }: AddLeadModalProps) 
           </div>
         </form>
 
-        {/* Footer */}
         <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
             type="button"

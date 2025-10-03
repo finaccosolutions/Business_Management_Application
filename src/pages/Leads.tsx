@@ -188,12 +188,31 @@ export default function Leads() {
 
   // Tab scroll navigation functions
   const checkScrollButtons = () => {
-    if (tabsRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
-      setShowLeftArrow(scrollLeft > 0);
-      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 1);
-    }
+  if (tabsRef.current) {
+    const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
+    // Add small buffer (5px) to account for rounding errors
+    setShowLeftArrow(scrollLeft > 5);
+    setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 5);
+  }
+};
+
+useEffect(() => {
+  checkScrollButtons();
+  
+  // Check on mount, after render, and on resize
+  const timer = setTimeout(checkScrollButtons, 100);
+  window.addEventListener('resize', checkScrollButtons);
+  
+  return () => {
+    clearTimeout(timer);
+    window.removeEventListener('resize', checkScrollButtons);
   };
+}, []);
+
+// Also check after tabs render
+useEffect(() => {
+  checkScrollButtons();
+}, [activeTab, leads]);
 
   const scrollTabs = (direction: 'left' | 'right') => {
     if (tabsRef.current) {

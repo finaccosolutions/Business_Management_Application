@@ -6,7 +6,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  userCountry: string | null;
+  signUp: (email: string, password: string, fullName: string, country: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -17,31 +18,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userCountry, setUserCountry] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserCountry(session.user.id);
+      }
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserCountry(session.user.id);
+      }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    // Pass user data as metadata - the database trigger will handle profile creation
+  const fetchUserCountry = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('country')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      setUserCountry(data?.country || 'IN');
+    } catch (error) {
+      console.error('Error fetching user country:', error);
+      setUserCountry('IN'); // Default to India
+    }
+  };
+
+  const signUp = async (email: string, password: string, fullName: string, country: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
+          country: country,
         },
       },
     });
@@ -51,6 +75,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check if email confirmation is required
     if (data.user && !data.session) {
       throw new Error('Please check your email to confirm your account');
+    }
+
+    // Create profile with country
+    if (data.user) {
+      await supabase.from('profiles').insert({
+        id: data.user.id,
+        email: email,
+        full_name: fullName,
+        country: country,
+      });
     }
   };
 
@@ -66,10 +100,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    setUserCountry(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, userCountry, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,24 +1,23 @@
+// src/pages/Register.tsx
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Eye, EyeOff, Check, X } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, Check, X, Globe } from 'lucide-react';
+import { COUNTRY_LIST } from '../config/countryConfig';
 
 export default function Register({ onToggle }: { onToggle: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [country, setCountry] = useState('IN'); // Default to India
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
 
-  // Password strength validation
   const passwordRequirements = {
     minLength: password.length >= 6,
-    hasUpperCase: /[A-Z]/.test(password),
-    hasLowerCase: /[a-z]/.test(password),
-    hasNumber: /[0-9]/.test(password),
   };
 
   const passwordsMatch = password === confirmPassword && confirmPassword !== '';
@@ -29,7 +28,6 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
     setError('');
     setLoading(true);
 
-    // Validation
     if (!isPasswordValid) {
       setError('Password must be at least 6 characters');
       setLoading(false);
@@ -43,7 +41,7 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
     }
 
     try {
-      await signUp(email, password, fullName);
+      await signUp(email, password, fullName, country);
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
     } finally {
@@ -54,9 +52,9 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 transform transition-all duration-300 hover:shadow-2xl">
+        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl mb-4 transform transition-transform hover:scale-105">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl mb-4">
               <UserPlus className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900">Create Account</h1>
@@ -70,7 +68,6 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
               </div>
             )}
 
-            {/* Full Name */}
             <div className="space-y-2">
               <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
                 Full Name
@@ -81,12 +78,11 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="John Doe"
               />
             </div>
 
-            {/* Email */}
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email Address
@@ -97,12 +93,33 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="you@example.com"
               />
             </div>
 
-            {/* Password */}
+            {/* Country Selection */}
+            <div className="space-y-2">
+              <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                Country
+              </label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <select
+                  id="country"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+                >
+                  {COUNTRY_LIST.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
@@ -114,19 +131,18 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   placeholder="At least 6 characters"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
 
-              {/* Password Requirements */}
               {password && (
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center gap-2 text-xs">
@@ -143,7 +159,6 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
               )}
             </div>
 
-            {/* Confirm Password */}
             <div className="space-y-2">
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                 Confirm Password
@@ -155,7 +170,7 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full px-4 py-3 pr-12 bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 ${
+                  className={`w-full px-4 py-3 pr-12 bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 ${
                     confirmPassword && !passwordsMatch
                       ? 'border-red-300 focus:ring-red-500'
                       : 'border-gray-200 focus:ring-green-500'
@@ -165,13 +180,12 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
                   {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
 
-              {/* Password Match Indicator */}
               {confirmPassword && (
                 <div className="flex items-center gap-2 text-xs mt-1">
                   {passwordsMatch ? (
@@ -192,7 +206,7 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
             <button
               type="submit"
               disabled={loading || !isPasswordValid || !passwordsMatch}
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg font-medium hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg font-medium hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-200 hover:scale-[1.02]"
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </button>
@@ -203,7 +217,7 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
               Already have an account?{' '}
               <button
                 onClick={onToggle}
-                className="text-green-600 font-medium hover:text-green-700 transition-colors"
+                className="text-green-600 font-medium hover:text-green-700"
               >
                 Sign In
               </button>
