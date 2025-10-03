@@ -1,5 +1,5 @@
 // src/pages/Leads.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import {
@@ -11,15 +11,15 @@ import {
   Building2,
   Calendar,
   Tag,
-  Eye,
   Trash2,
   UserPlus,
-  Edit,
   Briefcase,
   CheckCircle,
   Clock,
   XCircle,
   PhoneCall,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import AddLeadModal from '../components/AddLeadModal';
 import ConvertLeadModal from '../components/ConvertLeadModal';
@@ -72,6 +72,11 @@ export default function Leads() {
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
+  // Tab scroll navigation states
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+
   useEffect(() => {
     if (user) {
       fetchLeads();
@@ -81,6 +86,12 @@ export default function Leads() {
   useEffect(() => {
     filterLeads();
   }, [leads, searchTerm, activeTab]);
+
+  useEffect(() => {
+    checkScrollButtons();
+    window.addEventListener('resize', checkScrollButtons);
+    return () => window.removeEventListener('resize', checkScrollButtons);
+  }, []);
 
   const fetchLeads = async () => {
     try {
@@ -175,6 +186,26 @@ export default function Leads() {
     return leads.filter((lead) => lead.status === status).length;
   };
 
+  // Tab scroll navigation functions
+  const checkScrollButtons = () => {
+    if (tabsRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
+      setShowLeftArrow(scrollLeft > 0);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 1);
+    }
+  };
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (tabsRef.current) {
+      const scrollAmount = 200;
+      tabsRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+      setTimeout(checkScrollButtons, 300);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -200,39 +231,84 @@ export default function Leads() {
         </button>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs with Arrow Navigation */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="flex overflow-x-auto">
-          {(Object.keys(statusConfig) as LeadStatus[]).map((status) => {
-            const config = statusConfig[status];
-            const Icon = config.icon;
-            const count = getStatusCount(status);
-            const isActive = activeTab === status;
+        <div className="relative">
+          {/* Left Arrow */}
+          {showLeftArrow && (
+            <button
+              onClick={() => scrollTabs('left')}
+              className="absolute left-0 top-0 bottom-0 z-10 bg-gradient-to-r from-white via-white to-transparent px-3 flex items-center hover:from-gray-50 transition-colors"
+              aria-label="Scroll tabs left"
+            >
+              <div className="bg-white rounded-full p-1 shadow-md hover:shadow-lg transition-shadow">
+                <ChevronLeft size={20} className="text-gray-600" />
+              </div>
+            </button>
+          )}
 
-            return (
-              <button
-                key={status}
-                onClick={() => setActiveTab(status)}
-                className={`flex items-center gap-3 px-6 py-4 border-b-2 transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Icon size={20} />
-                <span className="font-medium">{config.label}</span>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    isActive ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-700'
+          {/* Tabs Container */}
+          <div
+            ref={tabsRef}
+            onScroll={checkScrollButtons}
+            className="flex overflow-x-auto scrollbar-hide"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {(Object.keys(statusConfig) as LeadStatus[]).map((status) => {
+              const config = statusConfig[status];
+              const Icon = config.icon;
+              const count = getStatusCount(status);
+              const isActive = activeTab === status;
+
+              return (
+                <button
+                  key={status}
+                  onClick={() => setActiveTab(status)}
+                  className={`flex items-center gap-3 px-6 py-4 border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${
+                    isActive
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+                  <Icon size={20} />
+                  <span className="font-medium">{config.label}</span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      isActive ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right Arrow */}
+          {showRightArrow && (
+            <button
+              onClick={() => scrollTabs('right')}
+              className="absolute right-0 top-0 bottom-0 z-10 bg-gradient-to-l from-white via-white to-transparent px-3 flex items-center hover:from-gray-50 transition-colors"
+              aria-label="Scroll tabs right"
+            >
+              <div className="bg-white rounded-full p-1 shadow-md hover:shadow-lg transition-shadow">
+                <ChevronRight size={20} className="text-gray-600" />
+              </div>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Hide scrollbar globally for tabs */}
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
 
       {/* Search Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -321,10 +397,10 @@ export default function Leads() {
                     <span>{lead.phone}</span>
                   </div>
                 )}
-                {lead.referred_by && (
+                {lead.source && (
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <UserPlus size={16} className="flex-shrink-0" />
-                    <span className="truncate">Referred by: {lead.referred_by}</span>
+                    <Tag size={16} className="flex-shrink-0" />
+                    <span className="truncate">Source: {lead.source}</span>
                   </div>
                 )}
               </div>
