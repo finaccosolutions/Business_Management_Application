@@ -9,6 +9,8 @@ import Customers from './pages/Customers';
 import Works from './pages/Works';
 import Invoices from './pages/Invoices';
 import Reminders from './pages/Reminders';
+import Staff from './pages/Staff';
+import Reports from './pages/Reports';
 import Layout from './components/Layout';
 
 function AppContent() {
@@ -42,12 +44,16 @@ function AppContent() {
         return <Leads />;
       case 'customers':
         return <Customers />;
+      case 'staff':
+        return <Staff />;
       case 'works':
         return <Works />;
       case 'invoices':
         return <Invoices />;
       case 'reminders':
         return <Reminders />;
+      case 'reports':
+        return <Reports />;
       default:
         return <Dashboard />;
     }

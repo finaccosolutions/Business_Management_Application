@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, CreditCard as Edit2, Trash2, ClipboardList, Calendar, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, ClipboardList, Calendar, AlertCircle, CheckCircle, Clock, FileText, Eye } from 'lucide-react';
+import WorkDetails from '../components/WorkDetails';
 
 interface Work {
   id: string;
@@ -49,6 +50,10 @@ export default function Works() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingWork, setEditingWork] = useState<Work | null>(null);
+  const [selectedWork, setSelectedWork] = useState<string | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceWorkId, setInvoiceWorkId] = useState<string | null>(null);
+  const [invoiceAmount, setInvoiceAmount] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [formData, setFormData] = useState({
     customer_id: '',
@@ -147,6 +152,57 @@ export default function Works() {
       fetchData();
     } catch (error) {
       console.error('Error deleting work:', error);
+    }
+  };
+
+  const handleCreateInvoice = (work: Work) => {
+    setInvoiceWorkId(work.id);
+    setInvoiceAmount((work.actual_hours || 0) * 1000);
+    setShowInvoiceModal(true);
+  };
+
+  const handleInvoiceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invoiceWorkId) return;
+
+    try {
+      const work = works.find(w => w.id === invoiceWorkId);
+      if (!work) return;
+
+      const invoiceNumber = `INV-${Date.now()}`;
+      const amount = parseFloat(invoiceAmount);
+      const today = new Date();
+      const dueDate = new Date(today);
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      const { error } = await supabase.from('invoices').insert({
+        user_id: user!.id,
+        customer_id: work.customer_id,
+        work_id: invoiceWorkId,
+        invoice_number: invoiceNumber,
+        invoice_date: today.toISOString().split('T')[0],
+        due_date: dueDate.toISOString().split('T')[0],
+        subtotal: amount,
+        tax_amount: 0,
+        total_amount: amount,
+        status: 'draft',
+      });
+
+      if (error) throw error;
+
+      await supabase
+        .from('works')
+        .update({ billing_status: 'billed' })
+        .eq('id', invoiceWorkId);
+
+      alert('Invoice created successfully!');
+      setShowInvoiceModal(false);
+      setInvoiceWorkId(null);
+      setInvoiceAmount('');
+      fetchData();
+    } catch (error) {
+      console.error('Error creating invoice:', error);
+      alert('Failed to create invoice');
     }
   };
 
@@ -264,21 +320,41 @@ export default function Works() {
                 )}
               </div>
 
-              <div className="flex space-x-2 pt-4 border-t border-gray-100">
-                <button
-                  onClick={() => handleEdit(work)}
-                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  <span>Edit</span>
-                </button>
-                <button
-                  onClick={() => handleDelete(work.id)}
-                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
+              <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setSelectedWork(work.id)}
+                    className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Details</span>
+                  </button>
+                  <button
+                    onClick={() => handleEdit(work)}
+                    className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    <span>Edit</span>
+                  </button>
+                </div>
+                <div className="flex space-x-2">
+                  {work.status === 'completed' && (
+                    <button
+                      onClick={() => handleCreateInvoice(work)}
+                      className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-cyan-50 text-cyan-600 rounded-lg hover:bg-cyan-100 transition-colors text-sm"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Invoice</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(work.id)}
+                    className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -428,6 +504,66 @@ export default function Works() {
                   className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
                 >
                   {editingWork ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {selectedWork && (
+        <WorkDetails
+          workId={selectedWork}
+          onClose={() => setSelectedWork(null)}
+          onUpdate={fetchData}
+        />
+      )}
+
+      {showInvoiceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Create Invoice</h2>
+              <p className="text-gray-600 mt-1">Generate invoice for this completed work</p>
+            </div>
+
+            <form onSubmit={handleInvoiceSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Amount *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-gray-500">₹</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={invoiceAmount}
+                    onChange={(e) => setInvoiceAmount(e.target.value)}
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Invoice will be created in draft status. You can edit it in the Invoices section.
+                </p>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInvoiceModal(false);
+                    setInvoiceWorkId(null);
+                    setInvoiceAmount('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+                >
+                  Create Invoice
                 </button>
               </div>
             </form>

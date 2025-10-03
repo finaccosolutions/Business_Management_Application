@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, CreditCard as Edit2, Trash2, Users, Mail, Phone, Building, UserCheck } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Users, Mail, Phone, Building, UserCheck, Briefcase } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -29,6 +29,17 @@ export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
+  const [services, setServices] = useState<any[]>([]);
+  const [convertFormData, setConvertFormData] = useState({
+    createWork: false,
+    workTitle: '',
+    serviceId: '',
+    description: '',
+    priority: 'medium',
+    dueDate: '',
+  });
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -43,6 +54,7 @@ export default function Leads() {
   useEffect(() => {
     if (user) {
       fetchLeads();
+      fetchServices();
     }
   }, [user]);
 
@@ -59,6 +71,20 @@ export default function Leads() {
       console.error('Error fetching leads:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchServices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setServices(data || []);
+    } catch (error) {
+      console.error('Error fetching services:', error);
     }
   };
 
@@ -124,29 +150,68 @@ export default function Leads() {
     }
   };
 
-  const handleConvertToCustomer = async (lead: Lead) => {
-    if (!confirm('Convert this lead to a customer?')) return;
+  const handleConvertToCustomer = (lead: Lead) => {
+    setConvertingLead(lead);
+    setConvertFormData({
+      createWork: false,
+      workTitle: '',
+      serviceId: '',
+      description: '',
+      priority: 'medium',
+      dueDate: '',
+    });
+    setShowConvertModal(true);
+  };
+
+  const handleConvertSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!convertingLead) return;
 
     try {
-      const { error } = await supabase.from('customers').insert({
-        user_id: user!.id,
-        lead_id: lead.id,
-        name: lead.name,
-        email: lead.email,
-        phone: lead.phone,
-        company_name: lead.company_name,
-        notes: lead.notes,
-      });
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          user_id: user!.id,
+          lead_id: convertingLead.id,
+          name: convertingLead.name,
+          email: convertingLead.email,
+          phone: convertingLead.phone,
+          company_name: convertingLead.company_name,
+          notes: convertingLead.notes,
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (customerError) throw customerError;
 
-      await supabase.from('leads').update({ status: 'won' }).eq('id', lead.id);
+      if (convertFormData.createWork && customerData) {
+        const { error: workError } = await supabase.from('works').insert({
+          user_id: user!.id,
+          customer_id: customerData.id,
+          service_id: convertFormData.serviceId,
+          title: convertFormData.workTitle,
+          description: convertFormData.description || null,
+          status: 'pending',
+          priority: convertFormData.priority,
+          due_date: convertFormData.dueDate || null,
+        });
 
-      alert('Lead converted to customer successfully!');
+        if (workError) throw workError;
+      }
+
+      await supabase.from('leads').update({ status: 'won' }).eq('id', convertingLead.id);
+
+      alert(
+        convertFormData.createWork
+          ? 'Lead converted to customer and work created successfully!'
+          : 'Lead converted to customer successfully!'
+      );
+      setShowConvertModal(false);
+      setConvertingLead(null);
       fetchLeads();
     } catch (error) {
       console.error('Error converting lead:', error);
-      alert('Failed to convert lead to customer');
+      alert('Failed to convert lead');
     }
   };
 
@@ -400,6 +465,135 @@ export default function Leads() {
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   {editingLead ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showConvertModal && convertingLead && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Convert Lead to Customer</h2>
+              <p className="text-gray-600 mt-1">Converting: {convertingLead.name}</p>
+            </div>
+
+            <form onSubmit={handleConvertSubmit} className="p-6 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={convertFormData.createWork}
+                    onChange={(e) =>
+                      setConvertFormData({ ...convertFormData, createWork: e.target.checked })
+                    }
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div className="flex items-center space-x-2">
+                    <Briefcase className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium text-gray-900">Also create a work for this customer</span>
+                  </div>
+                </label>
+              </div>
+
+              {convertFormData.createWork && (
+                <div className="space-y-4 border-l-4 border-blue-500 pl-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Work Title *</label>
+                    <input
+                      type="text"
+                      required={convertFormData.createWork}
+                      value={convertFormData.workTitle}
+                      onChange={(e) =>
+                        setConvertFormData({ ...convertFormData, workTitle: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter work title"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Service *</label>
+                    <select
+                      required={convertFormData.createWork}
+                      value={convertFormData.serviceId}
+                      onChange={(e) =>
+                        setConvertFormData({ ...convertFormData, serviceId: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select a service</option>
+                      {services.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                      <select
+                        value={convertFormData.priority}
+                        onChange={(e) =>
+                          setConvertFormData({ ...convertFormData, priority: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                      <input
+                        type="date"
+                        value={convertFormData.dueDate}
+                        onChange={(e) =>
+                          setConvertFormData({ ...convertFormData, dueDate: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea
+                      value={convertFormData.description}
+                      onChange={(e) =>
+                        setConvertFormData({ ...convertFormData, description: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={3}
+                      placeholder="Work description"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConvertModal(false);
+                    setConvertingLead(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Convert {convertFormData.createWork && '& Create Work'}
                 </button>
               </div>
             </form>

@@ -11,6 +11,8 @@ import {
   LogOut,
   Menu,
   X,
+  BarChart3,
+  UsersRound,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -23,9 +25,11 @@ const navigation = [
   { name: 'Dashboard', icon: LayoutDashboard, id: 'dashboard' },
   { name: 'Leads', icon: Users, id: 'leads' },
   { name: 'Customers', icon: UserCog, id: 'customers' },
+  { name: 'Staff', icon: UsersRound, id: 'staff' },
   { name: 'Services', icon: Briefcase, id: 'services' },
   { name: 'Works', icon: ClipboardList, id: 'works' },
   { name: 'Invoices', icon: FileText, id: 'invoices' },
+  { name: 'Reports', icon: BarChart3, id: 'reports' },
   { name: 'Reminders', icon: Bell, id: 'reminders' },
 ];
 
