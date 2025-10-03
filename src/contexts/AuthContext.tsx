@@ -26,34 +26,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      (async () => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      })();
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    // Pass user data as metadata - the database trigger will handle profile creation
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
     });
 
     if (error) throw error;
 
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          email: data.user.email!,
-          full_name: fullName,
-        });
-
-      if (profileError) throw profileError;
+    // Check if email confirmation is required
+    if (data.user && !data.session) {
+      throw new Error('Please check your email to confirm your account');
     }
   };
 

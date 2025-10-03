@@ -1,236 +1,178 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+// src/pages/Leads.tsx
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, CreditCard as Edit2, Trash2, Users, Mail, Phone, Building, UserCheck, Briefcase } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import {
+  Users,
+  Plus,
+  Search,
+  Mail,
+  Phone,
+  Building2,
+  Calendar,
+  Tag,
+  Eye,
+  Trash2,
+  UserPlus,
+  Edit,
+  Briefcase,
+  CheckCircle,
+  Clock,
+  XCircle,
+  PhoneCall,
+} from 'lucide-react';
+import AddLeadModal from '../components/AddLeadModal';
+import ConvertLeadModal from '../components/ConvertLeadModal';
 
 interface Lead {
   id: string;
   name: string;
-  email: string | null;
-  phone: string | null;
-  company_name: string | null;
+  email: string;
+  phone: string;
+  company_name: string;
   status: string;
-  source: string | null;
-  notes: string | null;
+  source: string;
+  notes: string;
+  image_url: string;
+  referred_by: string;
+  contact_person: string;
   created_at: string;
+  lead_services?: { service_id: string; services: { name: string } }[];
 }
 
-const statusColors = {
-  new: 'bg-blue-100 text-blue-700',
-  contacted: 'bg-yellow-100 text-yellow-700',
-  qualified: 'bg-green-100 text-green-700',
-  proposal: 'bg-orange-100 text-orange-700',
-  won: 'bg-green-100 text-green-700',
-  lost: 'bg-red-100 text-red-700',
+type LeadStatus = 'all' | 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'lost';
+
+const statusConfig = {
+  all: { label: 'All Leads', icon: Users, color: 'gray' },
+  new: { label: 'New', icon: Tag, color: 'blue' },
+  contacted: { label: 'Contacted', icon: PhoneCall, color: 'cyan' },
+  qualified: { label: 'Qualified', icon: CheckCircle, color: 'green' },
+  proposal: { label: 'Proposal', icon: Briefcase, color: 'yellow' },
+  negotiation: { label: 'Negotiation', icon: Clock, color: 'orange' },
+  lost: { label: 'Lost', icon: XCircle, color: 'red' },
 };
+
+const statusOptions = [
+  { value: 'new', label: 'New', color: 'bg-blue-100 text-blue-700' },
+  { value: 'contacted', label: 'Contacted', color: 'bg-cyan-100 text-cyan-700' },
+  { value: 'qualified', label: 'Qualified', color: 'bg-green-100 text-green-700' },
+  { value: 'proposal', label: 'Proposal', color: 'bg-yellow-100 text-yellow-700' },
+  { value: 'negotiation', label: 'Negotiation', color: 'bg-orange-100 text-orange-700' },
+  { value: 'lost', label: 'Lost', color: 'bg-red-100 text-red-700' },
+];
 
 export default function Leads() {
   const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<LeadStatus>('all');
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
-  const [services, setServices] = useState<any[]>([]);
-  const [convertFormData, setConvertFormData] = useState({
-    createWork: false,
-    workTitle: '',
-    serviceId: '',
-    description: '',
-    priority: 'medium',
-    dueDate: '',
-  });
-  const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company_name: '',
-    status: 'new',
-    source: '',
-    notes: '',
-  });
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchLeads();
-      fetchServices();
     }
   }, [user]);
+
+  useEffect(() => {
+    filterLeads();
+  }, [leads, searchTerm, activeTab]);
 
   const fetchLeads = async () => {
     try {
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select(`
+          *,
+          lead_services (
+            service_id,
+            services (
+              name
+            )
+          )
+        `)
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setLeads(data || []);
-    } catch (error) {
-      console.error('Error fetching leads:', error);
+    } catch (error: any) {
+      console.error('Error fetching leads:', error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchServices = async () => {
+  const filterLeads = () => {
+    let filtered = leads;
+
+    // Filter by tab
+    if (activeTab !== 'all') {
+      filtered = filtered.filter((lead) => lead.status === activeTab);
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (lead) =>
+          lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lead.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lead.phone?.includes(searchTerm)
+      );
+    }
+
+    setFilteredLeads(filtered);
+  };
+
+  const updateLeadStatus = async (leadId: string, newStatus: string) => {
     try {
-      const { data, error } = await supabase
-        .from('services')
-        .select('id, name')
-        .order('name');
+      const { error } = await supabase
+        .from('leads')
+        .update({ status: newStatus })
+        .eq('id', leadId);
 
       if (error) throw error;
-      setServices(data || []);
-    } catch (error) {
-      console.error('Error fetching services:', error);
+
+      // Update local state
+      setLeads(
+        leads.map((lead) =>
+          lead.id === leadId ? { ...lead, status: newStatus } : lead
+        )
+      );
+    } catch (error: any) {
+      console.error('Error updating lead status:', error.message);
+      alert('Failed to update lead status');
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      const leadData = {
-        user_id: user!.id,
-        name: formData.name,
-        email: formData.email || null,
-        phone: formData.phone || null,
-        company_name: formData.company_name || null,
-        status: formData.status,
-        source: formData.source || null,
-        notes: formData.notes || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (editingLead) {
-        const { error } = await supabase.from('leads').update(leadData).eq('id', editingLead.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('leads').insert(leadData);
-
-        if (error) throw error;
-      }
-
-      setShowModal(false);
-      setEditingLead(null);
-      resetForm();
-      fetchLeads();
-    } catch (error) {
-      console.error('Error saving lead:', error);
-    }
-  };
-
-  const handleEdit = (lead: Lead) => {
-    setEditingLead(lead);
-    setFormData({
-      name: lead.name,
-      email: lead.email || '',
-      phone: lead.phone || '',
-      company_name: lead.company_name || '',
-      status: lead.status,
-      source: lead.source || '',
-      notes: lead.notes || '',
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id: string) => {
+  const deleteLead = async (leadId: string) => {
     if (!confirm('Are you sure you want to delete this lead?')) return;
 
     try {
-      const { error } = await supabase.from('leads').delete().eq('id', id);
+      const { error } = await supabase.from('leads').delete().eq('id', leadId);
 
       if (error) throw error;
-      fetchLeads();
-    } catch (error) {
-      console.error('Error deleting lead:', error);
+
+      setLeads(leads.filter((lead) => lead.id !== leadId));
+    } catch (error: any) {
+      console.error('Error deleting lead:', error.message);
+      alert('Failed to delete lead');
     }
   };
 
-  const handleConvertToCustomer = (lead: Lead) => {
-    setConvertingLead(lead);
-    setConvertFormData({
-      createWork: false,
-      workTitle: '',
-      serviceId: '',
-      description: '',
-      priority: 'medium',
-      dueDate: '',
-    });
-    setShowConvertModal(true);
+  const getStatusBadgeColor = (status: string) => {
+    const option = statusOptions.find((opt) => opt.value === status);
+    return option?.color || 'bg-gray-100 text-gray-700';
   };
 
-  const handleConvertSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!convertingLead) return;
-
-    try {
-      const { data: customerData, error: customerError } = await supabase
-        .from('customers')
-        .insert({
-          user_id: user!.id,
-          lead_id: convertingLead.id,
-          name: convertingLead.name,
-          email: convertingLead.email,
-          phone: convertingLead.phone,
-          company_name: convertingLead.company_name,
-          notes: convertingLead.notes,
-        })
-        .select()
-        .single();
-
-      if (customerError) throw customerError;
-
-      if (convertFormData.createWork && customerData) {
-        const { error: workError } = await supabase.from('works').insert({
-          user_id: user!.id,
-          customer_id: customerData.id,
-          service_id: convertFormData.serviceId,
-          title: convertFormData.workTitle,
-          description: convertFormData.description || null,
-          status: 'pending',
-          priority: convertFormData.priority,
-          due_date: convertFormData.dueDate || null,
-        });
-
-        if (workError) throw workError;
-      }
-
-      await supabase.from('leads').update({ status: 'won' }).eq('id', convertingLead.id);
-
-      alert(
-        convertFormData.createWork
-          ? 'Lead converted to customer and work created successfully!'
-          : 'Lead converted to customer successfully!'
-      );
-      setShowConvertModal(false);
-      setConvertingLead(null);
-      fetchLeads();
-    } catch (error) {
-      console.error('Error converting lead:', error);
-      alert('Failed to convert lead');
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      company_name: '',
-      status: 'new',
-      source: '',
-      notes: '',
-    });
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingLead(null);
-    resetForm();
+  const getStatusCount = (status: LeadStatus) => {
+    if (status === 'all') return leads.length;
+    return leads.filter((lead) => lead.status === status).length;
   };
 
   if (loading) {
@@ -243,362 +185,240 @@ export default function Leads() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Leads</h1>
-          <p className="text-gray-600 mt-1">Manage your potential customers and sales pipeline</p>
+          <p className="text-gray-600 mt-1">Manage your potential customers</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
         >
-          <Plus className="w-5 h-5" />
-          <span>Add Lead</span>
+          <Plus size={20} />
+          Add New Lead
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {leads.map((lead) => (
-          <div
-            key={lead.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.01]"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Users className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{lead.name}</h3>
-                  <span
-                    className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${
-                      statusColors[lead.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {lead.status}
-                  </span>
-                </div>
-              </div>
-            </div>
+      {/* Tabs */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="flex overflow-x-auto">
+          {(Object.keys(statusConfig) as LeadStatus[]).map((status) => {
+            const config = statusConfig[status];
+            const Icon = config.icon;
+            const count = getStatusCount(status);
+            const isActive = activeTab === status;
 
-            <div className="space-y-2 mb-4">
-              {lead.company_name && (
-                <div className="flex items-center text-sm text-gray-600">
-                  <Building className="w-4 h-4 mr-2 text-gray-400" />
-                  <span>{lead.company_name}</span>
-                </div>
-              )}
-              {lead.email && (
-                <div className="flex items-center text-sm text-gray-600">
-                  <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                  <span>{lead.email}</span>
-                </div>
-              )}
-              {lead.phone && (
-                <div className="flex items-center text-sm text-gray-600">
-                  <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                  <span>{lead.phone}</span>
-                </div>
-              )}
-              {lead.source && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Source:</span> {lead.source}
-                </div>
-              )}
-            </div>
-
-            {lead.notes && (
-              <p className="text-sm text-gray-600 mb-4 p-3 bg-gray-50 rounded-lg line-clamp-2">
-                {lead.notes}
-              </p>
-            )}
-
-            <div className="flex space-x-2 pt-4 border-t border-gray-100">
+            return (
               <button
-                onClick={() => handleConvertToCustomer(lead)}
-                className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm"
+                key={status}
+                onClick={() => setActiveTab(status)}
+                className={`flex items-center gap-3 px-6 py-4 border-b-2 transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'border-blue-600 bg-blue-50 text-blue-700'
+                    : 'border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                }`}
               >
-                <UserCheck className="w-4 h-4" />
-                <span>Convert</span>
+                <Icon size={20} />
+                <span className="font-medium">{config.label}</span>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                    isActive ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  {count}
+                </span>
               </button>
-              <button
-                onClick={() => handleEdit(lead)}
-                className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
-              >
-                <Edit2 className="w-4 h-4" />
-                <span>Edit</span>
-              </button>
-              <button
-                onClick={() => handleDelete(lead.id)}
-                className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Delete</span>
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {leads.length === 0 && (
-          <div className="col-span-full text-center py-12">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
-            <p className="text-gray-600 mb-4">Start building your pipeline by adding leads</p>
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add Lead</span>
-            </button>
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {editingLead ? 'Edit Lead' : 'Add New Lead'}
-              </h2>
+      {/* Search Bar */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="relative">
+          <Search
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+            size={20}
+          />
+          <input
+            type="text"
+            placeholder="Search leads by name, email, company, or phone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      {/* Leads Grid */}
+      {filteredLeads.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <Users size={48} className="mx-auto text-gray-400 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No leads found</h3>
+          <p className="text-gray-600 mb-6">
+            {searchTerm
+              ? 'Try adjusting your search criteria'
+              : 'Get started by adding your first lead'}
+          </p>
+          {!searchTerm && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={20} />
+              Add Your First Lead
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredLeads.map((lead) => (
+            <div
+              key={lead.id}
+              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all"
+            >
+              {/* Lead Header */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 overflow-hidden">
+                  {lead.image_url ? (
+                    <img
+                      src={lead.image_url}
+                      alt={lead.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    lead.name?.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 truncate">{lead.name}</h3>
+                  {lead.company_name && (
+                    <p className="text-sm text-gray-600 truncate flex items-center gap-1">
+                      <Building2 size={14} />
+                      {lead.company_name}
+                    </p>
+                  )}
+                  {lead.contact_person && lead.contact_person !== lead.name && (
+                    <p className="text-xs text-gray-500 truncate">
+                      Contact: {lead.contact_person}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Lead Info */}
+              <div className="space-y-2 mb-4">
+                {lead.email && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Mail size={16} className="flex-shrink-0" />
+                    <span className="truncate">{lead.email}</span>
+                  </div>
+                )}
+                {lead.phone && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Phone size={16} className="flex-shrink-0" />
+                    <span>{lead.phone}</span>
+                  </div>
+                )}
+                {lead.referred_by && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <UserPlus size={16} className="flex-shrink-0" />
+                    <span className="truncate">Referred by: {lead.referred_by}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Services */}
+              {lead.lead_services && lead.lead_services.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-500 mb-2">
+                    Interested Services:
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {lead.lead_services.map((ls: any, idx: number) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md"
+                      >
+                        {ls.services?.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Status Dropdown */}
+              <div className="mb-4">
+                <select
+                  value={lead.status}
+                  onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium border-0 cursor-pointer ${getStatusBadgeColor(
+                    lead.status
+                  )}`}
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedLead(lead);
+                    setShowConvertModal(true);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                >
+                  <UserPlus size={16} />
+                  Convert
+                </button>
+                <button
+                  onClick={() => deleteLead(lead.id)}
+                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+
+              {/* Created Date */}
+              <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
+                <Calendar size={12} />
+                {new Date(lead.created_at).toLocaleDateString()}
+              </div>
             </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Lead name"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="email@example.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="+91 1234567890"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Company Name</label>
-                <input
-                  type="text"
-                  value={formData.company_name}
-                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Company name"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="new">New</option>
-                    <option value="contacted">Contacted</option>
-                    <option value="qualified">Qualified</option>
-                    <option value="proposal">Proposal</option>
-                    <option value="won">Won</option>
-                    <option value="lost">Lost</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Source</label>
-                  <input
-                    type="text"
-                    value={formData.source}
-                    onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Website, Referral"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Additional notes about the lead"
-                />
-              </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  {editingLead ? 'Update' : 'Create'}
-                </button>
-              </div>
-            </form>
-          </div>
+          ))}
         </div>
       )}
 
-      {showConvertModal && convertingLead && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">Convert Lead to Customer</h2>
-              <p className="text-gray-600 mt-1">Converting: {convertingLead.name}</p>
-            </div>
+      {/* Modals */}
+      {showAddModal && (
+        <AddLeadModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            fetchLeads();
+          }}
+        />
+      )}
 
-            <form onSubmit={handleConvertSubmit} className="p-6 space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={convertFormData.createWork}
-                    onChange={(e) =>
-                      setConvertFormData({ ...convertFormData, createWork: e.target.checked })
-                    }
-                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <div className="flex items-center space-x-2">
-                    <Briefcase className="w-5 h-5 text-blue-600" />
-                    <span className="font-medium text-gray-900">Also create a work for this customer</span>
-                  </div>
-                </label>
-              </div>
-
-              {convertFormData.createWork && (
-                <div className="space-y-4 border-l-4 border-blue-500 pl-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Work Title *</label>
-                    <input
-                      type="text"
-                      required={convertFormData.createWork}
-                      value={convertFormData.workTitle}
-                      onChange={(e) =>
-                        setConvertFormData({ ...convertFormData, workTitle: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter work title"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Service *</label>
-                    <select
-                      required={convertFormData.createWork}
-                      value={convertFormData.serviceId}
-                      onChange={(e) =>
-                        setConvertFormData({ ...convertFormData, serviceId: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">Select a service</option>
-                      {services.map((service) => (
-                        <option key={service.id} value={service.id}>
-                          {service.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                      <select
-                        value={convertFormData.priority}
-                        onChange={(e) =>
-                          setConvertFormData({ ...convertFormData, priority: e.target.value })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="urgent">Urgent</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
-                      <input
-                        type="date"
-                        value={convertFormData.dueDate}
-                        onChange={(e) =>
-                          setConvertFormData({ ...convertFormData, dueDate: e.target.value })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea
-                      value={convertFormData.description}
-                      onChange={(e) =>
-                        setConvertFormData({ ...convertFormData, description: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={3}
-                      placeholder="Work description"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowConvertModal(false);
-                    setConvertingLead(null);
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Convert {convertFormData.createWork && '& Create Work'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {showConvertModal && selectedLead && (
+        <ConvertLeadModal
+          lead={selectedLead}
+          onClose={() => {
+            setShowConvertModal(false);
+            setSelectedLead(null);
+          }}
+          onSuccess={() => {
+            setShowConvertModal(false);
+            setSelectedLead(null);
+            fetchLeads();
+          }}
+        />
       )}
     </div>
   );
