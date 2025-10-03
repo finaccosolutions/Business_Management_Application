@@ -1,5 +1,7 @@
+// src/components/Layout.tsx (Updated)
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import TopNavBar from './TopNavBar';
 import {
   LayoutDashboard,
   Users,
@@ -46,28 +48,34 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-30 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">WorkFlow Pro</h1>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-30 px-4 py-3 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-white">WorkFlow Pro</h1>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-lg hover:bg-slate-700 transition-colors"
         >
-          {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          {sidebarOpen ? (
+            <X className="w-6 h-6 text-white" />
+          ) : (
+            <Menu className="w-6 h-6 text-white" />
+          )}
         </button>
       </div>
 
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-20 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-20 w-64 bg-slate-800 dark:bg-slate-900 border-r border-slate-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="h-full flex flex-col">
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-green-600">
+          <div className="p-6 border-b border-slate-700">
+            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-green-400">
               WorkFlow Pro
             </h1>
-            <p className="text-sm text-gray-600 mt-1">Business Management</p>
+            <p className="text-sm text-slate-400 mt-1">Business Management</p>
           </div>
 
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -84,20 +92,20 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     isActive
                       ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md transform scale-[1.02]'
-                      : 'text-gray-700 hover:bg-gray-100 hover:translate-x-1'
+                      : 'text-slate-300 hover:bg-slate-700 hover:translate-x-1'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? '' : 'text-gray-500'}`} />
+                  <Icon className={`w-5 h-5 ${isActive ? '' : 'text-slate-400'}`} />
                   <span className="font-medium">{item.name}</span>
                 </button>
               );
             })}
           </nav>
 
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-slate-700">
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-all duration-200 hover:translate-x-1"
+              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-900/20 transition-all duration-200 hover:translate-x-1"
             >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">Sign Out</span>
@@ -113,7 +121,11 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
         />
       )}
 
-      <main className="lg:pl-64 pt-16 lg:pt-0">
+      {/* Top Navigation Bar */}
+      <TopNavBar />
+
+      {/* Main Content */}
+      <main className="lg:pl-64 pt-16 min-h-screen">
         <div className="p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>
