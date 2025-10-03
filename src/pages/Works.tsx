@@ -1,7 +1,22 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, CreditCard as Edit2, Trash2, ClipboardList, Calendar, AlertCircle, CheckCircle, Clock, FileText, Eye } from 'lucide-react';
+import { 
+  Plus, 
+  Edit2, 
+  Trash2, 
+  ClipboardList, 
+  Calendar, 
+  AlertCircle, 
+  CheckCircle, 
+  Clock, 
+  Eye,
+  Repeat,
+  Briefcase,
+  Filter,
+  DollarSign,
+  TrendingUp
+} from 'lucide-react';
 import WorkDetails from '../components/WorkDetails';
 
 interface Work {
@@ -15,8 +30,15 @@ interface Work {
   priority: string;
   due_date: string | null;
   created_at: string;
+  is_recurring_instance: boolean;
+  parent_service_id: string | null;
+  instance_date: string | null;
+  billing_status: string;
+  billing_amount: number | null;
+  estimated_hours: number | null;
+  actual_duration_hours: number | null;
   customers: { name: string };
-  services: { name: string };
+  services: { name: string; is_recurring: boolean };
   staff_members: { name: string } | null;
 }
 
@@ -28,6 +50,10 @@ interface Customer {
 interface Service {
   id: string;
   name: string;
+  is_recurring: boolean;
+  recurrence_type: string | null;
+  recurrence_day: number | null;
+  default_price: number | null;
 }
 
 interface StaffMember {
@@ -50,6 +76,13 @@ const priorityColors = {
   urgent: 'bg-red-100 text-red-700',
 };
 
+const billingStatusColors = {
+  not_billed: 'bg-gray-100 text-gray-700',
+  billed: 'bg-green-100 text-green-700',
+  paid: 'bg-emerald-100 text-emerald-700',
+  overdue: 'bg-red-100 text-red-700',
+};
+
 export default function Works() {
   const { user } = useAuth();
   const [works, setWorks] = useState<Work[]>([]);
@@ -61,6 +94,9 @@ export default function Works() {
   const [editingWork, setEditingWork] = useState<Work | null>(null);
   const [selectedWork, setSelectedWork] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterBillingStatus, setFilterBillingStatus] = useState('all');
+  const [groupByService, setGroupByService] = useState(false);
+  const [showRecurringOnly, setShowRecurringOnly] = useState(false);
   const [formData, setFormData] = useState({
     customer_id: '',
     service_id: '',
@@ -71,6 +107,8 @@ export default function Works() {
     priority: 'medium',
     due_date: '',
     estimated_hours: '',
+    billing_amount: '',
+    notes: '',
   });
 
   useEffect(() => {
@@ -84,10 +122,10 @@ export default function Works() {
       const [worksResult, customersResult, servicesResult, staffResult] = await Promise.all([
         supabase
           .from('works')
-          .select('*, customers(name), services(name), staff_members(name)')
+          .select('*, customers(name), services(name, is_recurring), staff_members(name)')
           .order('created_at', { ascending: false }),
         supabase.from('customers').select('id, name').order('name'),
-        supabase.from('services').select('id, name').order('name'),
+        supabase.from('services').select('id, name, is_recurring, recurrence_type, recurrence_day, default_price').order('name'),
         supabase.from('staff_members').select('id, name, role').eq('is_active', true).order('name'),
       ]);
 
@@ -107,10 +145,47 @@ export default function Works() {
     }
   };
 
+  const calculateDueDate = (serviceId: string): string => {
+    const service = services.find(s => s.id === serviceId);
+    if (!service || !service.is_recurring || !service.recurrence_day) {
+      return '';
+    }
+
+    const today = new Date();
+    let dueDate: Date;
+
+    switch (service.recurrence_type) {
+      case 'monthly':
+        const currentMonth = new Date(today.getFullYear(), today.getMonth(), service.recurrence_day);
+        dueDate = currentMonth >= today 
+          ? currentMonth 
+          : new Date(today.getFullYear(), today.getMonth() + 1, service.recurrence_day);
+        break;
+      case 'quarterly':
+        const currentQuarter = new Date(today.getFullYear(), today.getMonth(), service.recurrence_day);
+        dueDate = currentQuarter >= today 
+          ? currentQuarter 
+          : new Date(today.getFullYear(), today.getMonth() + 3, service.recurrence_day);
+        break;
+      case 'yearly':
+        const currentYear = new Date(today.getFullYear(), 0, service.recurrence_day);
+        dueDate = currentYear >= today 
+          ? currentYear 
+          : new Date(today.getFullYear() + 1, 0, service.recurrence_day);
+        break;
+      default:
+        dueDate = today;
+    }
+
+    return dueDate.toISOString().split('T')[0];
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
+      const selectedService = services.find(s => s.id === formData.service_id);
+      
       const workData = {
         user_id: user!.id,
         customer_id: formData.customer_id,
@@ -122,6 +197,12 @@ export default function Works() {
         priority: formData.priority,
         due_date: formData.due_date || null,
         estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
+        billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : (selectedService?.default_price || null),
+        billing_status: 'not_billed',
+        is_recurring_instance: selectedService?.is_recurring || false,
+        parent_service_id: selectedService?.is_recurring ? formData.service_id : null,
+        instance_date: selectedService?.is_recurring ? new Date().toISOString().split('T')[0] : null,
+        notes: formData.notes || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -154,7 +235,9 @@ export default function Works() {
       status: work.status,
       priority: work.priority,
       due_date: work.due_date || '',
-      estimated_hours: '',
+      estimated_hours: work.estimated_hours?.toString() || '',
+      billing_amount: work.billing_amount?.toString() || '',
+      notes: '',
     });
     setShowModal(true);
   };
@@ -182,6 +265,8 @@ export default function Works() {
       priority: 'medium',
       due_date: '',
       estimated_hours: '',
+      billing_amount: '',
+      notes: '',
     });
   };
 
@@ -191,8 +276,44 @@ export default function Works() {
     resetForm();
   };
 
-  const filteredWorks =
-    filterStatus === 'all' ? works : works.filter((work) => work.status === filterStatus);
+  // Filter works
+  let filteredWorks = works;
+  
+  if (filterStatus !== 'all') {
+    filteredWorks = filteredWorks.filter(work => work.status === filterStatus);
+  }
+  
+  if (filterBillingStatus !== 'all') {
+    filteredWorks = filteredWorks.filter(work => work.billing_status === filterBillingStatus);
+  }
+  
+  if (showRecurringOnly) {
+    filteredWorks = filteredWorks.filter(work => work.is_recurring_instance);
+  }
+
+  // Group works by service
+  const groupedWorks = groupByService
+    ? filteredWorks.reduce((acc, work) => {
+        const serviceName = work.services.name;
+        if (!acc[serviceName]) {
+          acc[serviceName] = [];
+        }
+        acc[serviceName].push(work);
+        return acc;
+      }, {} as Record<string, Work[]>)
+    : { 'All Works': filteredWorks };
+
+  // Calculate statistics
+  const stats = {
+    total: works.length,
+    pending: works.filter(w => w.status === 'pending').length,
+    inProgress: works.filter(w => w.status === 'in_progress').length,
+    completed: works.filter(w => w.status === 'completed').length,
+    overdue: works.filter(w => w.status === 'overdue').length,
+    recurring: works.filter(w => w.is_recurring_instance).length,
+    totalBilled: works.reduce((sum, w) => sum + (w.billing_status !== 'not_billed' ? (w.billing_amount || 0) : 0), 0),
+    totalPending: works.reduce((sum, w) => sum + (w.billing_status === 'not_billed' ? (w.billing_amount || 0) : 0), 0),
+  };
 
   if (loading) {
     return (
@@ -204,9 +325,10 @@ export default function Works() {
 
   return (
     <div className="space-y-6">
+      {/* Header with Stats */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Works</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Works Management</h1>
           <p className="text-gray-600 mt-1">Track and manage all your work assignments</p>
         </div>
         <button
@@ -218,133 +340,298 @@ export default function Works() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {['all', 'pending', 'in_progress', 'completed', 'overdue'].map((status) => (
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <ClipboardList className="w-5 h-5 text-blue-600" />
+            <p className="text-xs font-medium text-gray-600">Total Works</p>
+          </div>
+          <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-5 h-5 text-yellow-600" />
+            <p className="text-xs font-medium text-gray-600">Pending</p>
+          </div>
+          <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <p className="text-xs font-medium text-gray-600">In Progress</p>
+          </div>
+          <p className="text-2xl font-bold text-blue-600">{stats.inProgress}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <p className="text-xs font-medium text-gray-600">Completed</p>
+          </div>
+          <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <p className="text-xs font-medium text-gray-600">Overdue</p>
+          </div>
+          <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Repeat className="w-5 h-5 text-purple-600" />
+            <p className="text-xs font-medium text-gray-600">Recurring</p>
+          </div>
+          <p className="text-2xl font-bold text-purple-600">{stats.recurring}</p>
+        </div>
+      </div>
+
+      {/* Billing Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Total Billed Amount</p>
+              <p className="text-3xl font-bold text-green-600">₹{stats.totalBilled.toLocaleString('en-IN')}</p>
+            </div>
+            <DollarSign className="w-12 h-12 text-green-600 opacity-20" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Pending Billing</p>
+              <p className="text-3xl font-bold text-orange-600">₹{stats.totalPending.toLocaleString('en-IN')}</p>
+            </div>
+            <AlertCircle className="w-12 h-12 text-orange-600 opacity-20" />
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="w-5 h-5 text-gray-600" />
+          <h3 className="font-semibold text-gray-900">Filters & Views</h3>
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          {/* Status Filters */}
+          {['all', 'pending', 'in_progress', 'completed', 'overdue'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                filterStatus === status
+                  ? 'bg-orange-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {status === 'all' ? 'All Status' : status.replace('_', ' ').toUpperCase()}
+            </button>
+          ))}
+
+          <div className="w-px h-8 bg-gray-300 mx-2"></div>
+
+          {/* Billing Status Filters */}
+          {['all', 'not_billed', 'billed', 'paid'].map((billing) => (
+            <button
+              key={billing}
+              onClick={() => setFilterBillingStatus(billing)}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                filterBillingStatus === billing
+                  ? 'bg-green-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {billing === 'all' ? 'All Billing' : billing.replace('_', ' ').toUpperCase()}
+            </button>
+          ))}
+
+          <div className="w-px h-8 bg-gray-300 mx-2"></div>
+
+          {/* View Options */}
           <button
-            key={status}
-            onClick={() => setFilterStatus(status)}
-            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-              filterStatus === status
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+            onClick={() => setGroupByService(!groupByService)}
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+              groupByService
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            {status.replace('_', ' ').toUpperCase()}
+            {groupByService ? 'Ungroup' : 'Group by Service'}
           </button>
+
+          <button
+            onClick={() => setShowRecurringOnly(!showRecurringOnly)}
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${
+              showRecurringOnly
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Repeat className="w-4 h-4" />
+            {showRecurringOnly ? 'Show All' : 'Recurring Only'}
+          </button>
+        </div>
+      </div>
+
+      {/* Works Display */}
+      <div className="space-y-8">
+        {Object.entries(groupedWorks).map(([serviceName, serviceWorks]) => (
+          <div key={serviceName} className="space-y-4">
+            {groupByService && (
+              <div className="flex items-center gap-3 pb-3 border-b-2 border-gray-200">
+                <Briefcase className="w-6 h-6 text-orange-600" />
+                <h3 className="text-xl font-bold text-gray-900">{serviceName}</h3>
+                <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
+                  {serviceWorks.length} {serviceWorks.length === 1 ? 'work' : 'works'}
+                </span>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {serviceWorks.map((work) => {
+                const StatusIcon = statusConfig[work.status as keyof typeof statusConfig]?.icon || Clock;
+                return (
+                  <div
+                    key={work.id}
+                    className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.02] relative"
+                  >
+                    {/* Recurring Badge */}
+                    {work.is_recurring_instance && (
+                      <div className="absolute top-3 right-3">
+                        <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-700 font-medium">
+                          <Repeat className="w-3 h-3 mr-1" />
+                          Recurring
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 pr-2">
+                        <h3 className="font-semibold text-gray-900 mb-2">{work.title}</h3>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          <span
+                            className={`inline-flex items-center px-2 py-1 text-xs rounded-full ${
+                              statusConfig[work.status as keyof typeof statusConfig]?.color || 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {work.status.replace('_', ' ')}
+                          </span>
+                          <span
+                            className={`inline-block px-2 py-1 text-xs rounded-full ${
+                              priorityColors[work.priority as keyof typeof priorityColors] || 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {work.priority}
+                          </span>
+                          <span
+                            className={`inline-block px-2 py-1 text-xs rounded-full ${
+                              billingStatusColors[work.billing_status as keyof typeof billingStatusColors] || 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {work.billing_status.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {work.description && (
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{work.description}</p>
+                    )}
+
+                    <div className="space-y-2 mb-4 text-sm">
+                      <div className="flex items-center text-gray-700">
+                        <span className="font-medium mr-2">Customer:</span>
+                        <span className="truncate">{work.customers.name}</span>
+                      </div>
+                      {!groupByService && (
+                        <div className="flex items-center text-gray-700">
+                          <span className="font-medium mr-2">Service:</span>
+                          <span className="truncate">{work.services.name}</span>
+                        </div>
+                      )}
+                      {work.staff_members && (
+                        <div className="flex items-center text-gray-700">
+                          <span className="font-medium mr-2">Assigned:</span>
+                          <span className="truncate">{work.staff_members.name}</span>
+                        </div>
+                      )}
+                      {work.due_date && (
+                        <div className="flex items-center text-gray-700">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          <span>Due: {new Date(work.due_date).toLocaleDateString('en-IN')}</span>
+                        </div>
+                      )}
+                      {work.billing_amount && (
+                        <div className="flex items-center text-gray-700">
+                          <DollarSign className="w-4 h-4 mr-2" />
+                          <span className="font-semibold">₹{work.billing_amount.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                      {work.estimated_hours && (
+                        <div className="flex items-center text-gray-600">
+                          <Clock className="w-4 h-4 mr-2" />
+                          <span>Est: {work.estimated_hours}h {work.actual_duration_hours ? `| Actual: ${work.actual_duration_hours}h` : ''}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex space-x-2 pt-4 border-t border-gray-100">
+                      <button
+                        onClick={() => setSelectedWork(work.id)}
+                        className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>Details</span>
+                      </button>
+                      <button
+                        onClick={() => handleEdit(work)}
+                        className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(work.id)}
+                        className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {serviceWorks.length === 0 && (
+              <div className="col-span-full text-center py-12 bg-white rounded-xl border border-gray-200">
+                <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No works found</h3>
+                <p className="text-gray-600 mb-4">
+                  {filterStatus === 'all' && filterBillingStatus === 'all' && !showRecurringOnly
+                    ? 'Start by creating your first work assignment'
+                    : 'No works match the selected filters'}
+                </p>
+              </div>
+            )}
+          </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredWorks.map((work) => {
-          const StatusIcon = statusConfig[work.status as keyof typeof statusConfig]?.icon || Clock;
-          return (
-            <div
-              key={work.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.01]"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-2">{work.title}</h3>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    <span
-                      className={`inline-flex items-center px-2 py-1 text-xs rounded-full ${
-                        statusConfig[work.status as keyof typeof statusConfig]?.color || 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      <StatusIcon className="w-3 h-3 mr-1" />
-                      {work.status.replace('_', ' ')}
-                    </span>
-                    <span
-                      className={`inline-block px-2 py-1 text-xs rounded-full ${
-                        priorityColors[work.priority as keyof typeof priorityColors] || 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {work.priority}
-                    </span>
-                  </div>
-                </div>
-                <ClipboardList className="w-8 h-8 text-orange-600 ml-2" />
-              </div>
-
-              {work.description && (
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{work.description}</p>
-              )}
-
-              <div className="space-y-2 mb-4 text-sm">
-                <div className="flex items-center text-gray-700">
-                  <span className="font-medium mr-2">Customer:</span>
-                  <span>{work.customers.name}</span>
-                </div>
-                <div className="flex items-center text-gray-700">
-                  <span className="font-medium mr-2">Service:</span>
-                  <span>{work.services.name}</span>
-                </div>
-                {work.staff_members && (
-                  <div className="flex items-center text-gray-700">
-                    <span className="font-medium mr-2">Assigned to:</span>
-                    <span>{work.staff_members.name}</span>
-                  </div>
-                )}
-                {work.due_date && (
-                  <div className="flex items-center text-gray-700">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    <span>Due: {new Date(work.due_date).toLocaleDateString()}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex space-x-2 pt-4 border-t border-gray-100">
-                <button
-                  onClick={() => setSelectedWork(work.id)}
-                  className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Details</span>
-                </button>
-                <button
-                  onClick={() => handleEdit(work)}
-                  className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  <span>Edit</span>
-                </button>
-                <button
-                  onClick={() => handleDelete(work.id)}
-                  className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-          );
-        })}
-
-        {filteredWorks.length === 0 && (
-          <div className="col-span-full text-center py-12">
-            <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No works found</h3>
-            <p className="text-gray-600 mb-4">
-              {filterStatus === 'all'
-                ? 'Start by creating your first work assignment'
-                : 'No works match the selected filter'}
-            </p>
-            {filterStatus === 'all' && (
-              <button
-                onClick={() => setShowModal(true)}
-                className="inline-flex items-center space-x-2 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Add Work</span>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
+      {/* Add/Edit Work Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">
                 {editingWork ? 'Edit Work' : 'Add New Work'}
@@ -389,13 +676,22 @@ export default function Works() {
                   <select
                     required
                     value={formData.service_id}
-                    onChange={(e) => setFormData({ ...formData, service_id: e.target.value })}
+                    onChange={(e) => {
+                      const serviceId = e.target.value;
+                      const service = services.find(s => s.id === serviceId);
+                      setFormData({ 
+                        ...formData, 
+                        service_id: serviceId,
+                        due_date: service?.is_recurring ? calculateDueDate(serviceId) : formData.due_date,
+                        billing_amount: service?.default_price?.toString() || formData.billing_amount
+                      });
+                    }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   >
                     <option value="">Select service</option>
                     {services.map((service) => (
                       <option key={service.id} value={service.id}>
-                        {service.name}
+                        {service.name} {service.is_recurring && '(Recurring)'}
                       </option>
                     ))}
                   </select>
@@ -420,6 +716,16 @@ export default function Works() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                  <input
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Estimated Hours</label>
                   <input
                     type="number"
@@ -428,6 +734,18 @@ export default function Works() {
                     onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                     placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Billing Amount (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.billing_amount}
+                    onChange={(e) => setFormData({ ...formData, billing_amount: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="0.00"
                   />
                 </div>
 
@@ -461,16 +779,6 @@ export default function Works() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
-                <input
-                  type="date"
-                  value={formData.due_date}
-                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                 <textarea
                   value={formData.description}
@@ -478,6 +786,17 @@ export default function Works() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   rows={3}
                   placeholder="Work description"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  rows={2}
+                  placeholder="Additional notes"
                 />
               </div>
 

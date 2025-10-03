@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bolt Database } from '../lib/Bolt Database';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
   X,
@@ -94,7 +94,7 @@ export default function StaffDetails({ staffId, onClose, onUpdate }: StaffDetail
   const fetchStaffDetails = async () => {
     try {
       // Fetch staff member details
-      const { data: staffData, error: staffError } = await Bolt Database
+      const { data: staffData, error: staffError } = await supabase
         .from('staff_members')
         .select('*')
         .eq('id', staffId)
@@ -103,7 +103,7 @@ export default function StaffDetails({ staffId, onClose, onUpdate }: StaffDetail
       if (staffError) throw staffError;
 
       // Fetch all works assigned to this staff member
-      const { data: worksData, error: worksError } = await Bolt Database
+      const { data: worksData, error: worksError } = await supabase
         .from('works')
         .select('*, customers(name), services(name)')
         .eq('assigned_to', staffId)
