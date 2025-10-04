@@ -1,7 +1,20 @@
+// COMPLETE UPDATED Services.tsx with X import fix + Statistics
+
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, CreditCard as Edit2, Trash2, Briefcase, Calendar, DollarSign, Eye } from 'lucide-react';
+import { 
+  Plus, 
+  X, // <- ADD THIS IMPORT
+  CreditCard as Edit2, 
+  Trash2, 
+  Briefcase, 
+  Calendar, 
+  DollarSign, 
+  Eye,
+  TrendingUp,
+  CheckCircle 
+} from 'lucide-react';
 import ServiceDetails from '../components/ServiceDetails';
 
 interface Service {
@@ -74,7 +87,6 @@ export default function Services() {
         if (error) throw error;
       } else {
         const { error } = await supabase.from('services').insert(serviceData);
-
         if (error) throw error;
       }
 
@@ -104,7 +116,6 @@ export default function Services() {
 
     try {
       const { error } = await supabase.from('services').delete().eq('id', id);
-
       if (error) throw error;
       fetchServices();
     } catch (error) {
@@ -126,6 +137,16 @@ export default function Services() {
     setShowModal(false);
     setEditingService(null);
     resetForm();
+  };
+
+  // Calculate statistics
+  const stats = {
+    total: services.length,
+    recurring: services.filter(s => s.is_recurring).length,
+    oneTime: services.filter(s => !s.is_recurring).length,
+    avgPrice: services.length > 0 
+      ? services.reduce((sum, s) => sum + (s.default_price || 0), 0) / services.length 
+      : 0,
   };
 
   if (loading) {
@@ -152,19 +173,62 @@ export default function Services() {
         </button>
       </div>
 
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <Briefcase className="w-5 h-5 text-blue-600" />
+            </div>
+            <p className="text-sm font-medium text-gray-600">Total Services</p>
+          </div>
+          <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <Calendar className="w-5 h-5 text-green-600" />
+            </div>
+            <p className="text-sm font-medium text-gray-600">Recurring</p>
+          </div>
+          <p className="text-3xl font-bold text-green-600">{stats.recurring}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-orange-50 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-orange-600" />
+            </div>
+            <p className="text-sm font-medium text-gray-600">One-Time</p>
+          </div>
+          <p className="text-3xl font-bold text-orange-600">{stats.oneTime}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-teal-50 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-teal-600" />
+            </div>
+            <p className="text-sm font-medium text-gray-600">Avg Price</p>
+          </div>
+          <p className="text-3xl font-bold text-teal-600">₹{stats.avgPrice.toFixed(0)}</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {services.map((service) => (
           <div
             key={service.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.02] flex flex-col"
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Briefcase className="w-6 h-6 text-blue-600" />
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <Briefcase className="w-7 h-7 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{service.name}</h3>
+                  <h3 className="font-semibold text-gray-900 text-lg">{service.name}</h3>
                   {service.is_recurring && (
                     <span className="inline-flex items-center text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full mt-1">
                       <Calendar className="w-3 h-3 mr-1" />
@@ -175,34 +239,34 @@ export default function Services() {
               </div>
             </div>
 
-            {service.description && (
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2">{service.description}</p>
-            )}
+            {/* Description - flex-grow */}
+            <div className="flex-grow mb-4">
+              {service.description && (
+                <p className="text-sm text-gray-600 line-clamp-3 mb-3">{service.description}</p>
+              )}
 
-            {service.default_price && (
-              <div className="flex items-center text-sm text-gray-700 mb-4">
-                <DollarSign className="w-4 h-4 mr-1" />
-                <span className="font-medium">₹{service.default_price.toLocaleString('en-IN')}</span>
-              </div>
-            )}
+              {service.default_price && (
+                <div className="flex items-center text-base font-semibold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+                  <DollarSign className="w-5 h-5 mr-1" />
+                  <span>₹{service.default_price.toLocaleString('en-IN')}</span>
+                  {service.is_recurring && service.recurrence_type && (
+                    <span className="text-xs text-blue-500 ml-1">/{service.recurrence_type}</span>
+                  )}
+                </div>
+              )}
+            </div>
 
-            <div className="flex space-x-2 pt-4 border-t border-gray-100">
+            {/* Buttons - fixed at bottom */}
+            <div className="flex space-x-2 pt-4 border-t border-gray-100 mt-auto">
               <button
                 onClick={() => {
                   setSelectedServiceId(service.id);
                   setShowDetailsModal(true);
                 }}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium"
               >
                 <Eye className="w-4 h-4" />
-                <span>Details</span>
-              </button>
-              <button
-                onClick={() => handleEdit(service)}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
-              >
-                <Edit2 className="w-4 h-4" />
-                <span>Edit</span>
+                <span>View Details</span>
               </button>
               <button
                 onClick={() => handleDelete(service.id)}
@@ -232,14 +296,21 @@ export default function Services() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <Briefcase size={28} />
                 {editingService ? 'Edit Service' : 'Add New Service'}
               </h2>
+              <button
+                onClick={closeModal}
+                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Service Name
@@ -313,23 +384,23 @@ export default function Services() {
                   </select>
                 </div>
               )}
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  {editingService ? 'Update' : 'Create'}
-                </button>
-              </div>
             </form>
+
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all font-medium shadow-lg"
+              >
+                {editingService ? 'Update' : 'Create'}
+              </button>
+            </div>
           </div>
         </div>
       )}

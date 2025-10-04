@@ -168,98 +168,100 @@ export default function Staff() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {staff.map((member) => (
-          <div
-            key={member.id}
-            className={`bg-white rounded-xl shadow-sm border-2 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.01] ${
-              member.is_active ? 'border-emerald-200' : 'border-gray-200 opacity-75'
-            }`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg ${member.is_active ? 'bg-emerald-50' : 'bg-gray-50'}`}>
-                  <Users className={`w-6 h-6 ${member.is_active ? 'text-emerald-600' : 'text-gray-400'}`} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                  <span className="text-xs text-gray-500 uppercase">{member.role}</span>
+         <div
+          key={member.id}
+          className={`bg-white rounded-xl shadow-sm border-2 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.01] flex flex-col ${
+            member.is_active ? 'border-emerald-200' : 'border-gray-200 opacity-75'
+          }`}
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className={`p-3 rounded-lg ${member.is_active ? 'bg-emerald-50' : 'bg-gray-50'}`}>
+                <Users className={`w-7 h-7 ${member.is_active ? 'text-emerald-600' : 'text-gray-400'}`} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-lg">{member.name}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-gray-500 uppercase font-semibold bg-gray-100 px-2 py-1 rounded">
+                    {member.role}
+                  </span>
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full font-medium ${
+                      member.is_active
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {member.is_active ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
               </div>
-              <span
-                className={`px-2 py-1 text-xs rounded-full ${
-                  member.is_active
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                {member.is_active ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-
-            <div className="space-y-2 mb-4">
-              {member.email && (
-                <div className="flex items-center text-sm text-gray-600">
-                  <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                  <span className="truncate">{member.email}</span>
-                </div>
-              )}
-              {member.phone && (
-                <div className="flex items-center text-sm text-gray-600">
-                  <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                  <span>{member.phone}</span>
-                </div>
-              )}
-              {member.hourly_rate && (
-                <div className="flex items-center text-sm font-semibold text-emerald-600">
-                  <DollarSign className="w-4 h-4 mr-1" />
-                  <span>₹{member.hourly_rate}/hour</span>
-                </div>
-              )}
-              {member.skills && member.skills.length > 0 && (
-                <div className="flex items-start text-sm text-gray-600">
-                  <Award className="w-4 h-4 mr-2 text-gray-400 mt-0.5" />
-                  <div className="flex flex-wrap gap-1">
-                    {member.skills.slice(0, 3).map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                    {member.skills.length > 3 && (
-                      <span className="text-xs text-gray-500">+{member.skills.length - 3} more</span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex space-x-2 pt-4 border-t border-gray-100">
-              <button
-                onClick={() => {
-                  setSelectedStaffId(member.id);
-                  setShowDetailsModal(true);
-                }}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-              >
-                <Eye className="w-4 h-4" />
-                <span>Details</span>
-              </button>
-              <button
-                onClick={() => handleEdit(member)}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
-              >
-                <Edit2 className="w-4 h-4" />
-                <span>Edit</span>
-              </button>
-              <button
-                onClick={() => handleDelete(member.id)}
-                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
             </div>
           </div>
+
+           {/* Contact Info - flex-grow to push buttons down */}
+          <div className="space-y-2 mb-4 flex-grow">
+            {member.email && (
+              <div className="flex items-center text-sm text-gray-600">
+                <Mail className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                <span className="truncate">{member.email}</span>
+              </div>
+            )}
+            {member.phone && (
+              <div className="flex items-center text-sm text-gray-600">
+                <Phone className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                <span>{member.phone}</span>
+              </div>
+            )}
+            {member.hourly_rate && (
+              <div className="flex items-center text-sm font-semibold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg mt-3">
+                <DollarSign className="w-5 h-5 mr-1" />
+                <span className="text-base">₹{member.hourly_rate}/hour</span>
+              </div>
+            )}
+            {member.skills && member.skills.length > 0 && (
+              <div className="flex items-start text-sm text-gray-600 mt-3">
+                <Award className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" />
+                <div className="flex flex-wrap gap-1">
+                  {member.skills.slice(0, 3).map((skill, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs font-medium"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                  {member.skills.length > 3 && (
+                    <span className="text-xs text-gray-500 px-2 py-1">
+                      +{member.skills.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        
+          {/* Buttons - fixed at bottom */}
+          <div className="flex space-x-2 pt-4 border-t border-gray-100 mt-auto">
+            <button
+              onClick={() => {
+                setSelectedStaffId(member.id);
+                setShowDetailsModal(true);
+              }}
+              className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors font-medium"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View Details</span>
+            </button>
+            <button
+              onClick={() => handleDelete(member.id)}
+              className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
         ))}
 
         {staff.length === 0 && (
@@ -281,10 +283,17 @@ export default function Staff() {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-600 to-teal-600">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <Users size={28} />
                 {editingStaff ? 'Edit Staff Member' : 'Add New Staff Member'}
               </h2>
+              <button
+                onClick={closeModal}
+                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -384,22 +393,6 @@ export default function Staff() {
                   rows={3}
                   placeholder="Additional notes"
                 />
-              </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-                >
-                  {editingStaff ? 'Update' : 'Create'}
-                </button>
               </div>
             </form>
           </div>

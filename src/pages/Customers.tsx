@@ -137,10 +137,10 @@ export default function Customers() {
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredCustomers.map((customer) => (
           <div
-            key={customer.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.01] cursor-pointer"
-            onClick={() => setSelectedCustomerId(customer.id)}
-          >
+          key={customer.id}
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.01] cursor-pointer flex flex-col"
+          onClick={() => setSelectedCustomerId(customer.id)}
+        >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-3 flex-1 min-w-0">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 overflow-hidden">
@@ -209,26 +209,25 @@ export default function Customers() {
               )}
             </div>
 
-            <div className="pt-4 border-t border-gray-100 flex gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCustomerId(customer.id);
-                }}
-                className="flex-1 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors font-medium"
-              >
-                View Details
-              </button>
-              <button
-                onClick={(e) => handleDelete(customer.id, e)}
-                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                title="Delete Customer"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
-
+            <div className="pt-4 border-t border-gray-100 flex gap-2 mt-auto">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedCustomerId(customer.id);
+              }}
+              className="flex-1 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors font-medium"
+            >
+              View Details
+            </button>
+            <button
+              onClick={(e) => handleDelete(customer.id, e)}
+              className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+              title="Delete Customer"
+            >
+              <Trash2 size={18} />
+            </button>
           </div>
+        </div>
         ))}
 
         {filteredCustomers.length === 0 && (

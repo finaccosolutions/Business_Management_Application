@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  ClipboardList, 
-  Calendar, 
-  AlertCircle, 
-  CheckCircle, 
-  Clock, 
+import {
+  Plus,
+  X,
+  Trash2,
+  ClipboardList,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  Clock,
   Eye,
   Repeat,
   Briefcase,
   Filter,
   DollarSign,
-  TrendingUp
+  TrendingUp,
+  Users,
 } from 'lucide-react';
 import WorkDetails from '../components/WorkDetails';
 
@@ -63,10 +64,10 @@ interface StaffMember {
 }
 
 const statusConfig = {
-  pending: { color: 'bg-yellow-100 text-yellow-700', icon: Clock },
-  in_progress: { color: 'bg-blue-100 text-blue-700', icon: Clock },
-  completed: { color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  overdue: { color: 'bg-red-100 text-red-700', icon: AlertCircle },
+  pending: { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: Clock },
+  in_progress: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Clock },
+  completed: { color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle },
+  overdue: { color: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle },
 };
 
 const priorityColors = {
@@ -83,6 +84,8 @@ const billingStatusColors = {
   overdue: 'bg-red-100 text-red-700',
 };
 
+type ViewType = 'statistics' | 'all' | 'pending' | 'in_progress' | 'completed' | 'overdue';
+
 export default function Works() {
   const { user } = useAuth();
   const [works, setWorks] = useState<Work[]>([]);
@@ -93,10 +96,7 @@ export default function Works() {
   const [showModal, setShowModal] = useState(false);
   const [editingWork, setEditingWork] = useState<Work | null>(null);
   const [selectedWork, setSelectedWork] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterBillingStatus, setFilterBillingStatus] = useState('all');
-  const [groupByService, setGroupByService] = useState(false);
-  const [showRecurringOnly, setShowRecurringOnly] = useState(false);
+  const [activeView, setActiveView] = useState<ViewType>('all');
   const [formData, setFormData] = useState({
     customer_id: '',
     service_id: '',
@@ -106,9 +106,9 @@ export default function Works() {
     status: 'pending',
     priority: 'medium',
     due_date: '',
-    estimated_hours: '',
+    billing_status: 'not_billed',
     billing_amount: '',
-    notes: '',
+    estimated_hours: '',
   });
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function Works() {
           .select('*, customers(name), services(name, is_recurring), staff_members(name)')
           .order('created_at', { ascending: false }),
         supabase.from('customers').select('id, name').order('name'),
-        supabase.from('services').select('id, name, is_recurring, recurrence_type, recurrence_day, default_price').order('name'),
+        supabase.from('services').select('*').order('name'),
         supabase.from('staff_members').select('id, name, role').eq('is_active', true).order('name'),
       ]);
 
@@ -145,47 +145,10 @@ export default function Works() {
     }
   };
 
-  const calculateDueDate = (serviceId: string): string => {
-    const service = services.find(s => s.id === serviceId);
-    if (!service || !service.is_recurring || !service.recurrence_day) {
-      return '';
-    }
-
-    const today = new Date();
-    let dueDate: Date;
-
-    switch (service.recurrence_type) {
-      case 'monthly':
-        const currentMonth = new Date(today.getFullYear(), today.getMonth(), service.recurrence_day);
-        dueDate = currentMonth >= today 
-          ? currentMonth 
-          : new Date(today.getFullYear(), today.getMonth() + 1, service.recurrence_day);
-        break;
-      case 'quarterly':
-        const currentQuarter = new Date(today.getFullYear(), today.getMonth(), service.recurrence_day);
-        dueDate = currentQuarter >= today 
-          ? currentQuarter 
-          : new Date(today.getFullYear(), today.getMonth() + 3, service.recurrence_day);
-        break;
-      case 'yearly':
-        const currentYear = new Date(today.getFullYear(), 0, service.recurrence_day);
-        dueDate = currentYear >= today 
-          ? currentYear 
-          : new Date(today.getFullYear() + 1, 0, service.recurrence_day);
-        break;
-      default:
-        dueDate = today;
-    }
-
-    return dueDate.toISOString().split('T')[0];
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      const selectedService = services.find(s => s.id === formData.service_id);
-      
       const workData = {
         user_id: user!.id,
         customer_id: formData.customer_id,
@@ -196,13 +159,9 @@ export default function Works() {
         status: formData.status,
         priority: formData.priority,
         due_date: formData.due_date || null,
+        billing_status: formData.billing_status,
+        billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
         estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
-        billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : (selectedService?.default_price || null),
-        billing_status: 'not_billed',
-        is_recurring_instance: selectedService?.is_recurring || false,
-        parent_service_id: selectedService?.is_recurring ? formData.service_id : null,
-        instance_date: selectedService?.is_recurring ? new Date().toISOString().split('T')[0] : null,
-        notes: formData.notes || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -220,29 +179,11 @@ export default function Works() {
       fetchData();
     } catch (error) {
       console.error('Error saving work:', error);
-      alert('Failed to save work');
     }
   };
 
-  const handleEdit = (work: Work) => {
-    setEditingWork(work);
-    setFormData({
-      customer_id: work.customer_id,
-      service_id: work.service_id,
-      assigned_to: work.assigned_to || '',
-      title: work.title,
-      description: work.description || '',
-      status: work.status,
-      priority: work.priority,
-      due_date: work.due_date || '',
-      estimated_hours: work.estimated_hours?.toString() || '',
-      billing_amount: work.billing_amount?.toString() || '',
-      notes: '',
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm('Are you sure you want to delete this work?')) return;
 
     try {
@@ -264,9 +205,9 @@ export default function Works() {
       status: 'pending',
       priority: 'medium',
       due_date: '',
-      estimated_hours: '',
+      billing_status: 'not_billed',
       billing_amount: '',
-      notes: '',
+      estimated_hours: '',
     });
   };
 
@@ -276,369 +217,400 @@ export default function Works() {
     resetForm();
   };
 
-  // Filter works
-  let filteredWorks = works;
-  
-  if (filterStatus !== 'all') {
-    filteredWorks = filteredWorks.filter(work => work.status === filterStatus);
-  }
-  
-  if (filterBillingStatus !== 'all') {
-    filteredWorks = filteredWorks.filter(work => work.billing_status === filterBillingStatus);
-  }
-  
-  if (showRecurringOnly) {
-    filteredWorks = filteredWorks.filter(work => work.is_recurring_instance);
-  }
-
-  // Group works by service
-  const groupedWorks = groupByService
-    ? filteredWorks.reduce((acc, work) => {
-        const serviceName = work.services.name;
-        if (!acc[serviceName]) {
-          acc[serviceName] = [];
-        }
-        acc[serviceName].push(work);
-        return acc;
-      }, {} as Record<string, Work[]>)
-    : { 'All Works': filteredWorks };
-
   // Calculate statistics
   const stats = {
     total: works.length,
-    pending: works.filter(w => w.status === 'pending').length,
-    inProgress: works.filter(w => w.status === 'in_progress').length,
-    completed: works.filter(w => w.status === 'completed').length,
-    overdue: works.filter(w => w.status === 'overdue').length,
-    recurring: works.filter(w => w.is_recurring_instance).length,
-    totalBilled: works.reduce((sum, w) => sum + (w.billing_status !== 'not_billed' ? (w.billing_amount || 0) : 0), 0),
-    totalPending: works.reduce((sum, w) => sum + (w.billing_status === 'not_billed' ? (w.billing_amount || 0) : 0), 0),
+    pending: works.filter((w) => w.status === 'pending').length,
+    inProgress: works.filter((w) => w.status === 'in_progress').length,
+    completed: works.filter((w) => w.status === 'completed').length,
+    overdue: works.filter((w) => {
+      if (w.status === 'completed') return false;
+      return w.due_date && new Date(w.due_date) < new Date();
+    }).length,
+    totalRevenue: works.reduce((sum, w) => sum + (w.billing_amount || 0), 0),
+    notBilled: works.filter((w) => w.billing_status === 'not_billed').length,
   };
+
+  // Filter works based on active view
+  const filteredWorks = works.filter((work) => {
+    if (activeView === 'statistics' || activeView === 'all') return true;
+    if (activeView === 'overdue') {
+      return work.status !== 'completed' && work.due_date && new Date(work.due_date) < new Date();
+    }
+    return work.status === activeView;
+  });
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with Stats */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Works Management</h1>
-          <p className="text-gray-600 mt-1">Track and manage all your work assignments</p>
+          <h1 className="text-3xl font-bold text-gray-900">Works</h1>
+          <p className="text-gray-600 mt-1">Track and manage all work assignments</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+          className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-amber-600 text-white px-6 py-3 rounded-lg hover:from-orange-600 hover:to-amber-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
         >
           <Plus className="w-5 h-5" />
-          <span>Add Work</span>
+          <span>Add New Work</span>
         </button>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <ClipboardList className="w-5 h-5 text-blue-600" />
-            <p className="text-xs font-medium text-gray-600">Total Works</p>
-          </div>
-          <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-5 h-5 text-yellow-600" />
-            <p className="text-xs font-medium text-gray-600">Pending</p>
-          </div>
-          <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
-            <p className="text-xs font-medium text-gray-600">In Progress</p>
-          </div>
-          <p className="text-2xl font-bold text-blue-600">{stats.inProgress}</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            <p className="text-xs font-medium text-gray-600">Completed</p>
-          </div>
-          <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="w-5 h-5 text-red-600" />
-            <p className="text-xs font-medium text-gray-600">Overdue</p>
-          </div>
-          <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Repeat className="w-5 h-5 text-purple-600" />
-            <p className="text-xs font-medium text-gray-600">Recurring</p>
-          </div>
-          <p className="text-2xl font-bold text-purple-600">{stats.recurring}</p>
-        </div>
-      </div>
-
-      {/* Billing Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Total Billed Amount</p>
-              <p className="text-3xl font-bold text-green-600">₹{stats.totalBilled.toLocaleString('en-IN')}</p>
-            </div>
-            <DollarSign className="w-12 h-12 text-green-600 opacity-20" />
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Pending Billing</p>
-              <p className="text-3xl font-bold text-orange-600">₹{stats.totalPending.toLocaleString('en-IN')}</p>
-            </div>
-            <AlertCircle className="w-12 h-12 text-orange-600 opacity-20" />
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
+      {/* Tabs for Views */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <h3 className="font-semibold text-gray-900">Filters & Views</h3>
-        </div>
-        
         <div className="flex flex-wrap gap-2">
-          {/* Status Filters */}
-          {['all', 'pending', 'in_progress', 'completed', 'overdue'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                filterStatus === status
-                  ? 'bg-orange-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {status === 'all' ? 'All Status' : status.replace('_', ' ').toUpperCase()}
-            </button>
-          ))}
-
-          <div className="w-px h-8 bg-gray-300 mx-2"></div>
-
-          {/* Billing Status Filters */}
-          {['all', 'not_billed', 'billed', 'paid'].map((billing) => (
-            <button
-              key={billing}
-              onClick={() => setFilterBillingStatus(billing)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-                filterBillingStatus === billing
-                  ? 'bg-green-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {billing === 'all' ? 'All Billing' : billing.replace('_', ' ').toUpperCase()}
-            </button>
-          ))}
-
-          <div className="w-px h-8 bg-gray-300 mx-2"></div>
-
-          {/* View Options */}
           <button
-            onClick={() => setGroupByService(!groupByService)}
-            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
-              groupByService
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            onClick={() => setActiveView('statistics')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeView === 'statistics'
+                ? 'bg-orange-50 text-orange-600 border-2 border-orange-200'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
             }`}
           >
-            {groupByService ? 'Ungroup' : 'Group by Service'}
+            <TrendingUp size={18} />
+            Statistics
           </button>
-
           <button
-            onClick={() => setShowRecurringOnly(!showRecurringOnly)}
-            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${
-              showRecurringOnly
-                ? 'bg-purple-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            onClick={() => setActiveView('all')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeView === 'all'
+                ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
             }`}
           >
-            <Repeat className="w-4 h-4" />
-            {showRecurringOnly ? 'Show All' : 'Recurring Only'}
+            <Briefcase size={18} />
+            All ({stats.total})
+          </button>
+          <button
+            onClick={() => setActiveView('pending')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeView === 'pending'
+                ? 'bg-yellow-50 text-yellow-600 border-2 border-yellow-200'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Clock size={18} />
+            Pending ({stats.pending})
+          </button>
+          <button
+            onClick={() => setActiveView('in_progress')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeView === 'in_progress'
+                ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Clock size={18} />
+            In Progress ({stats.inProgress})
+          </button>
+          <button
+            onClick={() => setActiveView('completed')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeView === 'completed'
+                ? 'bg-green-50 text-green-600 border-2 border-green-200'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <CheckCircle size={18} />
+            Completed ({stats.completed})
+          </button>
+          <button
+            onClick={() => setActiveView('overdue')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeView === 'overdue'
+                ? 'bg-red-50 text-red-600 border-2 border-red-200'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <AlertCircle size={18} />
+            Overdue ({stats.overdue})
           </button>
         </div>
       </div>
 
-      {/* Works Display */}
-      <div className="space-y-8">
-        {Object.entries(groupedWorks).map(([serviceName, serviceWorks]) => (
-          <div key={serviceName} className="space-y-4">
-            {groupByService && (
-              <div className="flex items-center gap-3 pb-3 border-b-2 border-gray-200">
-                <Briefcase className="w-6 h-6 text-orange-600" />
-                <h3 className="text-xl font-bold text-gray-900">{serviceName}</h3>
-                <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
-                  {serviceWorks.length} {serviceWorks.length === 1 ? 'work' : 'works'}
-                </span>
+      {/* Statistics View */}
+      {activeView === 'statistics' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Briefcase className="w-5 h-5 text-blue-600" />
               </div>
-            )}
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {serviceWorks.map((work) => {
-                const StatusIcon = statusConfig[work.status as keyof typeof statusConfig]?.icon || Clock;
-                return (
-                  <div
-                    key={work.id}
-                    className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.02] relative"
-                  >
-                    {/* Recurring Badge */}
-                    {work.is_recurring_instance && (
-                      <div className="absolute top-3 right-3">
-                        <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-700 font-medium">
-                          <Repeat className="w-3 h-3 mr-1" />
-                          Recurring
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1 pr-2">
-                        <h3 className="font-semibold text-gray-900 mb-2">{work.title}</h3>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          <span
-                            className={`inline-flex items-center px-2 py-1 text-xs rounded-full ${
-                              statusConfig[work.status as keyof typeof statusConfig]?.color || 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {work.status.replace('_', ' ')}
-                          </span>
-                          <span
-                            className={`inline-block px-2 py-1 text-xs rounded-full ${
-                              priorityColors[work.priority as keyof typeof priorityColors] || 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {work.priority}
-                          </span>
-                          <span
-                            className={`inline-block px-2 py-1 text-xs rounded-full ${
-                              billingStatusColors[work.billing_status as keyof typeof billingStatusColors] || 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {work.billing_status.replace('_', ' ')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {work.description && (
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{work.description}</p>
-                    )}
-
-                    <div className="space-y-2 mb-4 text-sm">
-                      <div className="flex items-center text-gray-700">
-                        <span className="font-medium mr-2">Customer:</span>
-                        <span className="truncate">{work.customers.name}</span>
-                      </div>
-                      {!groupByService && (
-                        <div className="flex items-center text-gray-700">
-                          <span className="font-medium mr-2">Service:</span>
-                          <span className="truncate">{work.services.name}</span>
-                        </div>
-                      )}
-                      {work.staff_members && (
-                        <div className="flex items-center text-gray-700">
-                          <span className="font-medium mr-2">Assigned:</span>
-                          <span className="truncate">{work.staff_members.name}</span>
-                        </div>
-                      )}
-                      {work.due_date && (
-                        <div className="flex items-center text-gray-700">
-                          <Calendar className="w-4 h-4 mr-2" />
-                          <span>Due: {new Date(work.due_date).toLocaleDateString('en-IN')}</span>
-                        </div>
-                      )}
-                      {work.billing_amount && (
-                        <div className="flex items-center text-gray-700">
-                          <DollarSign className="w-4 h-4 mr-2" />
-                          <span className="font-semibold">₹{work.billing_amount.toLocaleString('en-IN')}</span>
-                        </div>
-                      )}
-                      {work.estimated_hours && (
-                        <div className="flex items-center text-gray-600">
-                          <Clock className="w-4 h-4 mr-2" />
-                          <span>Est: {work.estimated_hours}h {work.actual_duration_hours ? `| Actual: ${work.actual_duration_hours}h` : ''}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex space-x-2 pt-4 border-t border-gray-100">
-                      <button
-                        onClick={() => setSelectedWork(work.id)}
-                        className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>Details</span>
-                      </button>
-                      <button
-                        onClick={() => handleEdit(work)}
-                        className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(work.id)}
-                        className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              <p className="text-sm font-medium text-gray-600">Total Works</p>
             </div>
-
-            {serviceWorks.length === 0 && (
-              <div className="col-span-full text-center py-12 bg-white rounded-xl border border-gray-200">
-                <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No works found</h3>
-                <p className="text-gray-600 mb-4">
-                  {filterStatus === 'all' && filterBillingStatus === 'all' && !showRecurringOnly
-                    ? 'Start by creating your first work assignment'
-                    : 'No works match the selected filters'}
-                </p>
-              </div>
-            )}
+            <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
           </div>
-        ))}
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-yellow-50 rounded-lg">
+                <Clock className="w-5 h-5 text-yellow-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600">Pending</p>
+            </div>
+            <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600">Completed</p>
+            </div>
+            <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-red-50 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600">Overdue</p>
+            </div>
+            <p className="text-3xl font-bold text-red-600">{stats.overdue}</p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-teal-50 rounded-lg">
+                <DollarSign className="w-5 h-5 text-teal-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+            </div>
+            <p className="text-3xl font-bold text-teal-600">
+              ₹{stats.totalRevenue.toLocaleString('en-IN')}
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-orange-50 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-orange-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600">Not Billed</p>
+            </div>
+            <p className="text-3xl font-bold text-orange-600">{stats.notBilled}</p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-cyan-50 rounded-lg">
+                <Clock className="w-5 h-5 text-cyan-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600">In Progress</p>
+            </div>
+            <p className="text-3xl font-bold text-cyan-600">{stats.inProgress}</p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-emerald-50 rounded-lg">
+                <Repeat className="w-5 h-5 text-emerald-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600">Recurring</p>
+            </div>
+            <p className="text-3xl font-bold text-emerald-600">
+              {works.filter((w) => w.is_recurring_instance).length}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Works Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredWorks.map((work) => {
+          const StatusIcon = statusConfig[work.status as keyof typeof statusConfig]?.icon || Clock;
+          const isOverdue =
+            work.status !== 'completed' && work.due_date && new Date(work.due_date) < new Date();
+
+          return (
+            <div
+              key={work.id}
+              onClick={() => setSelectedWork(work.id)}
+              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all cursor-pointer flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 text-lg mb-1">{work.title}</h3>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Users size={14} />
+                    <span>{work.customers.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                    <Briefcase size={14} />
+                    <span>{work.services.name}</span>
+                  </div>
+                </div>
+                {work.is_recurring_instance && (
+                  <div className="p-2 bg-emerald-50 rounded-lg">
+                    <Repeat className="w-4 h-4 text-emerald-600" />
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              {work.description && (
+                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{work.description}</p>
+              )}
+
+              {/* Status & Priority Badges */}
+              <div className="flex flex-wrap gap-2 mb-4 flex-grow">
+                <span
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${
+                    isOverdue
+                      ? statusConfig.overdue.color
+                      : statusConfig[work.status as keyof typeof statusConfig]?.color ||
+                        'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  <StatusIcon size={12} />
+                  {isOverdue ? 'Overdue' : work.status.replace('_', ' ')}
+                </span>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    priorityColors[work.priority as keyof typeof priorityColors] || priorityColors.medium
+                  }`}
+                >
+                  {work.priority}
+                </span>
+                {work.billing_status && (
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      billingStatusColors[work.billing_status as keyof typeof billingStatusColors]
+                    }`}
+                  >
+                    {work.billing_status.replace('_', ' ')}
+                  </span>
+                )}
+              </div>
+
+              {/* Footer Info */}
+              <div className="space-y-2 text-sm text-gray-600">
+                {work.due_date && (
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} />
+                    <span>Due: {new Date(work.due_date).toLocaleDateString()}</span>
+                  </div>
+                )}
+                {work.billing_amount && (
+                  <div className="flex items-center gap-2 text-teal-600 font-semibold">
+                    <DollarSign size={14} />
+                    <span>₹{work.billing_amount.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+                {work.staff_members && (
+                  <div className="flex items-center gap-2">
+                    <Users size={14} />
+                    <span>{work.staff_members.name}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t border-gray-100 mt-4">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedWork(work.id);
+                  }}
+                  className="flex-1 px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors font-medium"
+                >
+                  View Details
+                </button>
+                <button
+                  onClick={(e) => handleDelete(work.id, e)}
+                  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {filteredWorks.length === 0 && (
+          <div className="col-span-full text-center py-12">
+            <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No works found</h3>
+            <p className="text-gray-600 mb-4">
+              {activeView === 'all' ? 'Get started by adding your first work' : 'No works match this filter'}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Work Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header with Gradient */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <ClipboardList size={28} />
                 {editingWork ? 'Edit Work' : 'Add New Work'}
               </h2>
+              <button
+                onClick={closeModal}
+                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Customer *
+                  </label>
+                  <select
+                    required
+                    value={formData.customer_id}
+                    onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Select Customer</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Service *
+                  </label>
+                  <select
+                    required
+                    value={formData.service_id}
+                    onChange={(e) => setFormData({ ...formData, service_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Select Service</option>
+                    {services.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name}
+                        {service.is_recurring && ' (Recurring)'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
                 <input
@@ -651,104 +623,18 @@ export default function Works() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Customer *
-                  </label>
-                  <select
-                    required
-                    value={formData.customer_id}
-                    onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Select customer</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Work description"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Service *</label>
-                  <select
-                    required
-                    value={formData.service_id}
-                    onChange={(e) => {
-                      const serviceId = e.target.value;
-                      const service = services.find(s => s.id === serviceId);
-                      setFormData({ 
-                        ...formData, 
-                        service_id: serviceId,
-                        due_date: service?.is_recurring ? calculateDueDate(serviceId) : formData.due_date,
-                        billing_amount: service?.default_price?.toString() || formData.billing_amount
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Select service</option>
-                    {services.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name} {service.is_recurring && '(Recurring)'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Assign To
-                  </label>
-                  <select
-                    value={formData.assigned_to}
-                    onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Unassigned</option>
-                    {staffMembers.map((staff) => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.name} - {staff.role}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
-                  <input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Estimated Hours</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formData.estimated_hours}
-                    onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Billing Amount (₹)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.billing_amount}
-                    onChange={(e) => setFormData({ ...formData, billing_amount: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="0.00"
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                   <select
@@ -759,7 +645,6 @@ export default function Works() {
                     <option value="pending">Pending</option>
                     <option value="in_progress">In Progress</option>
                     <option value="completed">Completed</option>
-                    <option value="overdue">Overdue</option>
                   </select>
                 </div>
 
@@ -776,50 +661,103 @@ export default function Works() {
                     <option value="urgent">Urgent</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                  <input
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Assign to Staff
+                  </label>
+                  <select
+                    value={formData.assigned_to}
+                    onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Unassigned</option>
+                    {staffMembers.map((staff) => (
+                      <option key={staff.id} value={staff.id}>
+                        {staff.name} ({staff.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Billing Status
+                  </label>
+                  <select
+                    value={formData.billing_status}
+                    onChange={(e) => setFormData({ ...formData, billing_status: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="not_billed">Not Billed</option>
+                    <option value="billed">Billed</option>
+                    <option value="paid">Paid</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Billing Amount
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.billing_amount}
+                    onChange={(e) => setFormData({ ...formData, billing_amount: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Estimated Hours
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={formData.estimated_hours}
+                  onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Work description"
+                  placeholder="0"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  rows={2}
-                  placeholder="Additional notes"
-                />
-              </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                >
-                  {editingWork ? 'Update' : 'Create'}
-                </button>
               </div>
             </form>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="px-6 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-lg hover:from-orange-700 hover:to-amber-700 transition-all font-medium shadow-lg"
+              >
+                {editingWork ? 'Update Work' : 'Create Work'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Work Details Modal */}
       {selectedWork && (
         <WorkDetails
           workId={selectedWork}
