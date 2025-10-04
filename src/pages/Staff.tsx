@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Users, CreditCard as Edit2, Trash2, Mail, Phone, DollarSign, Award } from 'lucide-react';
+import { Plus, Users, CreditCard as Edit2, Trash2, Mail, Phone, DollarSign, Award, Eye } from 'lucide-react';
+import StaffDetails from '../components/StaffDetails';
 
 interface StaffMember {
   id: string;
@@ -21,7 +22,9 @@ export default function Staff() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -233,18 +236,27 @@ export default function Staff() {
 
             <div className="flex space-x-2 pt-4 border-t border-gray-100">
               <button
-                onClick={() => handleEdit(member)}
+                onClick={() => {
+                  setSelectedStaffId(member.id);
+                  setShowDetailsModal(true);
+                }}
                 className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Details</span>
+              </button>
+              <button
+                onClick={() => handleEdit(member)}
+                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
               >
                 <Edit2 className="w-4 h-4" />
                 <span>Edit</span>
               </button>
               <button
                 onClick={() => handleDelete(member.id)}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>Delete</span>
               </button>
             </div>
           </div>
@@ -392,6 +404,23 @@ export default function Staff() {
             </form>
           </div>
         </div>
+      )}
+
+      {showDetailsModal && selectedStaffId && (
+        <StaffDetails
+          staffId={selectedStaffId}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedStaffId(null);
+          }}
+          onEdit={() => {
+            const staffToEdit = staff.find(s => s.id === selectedStaffId);
+            if (staffToEdit) {
+              setShowDetailsModal(false);
+              handleEdit(staffToEdit);
+            }
+          }}
+        />
       )}
     </div>
   );

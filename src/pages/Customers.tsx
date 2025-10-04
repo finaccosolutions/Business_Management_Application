@@ -1,8 +1,8 @@
 // src/pages/Customers.tsx
-import { useEffect, useState, Trash2 } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Search, UserCog, Mail, Phone, Building, MapPin } from 'lucide-react';
+import { Plus, Search, UserCog, Mail, Phone, Building, MapPin, Trash2 } from 'lucide-react';
 import CustomerDetails from '../components/CustomerDetails';
 import CustomerFormModal from '../components/CustomerFormModal';
 import { useConfirmation } from '../contexts/ConfirmationContext';

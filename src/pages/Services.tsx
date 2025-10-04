@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, CreditCard as Edit2, Trash2, Briefcase, Calendar, DollarSign } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Briefcase, Calendar, DollarSign, Eye } from 'lucide-react';
+import ServiceDetails from '../components/ServiceDetails';
 
 interface Service {
   id: string;
@@ -17,7 +18,9 @@ export default function Services() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -185,18 +188,27 @@ export default function Services() {
 
             <div className="flex space-x-2 pt-4 border-t border-gray-100">
               <button
-                onClick={() => handleEdit(service)}
+                onClick={() => {
+                  setSelectedServiceId(service.id);
+                  setShowDetailsModal(true);
+                }}
                 className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Details</span>
+              </button>
+              <button
+                onClick={() => handleEdit(service)}
+                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
               >
                 <Edit2 className="w-4 h-4" />
                 <span>Edit</span>
               </button>
               <button
                 onClick={() => handleDelete(service.id)}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>Delete</span>
               </button>
             </div>
           </div>
@@ -320,6 +332,23 @@ export default function Services() {
             </form>
           </div>
         </div>
+      )}
+
+      {showDetailsModal && selectedServiceId && (
+        <ServiceDetails
+          serviceId={selectedServiceId}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedServiceId(null);
+          }}
+          onEdit={() => {
+            const serviceToEdit = services.find(s => s.id === selectedServiceId);
+            if (serviceToEdit) {
+              setShowDetailsModal(false);
+              handleEdit(serviceToEdit);
+            }
+          }}
+        />
       )}
     </div>
   );

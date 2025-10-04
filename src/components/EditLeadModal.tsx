@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Bolt Database } from '../lib/Bolt Database';
+import { supabase } from '../lib/supabase';
 import { X, Edit, Save } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
@@ -55,7 +55,7 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
 
   const fetchServices = async () => {
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await supabase
         .from('services')
         .select('id, name')
         .eq('user_id', user?.id)
@@ -73,14 +73,14 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
     setLoading(true);
 
     try {
-      const { error: updateError } = await Bolt Database
+      const { error: updateError } = await supabase
         .from('leads')
         .update(formData)
         .eq('id', lead.id);
 
       if (updateError) throw updateError;
 
-      const { error: deleteError } = await Bolt Database
+      const { error: deleteError } = await supabase
         .from('lead_services')
         .delete()
         .eq('lead_id', lead.id);
@@ -94,7 +94,7 @@ export default function EditLeadModal({ lead, onClose, onSuccess }: EditLeadModa
           user_id: user?.id,
         }));
 
-        const { error: servicesError } = await Bolt Database
+        const { error: servicesError } = await supabase
           .from('lead_services')
           .insert(leadServices);
 

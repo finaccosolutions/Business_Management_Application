@@ -132,11 +132,13 @@ export default function Leads() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false); // ADD THIS LINE
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+
 
   useEffect(() => {
     if (user) {
