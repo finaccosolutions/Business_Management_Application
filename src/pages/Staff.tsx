@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Users, CreditCard as Edit2, Trash2, Mail, Phone, DollarSign, Award, Eye } from 'lucide-react';
+import { Plus, Users, CreditCard as Edit2, Trash2, Mail, Phone, DollarSign, Award, Eye, X } from 'lucide-react';
 import StaffDetails from '../components/StaffDetails';
 
 interface StaffMember {

@@ -94,9 +94,15 @@ export default function Works() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [editingWork, setEditingWork] = useState<Work | null>(null);
   const [selectedWork, setSelectedWork] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewType>('all');
+  const [filterCustomer, setFilterCustomer] = useState('');
+  const [filterService, setFilterService] = useState('');
+  const [filterPriority, setFilterPriority] = useState('');
+  const [filterBillingStatus, setFilterBillingStatus] = useState('');
+
   const [formData, setFormData] = useState({
     customer_id: '',
     service_id: '',
@@ -195,6 +201,24 @@ export default function Works() {
     }
   };
 
+  const handleEdit = (work: Work) => {
+    setEditingWork(work);
+    setFormData({
+      customer_id: work.customer_id,
+      service_id: work.service_id,
+      assigned_to: work.assigned_to || '',
+      title: work.title,
+      description: work.description || '',
+      status: work.status,
+      priority: work.priority,
+      due_date: work.due_date || '',
+      billing_status: work.billing_status,
+      billing_amount: work.billing_amount?.toString() || '',
+      estimated_hours: work.estimated_hours?.toString() || '',
+    });
+    setShowModal(true);
+  };
+
   const resetForm = () => {
     setFormData({
       customer_id: '',
@@ -232,13 +256,32 @@ export default function Works() {
   };
 
   // Filter works based on active view
-  const filteredWorks = works.filter((work) => {
-    if (activeView === 'statistics' || activeView === 'all') return true;
+const filteredWorks = works.filter((work) => {
+  // Status filter
+  if (activeView !== 'statistics' && activeView !== 'all') {
     if (activeView === 'overdue') {
-      return work.status !== 'completed' && work.due_date && new Date(work.due_date) < new Date();
+      if (work.status === 'completed' || !work.due_date || new Date(work.due_date) >= new Date()) {
+        return false;
+      }
+    } else if (work.status !== activeView) {
+      return false;
     }
-    return work.status === activeView;
-  });
+  }
+
+  // Customer filter
+  if (filterCustomer && work.customer_id !== filterCustomer) return false;
+
+  // Service filter
+  if (filterService && work.service_id !== filterService) return false;
+
+  // Priority filter
+  if (filterPriority && work.priority !== filterPriority) return false;
+
+  // Billing status filter
+  if (filterBillingStatus && work.billing_status !== filterBillingStatus) return false;
+
+  return true;
+});
 
   if (loading) {
     return (
@@ -266,76 +309,144 @@ export default function Works() {
       </div>
 
       {/* Tabs for Views */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setActiveView('statistics')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-              activeView === 'statistics'
-                ? 'bg-orange-50 text-orange-600 border-2 border-orange-200'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <TrendingUp size={18} />
-            Statistics
-          </button>
-          <button
-            onClick={() => setActiveView('all')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-              activeView === 'all'
-                ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Briefcase size={18} />
-            All ({stats.total})
-          </button>
-          <button
-            onClick={() => setActiveView('pending')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-              activeView === 'pending'
-                ? 'bg-yellow-50 text-yellow-600 border-2 border-yellow-200'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Clock size={18} />
-            Pending ({stats.pending})
-          </button>
-          <button
-            onClick={() => setActiveView('in_progress')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-              activeView === 'in_progress'
-                ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Clock size={18} />
-            In Progress ({stats.inProgress})
-          </button>
-          <button
-            onClick={() => setActiveView('completed')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-              activeView === 'completed'
-                ? 'bg-green-50 text-green-600 border-2 border-green-200'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <CheckCircle size={18} />
-            Completed ({stats.completed})
-          </button>
-          <button
-            onClick={() => setActiveView('overdue')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-              activeView === 'overdue'
-                ? 'bg-red-50 text-red-600 border-2 border-red-200'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <AlertCircle size={18} />
-            Overdue ({stats.overdue})
-          </button>
-        </div>
-      </div>
+<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+  <div className="flex flex-col gap-4">
+    <div className="flex flex-wrap gap-2">
+      <button
+        onClick={() => setActiveView('statistics')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+          activeView === 'statistics'
+            ? 'bg-orange-50 text-orange-600 border-2 border-orange-200'
+            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+        }`}
+      >
+        <TrendingUp size={18} />
+        Statistics
+      </button>
+      <button
+        onClick={() => setActiveView('all')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+          activeView === 'all'
+            ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
+            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+        }`}
+      >
+        <Briefcase size={18} />
+        All ({stats.total})
+      </button>
+      <button
+        onClick={() => setActiveView('pending')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+          activeView === 'pending'
+            ? 'bg-yellow-50 text-yellow-600 border-2 border-yellow-200'
+            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+        }`}
+      >
+        <Clock size={18} />
+        Pending ({stats.pending})
+      </button>
+      <button
+        onClick={() => setActiveView('in_progress')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+          activeView === 'in_progress'
+            ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
+            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+        }`}
+      >
+        <Clock size={18} />
+        In Progress ({stats.inProgress})
+      </button>
+      <button
+        onClick={() => setActiveView('completed')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+          activeView === 'completed'
+            ? 'bg-green-50 text-green-600 border-2 border-green-200'
+            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+        }`}
+      >
+        <CheckCircle size={18} />
+        Completed ({stats.completed})
+      </button>
+      <button
+        onClick={() => setActiveView('overdue')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+          activeView === 'overdue'
+            ? 'bg-red-50 text-red-600 border-2 border-red-200'
+            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+        }`}
+      >
+        <AlertCircle size={18} />
+        Overdue ({stats.overdue})
+      </button>
+    </div>
+    
+    {/* Additional Filters */}
+    <div className="flex flex-wrap gap-3 items-center">
+      <select
+        value={filterCustomer}
+        onChange={(e) => setFilterCustomer(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+      >
+        <option value="">All Customers</option>
+        {customers.map((customer) => (
+          <option key={customer.id} value={customer.id}>
+            {customer.name}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={filterService}
+        onChange={(e) => setFilterService(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+      >
+        <option value="">All Services</option>
+        {services.map((service) => (
+          <option key={service.id} value={service.id}>
+            {service.name}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={filterPriority}
+        onChange={(e) => setFilterPriority(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+      >
+        <option value="">All Priorities</option>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+        <option value="urgent">Urgent</option>
+      </select>
+
+      <select
+        value={filterBillingStatus}
+        onChange={(e) => setFilterBillingStatus(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+      >
+        <option value="">All Billing Status</option>
+        <option value="not_billed">Not Billed</option>
+        <option value="billed">Billed</option>
+        <option value="paid">Paid</option>
+      </select>
+
+      {(filterCustomer || filterService || filterPriority || filterBillingStatus) && (
+        <button
+          onClick={() => {
+            setFilterCustomer('');
+            setFilterService('');
+            setFilterPriority('');
+            setFilterBillingStatus('');
+          }}
+          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Clear Filters
+        </button>
+      )}
+    </div>
+  </div>
+</div>
 
       {/* Statistics View */}
       {activeView === 'statistics' && (
@@ -763,8 +874,16 @@ export default function Works() {
           workId={selectedWork}
           onClose={() => setSelectedWork(null)}
           onUpdate={fetchData}
+          onEdit={() => {
+            const work = works.find(w => w.id === selectedWork);
+            if (work) {
+              setSelectedWork(null);
+              handleEdit(work);
+            }
+          }}
         />
       )}
+
     </div>
   );
 }

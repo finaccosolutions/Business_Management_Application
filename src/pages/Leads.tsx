@@ -27,6 +27,7 @@ import {
 import AddLeadModal from '../components/AddLeadModal';
 import ConvertLeadModal from '../components/ConvertLeadModal';
 import LeadDetails from '../components/LeadDetails';
+import EditLeadModal from '../components/EditLeadModal';
 
 interface Lead {
   id: string;
