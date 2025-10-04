@@ -1,4 +1,3 @@
-// src/pages/Leads.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -13,16 +12,21 @@ import {
   Tag,
   Trash2,
   UserPlus,
-  Briefcase,
+  Eye,
   CheckCircle,
   Clock,
   XCircle,
   PhoneCall,
   ChevronLeft,
   ChevronRight,
+  UserCheck,
+  Briefcase,
+  TrendingUp,
+  UserX,
 } from 'lucide-react';
 import AddLeadModal from '../components/AddLeadModal';
 import ConvertLeadModal from '../components/ConvertLeadModal';
+import LeadDetails from '../components/LeadDetails';
 
 interface Lead {
   id: string;
@@ -32,24 +36,81 @@ interface Lead {
   company_name: string;
   status: string;
   source: string;
-  notes: string;
-  image_url: string;
   referred_by: string;
-  contact_person: string;
+  notes: string;
   created_at: string;
+  converted_to_customer_id: string | null;
+  converted_at: string | null;
   lead_services?: { service_id: string; services: { name: string } }[];
 }
 
-type LeadStatus = 'all' | 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'lost';
+type LeadStatus =
+  | 'all'
+  | 'new'
+  | 'contacted'
+  | 'qualified'
+  | 'proposal'
+  | 'negotiation'
+  | 'converted'
+  | 'lost';
 
 const statusConfig = {
-  all: { label: 'All Leads', icon: Users, color: 'gray' },
-  new: { label: 'New', icon: Tag, color: 'blue' },
-  contacted: { label: 'Contacted', icon: PhoneCall, color: 'cyan' },
-  qualified: { label: 'Qualified', icon: CheckCircle, color: 'green' },
-  proposal: { label: 'Proposal', icon: Briefcase, color: 'yellow' },
-  negotiation: { label: 'Negotiation', icon: Clock, color: 'orange' },
-  lost: { label: 'Lost', icon: XCircle, color: 'red' },
+  all: { 
+    label: 'All Leads', 
+    icon: Users, 
+    color: 'from-gray-500 to-gray-600',
+    hoverColor: 'hover:from-gray-600 hover:to-gray-700',
+    textColor: 'text-gray-700'
+  },
+  new: { 
+    label: 'New', 
+    icon: Tag, 
+    color: 'from-blue-500 to-blue-600',
+    hoverColor: 'hover:from-blue-600 hover:to-blue-700',
+    textColor: 'text-blue-700'
+  },
+  contacted: {
+    label: 'Contacted',
+    icon: PhoneCall,
+    color: 'from-cyan-500 to-cyan-600',
+    hoverColor: 'hover:from-cyan-600 hover:to-cyan-700',
+    textColor: 'text-cyan-700'
+  },
+  qualified: {
+    label: 'Qualified',
+    icon: CheckCircle,
+    color: 'from-green-500 to-green-600',
+    hoverColor: 'hover:from-green-600 hover:to-green-700',
+    textColor: 'text-green-700'
+  },
+  proposal: {
+    label: 'Proposal',
+    icon: Briefcase,
+    color: 'from-yellow-500 to-orange-500',
+    hoverColor: 'hover:from-yellow-600 hover:to-orange-600',
+    textColor: 'text-yellow-700'
+  },
+  negotiation: {
+    label: 'Negotiation',
+    icon: TrendingUp,
+    color: 'from-orange-500 to-orange-600',
+    hoverColor: 'hover:from-orange-600 hover:to-orange-700',
+    textColor: 'text-orange-700'
+  },
+  converted: {
+    label: 'Converted',
+    icon: UserCheck,
+    color: 'from-emerald-500 to-emerald-600',
+    hoverColor: 'hover:from-emerald-600 hover:to-emerald-700',
+    textColor: 'text-emerald-700'
+  },
+  lost: { 
+    label: 'Lost', 
+    icon: UserX, 
+    color: 'from-red-500 to-red-600',
+    hoverColor: 'hover:from-red-600 hover:to-red-700',
+    textColor: 'text-red-700'
+  },
 };
 
 const statusOptions = [
@@ -70,9 +131,9 @@ export default function Leads() {
   const [activeTab, setActiveTab] = useState<LeadStatus>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  // Tab scroll navigation states
   const tabsRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
@@ -89,9 +150,13 @@ export default function Leads() {
 
   useEffect(() => {
     checkScrollButtons();
+    const timer = setTimeout(checkScrollButtons, 100);
     window.addEventListener('resize', checkScrollButtons);
-    return () => window.removeEventListener('resize', checkScrollButtons);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkScrollButtons);
+    };
+  }, [activeTab, leads]);
 
   const fetchLeads = async () => {
     try {
@@ -121,19 +186,24 @@ export default function Leads() {
   const filterLeads = () => {
     let filtered = leads;
 
-    // Filter by tab
     if (activeTab !== 'all') {
-      filtered = filtered.filter((lead) => lead.status === activeTab);
+      if (activeTab === 'converted') {
+        filtered = filtered.filter((lead) => lead.converted_to_customer_id !== null);
+      } else {
+        filtered = filtered.filter(
+          (lead) => lead.status === activeTab && !lead.converted_to_customer_id
+        );
+      }
     }
 
-    // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(
         (lead) =>
           lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           lead.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          lead.phone?.includes(searchTerm)
+          lead.phone?.includes(searchTerm) ||
+          lead.referred_by?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -149,11 +219,8 @@ export default function Leads() {
 
       if (error) throw error;
 
-      // Update local state
       setLeads(
-        leads.map((lead) =>
-          lead.id === leadId ? { ...lead, status: newStatus } : lead
-        )
+        leads.map((lead) => (lead.id === leadId ? { ...lead, status: newStatus } : lead))
       );
     } catch (error: any) {
       console.error('Error updating lead status:', error.message);
@@ -176,43 +243,27 @@ export default function Leads() {
     }
   };
 
-  const getStatusBadgeColor = (status: string) => {
+  const getStatusBadgeColor = (status: string, isConverted: boolean) => {
+    if (isConverted) {
+      return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+    }
     const option = statusOptions.find((opt) => opt.value === status);
     return option?.color || 'bg-gray-100 text-gray-700';
   };
 
   const getStatusCount = (status: LeadStatus) => {
     if (status === 'all') return leads.length;
-    return leads.filter((lead) => lead.status === status).length;
+    if (status === 'converted') return leads.filter((l) => l.converted_to_customer_id).length;
+    return leads.filter((lead) => lead.status === status && !lead.converted_to_customer_id).length;
   };
 
-  // Tab scroll navigation functions
   const checkScrollButtons = () => {
-  if (tabsRef.current) {
-    const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
-    // Add small buffer (5px) to account for rounding errors
-    setShowLeftArrow(scrollLeft > 5);
-    setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 5);
-  }
-};
-
-useEffect(() => {
-  checkScrollButtons();
-  
-  // Check on mount, after render, and on resize
-  const timer = setTimeout(checkScrollButtons, 100);
-  window.addEventListener('resize', checkScrollButtons);
-  
-  return () => {
-    clearTimeout(timer);
-    window.removeEventListener('resize', checkScrollButtons);
+    if (tabsRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
+      setShowLeftArrow(scrollLeft > 5);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 5);
+    }
   };
-}, []);
-
-// Also check after tabs render
-useEffect(() => {
-  checkScrollButtons();
-}, [activeTab, leads]);
 
   const scrollTabs = (direction: 'left' | 'right') => {
     if (tabsRef.current) {
@@ -250,32 +301,25 @@ useEffect(() => {
         </button>
       </div>
 
-      {/* Tabs with Arrow Navigation */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Colorful Tabs with Icons */}
+      <div className="bg-gradient-to-r from-slate-100 via-gray-50 to-slate-100 rounded-2xl shadow-md border-2 border-gray-200 overflow-hidden">
         <div className="relative">
-          {/* Left Arrow */}
           {showLeftArrow && (
             <button
               onClick={() => scrollTabs('left')}
-              className="absolute left-0 top-0 bottom-0 z-10 bg-gradient-to-r from-white via-white to-transparent px-3 flex items-center hover:from-gray-50 transition-colors"
-              aria-label="Scroll tabs left"
+              className="absolute left-0 top-0 bottom-0 z-10 bg-gradient-to-r from-white via-white to-transparent px-3 flex items-center"
             >
-              <div className="bg-white rounded-full p-1 shadow-md hover:shadow-lg transition-shadow">
-                <ChevronLeft size={20} className="text-gray-600" />
+              <div className="bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow">
+                <ChevronLeft size={20} className="text-gray-700" />
               </div>
             </button>
           )}
 
-          {/* Tabs Container */}
           <div
             ref={tabsRef}
             onScroll={checkScrollButtons}
             className="flex overflow-x-auto scrollbar-hide"
-            style={{
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              WebkitOverflowScrolling: 'touch',
-            }}
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {(Object.keys(statusConfig) as LeadStatus[]).map((status) => {
               const config = statusConfig[status];
@@ -287,17 +331,19 @@ useEffect(() => {
                 <button
                   key={status}
                   onClick={() => setActiveTab(status)}
-                  className={`flex items-center gap-3 px-6 py-4 border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${
+                  className={`flex items-center gap-3 px-6 py-4 transition-all whitespace-nowrap flex-shrink-0 font-semibold ${
                     isActive
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                      ? `bg-gradient-to-r ${config.color} text-white shadow-xl scale-105 border-b-4 border-white`
+                      : `text-gray-700 hover:bg-white/80 hover:shadow-md ${config.textColor}`
                   }`}
                 >
-                  <Icon size={20} />
-                  <span className="font-medium">{config.label}</span>
+                  <Icon size={22} className={isActive ? 'drop-shadow-md' : ''} />
+                  <span className="text-base">{config.label}</span>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                      isActive ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-700'
+                    className={`px-3 py-1 rounded-full text-xs font-bold min-w-[2rem] text-center ${
+                      isActive
+                        ? 'bg-white/30 text-white backdrop-blur-sm'
+                        : 'bg-gray-200 text-gray-700'
                     }`}
                   >
                     {count}
@@ -307,22 +353,19 @@ useEffect(() => {
             })}
           </div>
 
-          {/* Right Arrow */}
           {showRightArrow && (
             <button
               onClick={() => scrollTabs('right')}
-              className="absolute right-0 top-0 bottom-0 z-10 bg-gradient-to-l from-white via-white to-transparent px-3 flex items-center hover:from-gray-50 transition-colors"
-              aria-label="Scroll tabs right"
+              className="absolute right-0 top-0 bottom-0 z-10 bg-gradient-to-l from-white via-white to-transparent px-3 flex items-center"
             >
-              <div className="bg-white rounded-full p-1 shadow-md hover:shadow-lg transition-shadow">
-                <ChevronRight size={20} className="text-gray-600" />
+              <div className="bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow">
+                <ChevronRight size={20} className="text-gray-700" />
               </div>
             </button>
           )}
         </div>
       </div>
 
-      {/* Hide scrollbar globally for tabs */}
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
@@ -338,7 +381,7 @@ useEffect(() => {
           />
           <input
             type="text"
-            placeholder="Search leads by name, email, company, or phone..."
+            placeholder="Search leads by name, email, company, phone, or referrer..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -368,129 +411,143 @@ useEffect(() => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredLeads.map((lead) => (
-            <div
-              key={lead.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all"
-            >
-              {/* Lead Header */}
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 overflow-hidden">
-                  {lead.image_url ? (
-                    <img
-                      src={lead.image_url}
-                      alt={lead.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    lead.name?.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">{lead.name}</h3>
-                  {lead.company_name && (
-                    <p className="text-sm text-gray-600 truncate flex items-center gap-1">
-                      <Building2 size={14} />
-                      {lead.company_name}
-                    </p>
-                  )}
-                  {lead.contact_person && lead.contact_person !== lead.name && (
-                    <p className="text-xs text-gray-500 truncate">
-                      Contact: {lead.contact_person}
-                    </p>
-                  )}
-                </div>
-              </div>
+          {filteredLeads.map((lead) => {
+            const isConverted = !!lead.converted_to_customer_id;
+            return (
+              <div
+                key={lead.id}
+                className={`bg-white rounded-xl shadow-sm border-2 p-6 hover:shadow-lg transition-all ${
+                  isConverted ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200'
+                }`}
+              >
+                {isConverted && (
+                  <div className="mb-3 flex items-center gap-2 text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg text-sm font-semibold w-fit">
+                    <CheckCircle size={16} />
+                    Converted to Customer
+                  </div>
+                )}
 
-              {/* Lead Info */}
-              <div className="space-y-2 mb-4">
-                {lead.email && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail size={16} className="flex-shrink-0" />
-                    <span className="truncate">{lead.email}</span>
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+                    {lead.name?.charAt(0).toUpperCase()}
                   </div>
-                )}
-                {lead.phone && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Phone size={16} className="flex-shrink-0" />
-                    <span>{lead.phone}</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 truncate text-lg">{lead.name}</h3>
+                    {lead.company_name && (
+                      <p className="text-sm text-gray-600 truncate flex items-center gap-1">
+                        <Building2 size={14} />
+                        {lead.company_name}
+                      </p>
+                    )}
                   </div>
-                )}
-                {lead.source && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Tag size={16} className="flex-shrink-0" />
-                    <span className="truncate">Source: {lead.source}</span>
-                  </div>
-                )}
-              </div>
+                </div>
 
-              {/* Services */}
-              {lead.lead_services && lead.lead_services.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-500 mb-2">
-                    Interested Services:
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {lead.lead_services.map((ls: any, idx: number) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md"
-                      >
-                        {ls.services?.name}
+                <div className="space-y-2 mb-4">
+                  {lead.email && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Mail size={16} className="flex-shrink-0 text-blue-500" />
+                      <span className="truncate">{lead.email}</span>
+                    </div>
+                  )}
+                  {lead.phone && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone size={16} className="flex-shrink-0 text-green-500" />
+                      <span>{lead.phone}</span>
+                    </div>
+                  )}
+                  {lead.source && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Tag size={16} className="flex-shrink-0 text-orange-500" />
+                      <span className="truncate">Source: {lead.source}</span>
+                    </div>
+                  )}
+                  {lead.referred_by && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Users size={16} className="flex-shrink-0 text-purple-500" />
+                      <span className="truncate font-medium">
+                        Referred by: {lead.referred_by}
                       </span>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {/* Status Dropdown */}
-              <div className="mb-4">
-                <select
-                  value={lead.status}
-                  onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium border-0 cursor-pointer ${getStatusBadgeColor(
-                    lead.status
-                  )}`}
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {lead.lead_services && lead.lead_services.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-medium text-gray-500 mb-2">Interested Services:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {lead.lead_services.map((ls: any, idx: number) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md border border-blue-200"
+                        >
+                          {ls.services?.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedLead(lead);
-                    setShowConvertModal(true);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                >
-                  <UserPlus size={16} />
-                  Convert
-                </button>
-                <button
-                  onClick={() => deleteLead(lead.id)}
-                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+                {!isConverted && (
+                  <div className="mb-4">
+                    <select
+                      value={lead.status}
+                      onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
+                      className={`w-full px-3 py-2 rounded-lg text-sm font-medium border-0 cursor-pointer ${getStatusBadgeColor(
+                        lead.status,
+                        false
+                      )}`}
+                    >
+                      {statusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-              {/* Created Date */}
-              <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1">
-                <Calendar size={12} />
-                {new Date(lead.created_at).toLocaleDateString()}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedLead(lead);
+                      setShowDetailsModal(true);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    <Eye size={16} />
+                    Details
+                  </button>
+                  {!isConverted && (
+                    <button
+                      onClick={() => {
+                        setSelectedLead(lead);
+                        setShowConvertModal(true);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                    >
+                      <UserPlus size={16} />
+                      Convert
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteLead(lead.id)}
+                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500 flex items-center gap-1">
+                  <Calendar size={12} />
+                  {new Date(lead.created_at).toLocaleDateString()}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Modals */}
+      {/* Modals positioned at left-64 top-16 */}
       {showAddModal && (
         <AddLeadModal
           onClose={() => setShowAddModal(false)}
@@ -512,6 +569,19 @@ useEffect(() => {
             setShowConvertModal(false);
             setSelectedLead(null);
             fetchLeads();
+          }}
+        />
+      )}
+
+      {showDetailsModal && selectedLead && (
+        <LeadDetails
+          leadId={selectedLead.id}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedLead(null);
+          }}
+          onEdit={() => {
+            alert('Edit functionality coming soon!');
           }}
         />
       )}

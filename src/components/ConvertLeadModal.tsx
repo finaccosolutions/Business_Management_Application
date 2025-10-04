@@ -106,40 +106,42 @@ export default function ConvertLeadModal({
     }
   };
 
-  const handleCustomerCreated = async (newCustomerId: string) => {
-    setCustomerId(newCustomerId);
+const handleCustomerCreated = async (newCustomerId: string) => {
+  setCustomerId(newCustomerId);
 
-    // Copy lead services to customer services
-    try {
-      if (lead.lead_services && lead.lead_services.length > 0) {
-        const customerServices = lead.lead_services.map((ls: any) => ({
-          customer_id: newCustomerId,
-          service_id: ls.service_id,
-          user_id: user?.id,
-          status: 'active',
-          price: 0, // Set default or prompt for price
-        }));
-
-        const { error: servicesError } = await supabase
-          .from('customer_services')
-          .insert(customerServices);
-
-        if (servicesError) throw servicesError;
+  try {
+    // Mark lead as converted instead of deleting
+    await supabase
+      .from('leads')
+      .update({
+        converted_to_customer_id: newCustomerId,
+        converted_at: new Date().toISOString(),
+        status: 'converted',
+      })
+      .eq('id', lead.id);
+        if (lead.lead_services && lead.lead_services.length > 0) {
+          const customerServices = lead.lead_services.map((ls: any) => ({
+            customer_id: newCustomerId,
+            service_id: ls.service_id,
+            user_id: user?.id,
+            status: 'active',
+            price: 0,
+          }));
+    
+          await supabase.from('customer_services').insert(customerServices);
+        }
+    
+        if (createWork) {
+          setStep('work');
+        } else {
+          alert('Lead successfully converted to customer!');
+          onSuccess();
+        }
+      } catch (error: any) {
+        console.error('Error converting lead:', error.message);
+        alert(`Failed to convert lead: ${error.message}`);
       }
-
-      if (createWork) {
-        setStep('work');
-      } else {
-        // Delete the lead
-        await supabase.from('leads').delete().eq('id', lead.id);
-        alert('Lead successfully converted to customer!');
-        onSuccess();
-      }
-    } catch (error: any) {
-      console.error('Error converting lead:', error.message);
-      alert(`Failed to convert lead: ${error.message}`);
-    }
-  };
+    };
 
   const handleWorkCreation = async (e: React.FormEvent) => {
     e.preventDefault();
