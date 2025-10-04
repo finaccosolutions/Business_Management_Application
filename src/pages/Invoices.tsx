@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, FileText, DollarSign, Calendar } from 'lucide-react';
+import { Plus, FileText, DollarSign, Calendar, X, Users, Trash2 } from 'lucide-react';
 
 interface Invoice {
   id: string;
@@ -43,7 +43,19 @@ export default function Invoices() {
     tax_amount: '',
     total_amount: '',
     status: 'draft',
+    customer_address: '',
+    discount: '0',
+    shipping: '0',
+    payment_terms: 'net_30',
+    notes: '',
+    po_number: '',
   });
+
+
+  const [lineItems, setLineItems] = useState([
+    { description: '', quantity: 1, rate: 0, tax_rate: 0 }
+  ]);
+
 
   useEffect(() => {
     if (user) {
@@ -73,33 +85,60 @@ export default function Invoices() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    try {
-      const invoiceData = {
-        user_id: user!.id,
-        customer_id: formData.customer_id,
-        invoice_number: formData.invoice_number,
-        invoice_date: formData.invoice_date,
-        due_date: formData.due_date,
-        subtotal: parseFloat(formData.subtotal),
-        tax_amount: parseFloat(formData.tax_amount || '0'),
-        total_amount: parseFloat(formData.total_amount),
-        status: formData.status,
-        updated_at: new Date().toISOString(),
-      };
+  try {
+    const subtotal = calculateSubtotal();
+    const taxAmount = calculateTotalTax();
+    const discount = parseFloat(formData.discount || '0');
+    const shipping = parseFloat(formData.shipping || '0');
+    const totalAmount = subtotal + taxAmount - discount + shipping;
 
-      const { error } = await supabase.from('invoices').insert(invoiceData);
-      if (error) throw error;
+    const invoiceData = {
+      user_id: user!.id,
+      customer_id: formData.customer_id,
+      invoice_number: formData.invoice_number,
+      invoice_date: formData.invoice_date,
+      due_date: formData.due_date,
+      subtotal: subtotal,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+      status: formData.status,
+      updated_at: new Date().toISOString(),
+    };
 
-      setShowModal(false);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      console.error('Error saving invoice:', error);
-    }
-  };
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert(invoiceData)
+      .select()
+      .single();
+
+    if (invoiceError) throw invoiceError;
+
+    // Insert line items
+    const itemsToInsert = lineItems.map(item => ({
+      invoice_id: invoice.id,
+      description: item.description,
+      quantity: parseFloat(item.quantity.toString()),
+      unit_price: parseFloat(item.rate.toString()),
+      amount: calculateItemTotal(item),
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('invoice_items')
+      .insert(itemsToInsert);
+
+    if (itemsError) throw itemsError;
+
+    setShowModal(false);
+    resetForm();
+    fetchData();
+  } catch (error) {
+    console.error('Error saving invoice:', error);
+  }
+};
+
 
   const updateInvoiceStatus = async (id: string, status: string) => {
     try {
@@ -121,23 +160,89 @@ export default function Invoices() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      customer_id: '',
-      invoice_number: '',
-      invoice_date: new Date().toISOString().split('T')[0],
-      due_date: '',
-      subtotal: '',
-      tax_amount: '',
-      total_amount: '',
-      status: 'draft',
-    });
-  };
+const resetForm = () => {
+  setFormData({
+    customer_id: '',
+    invoice_number: '',
+    invoice_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    subtotal: '',
+    tax_amount: '',
+    total_amount: '',
+    status: 'draft',
+    customer_address: '',
+    discount: '0',
+    shipping: '0',
+    payment_terms: 'net_30',
+    notes: '',
+    po_number: '',
+  });
+  setLineItems([{ description: '', quantity: 1, rate: 0, tax_rate: 0 }]);
+};
+
 
   const closeModal = () => {
     setShowModal(false);
     resetForm();
   };
+
+const addLineItem = () => {
+  setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, tax_rate: 0 }]);
+};
+
+const removeLineItem = (index: number) => {
+  setLineItems(lineItems.filter((_, i) => i !== index));
+};
+
+const updateLineItem = (index: number, field: string, value: any) => {
+  const updated = [...lineItems];
+  updated[index] = { ...updated[index], [field]: value };
+  setLineItems(updated);
+};
+
+const calculateItemTotal = (item: any) => {
+  const subtotal = parseFloat(item.quantity || 0) * parseFloat(item.rate || 0);
+  const tax = subtotal * (parseFloat(item.tax_rate || 0) / 100);
+  return subtotal + tax;
+};
+
+const calculateSubtotal = () => {
+  return lineItems.reduce((sum, item) => {
+    return sum + (parseFloat(item.quantity || 0) * parseFloat(item.rate || 0));
+  }, 0);
+};
+
+const calculateTotalTax = () => {
+  return lineItems.reduce((sum, item) => {
+    const subtotal = parseFloat(item.quantity || 0) * parseFloat(item.rate || 0);
+    const tax = subtotal * (parseFloat(item.tax_rate || 0) / 100);
+    return sum + tax;
+  }, 0);
+};
+
+const loadCustomerDetails = async (customerId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('address')
+      .eq('id', customerId)
+      .single();
+    
+    if (error) throw error;
+    if (data) {
+      setFormData(prev => ({ ...prev, customer_address: data.address || '' }));
+    }
+  } catch (error) {
+    console.error('Error loading customer details:', error);
+  }
+};
+
+const saveAsDraft = async () => {
+  const draftData = { ...formData, status: 'draft' };
+  setFormData(draftData);
+  await handleSubmit(new Event('submit') as any);
+};
+
 
   const calculateTotal = () => {
     const subtotal = parseFloat(formData.subtotal || '0');

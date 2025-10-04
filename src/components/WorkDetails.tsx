@@ -50,7 +50,7 @@ interface Assignment {
   staff_members: { name: string };
 }
 
-export default function WorkDetails({ workId, onClose, onUpdate }: WorkDetailsProps) {
+export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkDetailsProps) {
   const [work, setWork] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
