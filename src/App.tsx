@@ -14,6 +14,9 @@ import Reminders from './pages/Reminders';
 import Staff from './pages/Staff';
 import Reports from './pages/Reports';
 import Layout from './components/Layout';
+import { ConfirmationProvider } from './contexts/ConfirmationContext';
+import { ToastProvider } from './contexts/ToastContext';
+
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -70,11 +73,15 @@ function AppContent() {
 
 function App() {
   return (
+  <ConfirmationProvider>
+  <ToastProvider>
     <AuthProvider>
       <ThemeProvider>
         <AppContent />
       </ThemeProvider>
     </AuthProvider>
+  </ToastProvider>
+</ConfirmationProvider>
   );
 }
 

@@ -573,18 +573,35 @@ export default function Leads() {
         />
       )}
 
-      {showDetailsModal && selectedLead && (
-        <LeadDetails
-          leadId={selectedLead.id}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedLead(null);
-          }}
-          onEdit={() => {
-            alert('Edit functionality coming soon!');
-          }}
-        />
-      )}
+    {showDetailsModal && selectedLead && (
+      <LeadDetails
+        leadId={selectedLead.id}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedLead(null);
+        }}
+        onEdit={() => {
+          setShowDetailsModal(false);
+          setShowEditModal(true);
+        }}
+      />
+    )}
+    
+    {showEditModal && selectedLead && (
+      <EditLeadModal
+        lead={selectedLead}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedLead(null);
+        }}
+        onSuccess={() => {
+          setShowEditModal(false);
+          setSelectedLead(null);
+          fetchLeads();
+        }}
+      />
+    )}
+
     </div>
   );
 }

@@ -1,10 +1,12 @@
 // src/pages/Customers.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Trash2 } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Search, UserCog, Mail, Phone, Building, MapPin } from 'lucide-react';
 import CustomerDetails from '../components/CustomerDetails';
 import CustomerFormModal from '../components/CustomerFormModal';
+import { useConfirmation } from '../contexts/ConfirmationContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface Customer {
   id: string;
@@ -31,6 +33,8 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const confirmation = useConfirmation();
+  const toast = useToast();
 
   useEffect(() => {
     if (user) {
@@ -56,16 +60,24 @@ export default function Customers() {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this customer?')) return;
-
-    try {
-      const { error } = await supabase.from('customers').delete().eq('id', id);
-
-      if (error) throw error;
-      fetchCustomers();
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-    }
+    
+    confirmation.showConfirmation({
+      title: 'Delete Customer',
+      message: 'Are you sure you want to delete this customer? This action cannot be undone.',
+      confirmText: 'Delete',
+      confirmColor: 'red',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase.from('customers').delete().eq('id', id);
+          if (error) throw error;
+          toast.success('Customer deleted successfully');
+          fetchCustomers();
+        } catch (error) {
+          console.error('Error deleting customer:', error);
+          toast.error('Failed to delete customer');
+        }
+      },
+    });
   };
 
   const handleAddSuccess = (customerId: string) => {
@@ -197,17 +209,25 @@ export default function Customers() {
               )}
             </div>
 
-            <div className="pt-4 border-t border-gray-100">
+            <div className="pt-4 border-t border-gray-100 flex gap-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedCustomerId(customer.id);
                 }}
-                className="w-full px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors font-medium"
+                className="flex-1 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors font-medium"
               >
                 View Details
               </button>
+              <button
+                onClick={(e) => handleDelete(customer.id, e)}
+                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                title="Delete Customer"
+              >
+                <Trash2 size={18} />
+              </button>
             </div>
+
           </div>
         ))}
 

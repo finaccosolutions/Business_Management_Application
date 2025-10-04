@@ -6,22 +6,21 @@ import {
   User,
   Briefcase,
   Clock,
-  TrendingUp,
   CheckCircle,
   AlertCircle,
   Calendar,
+  DollarSign,
+  Mail,
+  Phone,
   Award,
-  Activity,
-  FileText,
-  Users,
-  Target,
-  BarChart3,
+  TrendingUp,
+  Edit2,
 } from 'lucide-react';
 
 interface StaffDetailsProps {
   staffId: string;
   onClose: () => void;
-  onUpdate: () => void;
+  onEdit: () => void;
 }
 
 interface StaffMember {
@@ -30,60 +29,45 @@ interface StaffMember {
   email: string;
   phone: string;
   role: string;
-  employee_id: string;
-  joining_date: string;
-  department: string;
-  expertise_areas: string[];
   hourly_rate: number;
   is_active: boolean;
-  availability_status: string;
-  employment_type: string;
   skills: string[];
   notes: string;
-}
-
-interface WorkStats {
-  total_assigned: number;
-  completed: number;
-  pending: number;
-  overdue: number;
-  in_progress: number;
-  completed_on_time: number;
-  average_completion_time: number;
-  on_time_percentage: number;
+  created_at: string;
 }
 
 interface Work {
   id: string;
   title: string;
+  description: string;
   status: string;
   priority: string;
   due_date: string;
+  created_at: string;
   completed_at: string;
+  estimated_hours: number;
+  actual_hours: number;
   customers: { name: string };
   services: { name: string };
-  actual_duration_hours: number;
-  started_at: string;
 }
 
-type TabType = 'overview' | 'works' | 'performance' | 'timeline' | 'delegated';
+type TabType = 'overview' | 'current' | 'completed' | 'pending' | 'overdue' | 'performance';
 
-export default function StaffDetails({ staffId, onClose, onUpdate }: StaffDetailsProps) {
+export default function StaffDetails({ staffId, onClose, onEdit }: StaffDetailsProps) {
   const { user } = useAuth();
   const [staff, setStaff] = useState<StaffMember | null>(null);
   const [works, setWorks] = useState<Work[]>([]);
-  const [workStats, setWorkStats] = useState<WorkStats>({
-    total_assigned: 0,
-    completed: 0,
-    pending: 0,
-    overdue: 0,
-    in_progress: 0,
-    completed_on_time: 0,
-    average_completion_time: 0,
-    on_time_percentage: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [statistics, setStatistics] = useState({
+    totalWorks: 0,
+    completedWorks: 0,
+    pendingWorks: 0,
+    overdueWorks: 0,
+    totalHoursWorked: 0,
+    averageCompletionTime: 0,
+    onTimeCompletionRate: 0,
+  });
 
   useEffect(() => {
     if (staffId) {
@@ -93,80 +77,54 @@ export default function StaffDetails({ staffId, onClose, onUpdate }: StaffDetail
 
   const fetchStaffDetails = async () => {
     try {
-      // Fetch staff member details
-      const { data: staffData, error: staffError } = await supabase
-        .from('staff_members')
-        .select('*')
-        .eq('id', staffId)
-        .single();
+      const [staffRes, worksRes] = await Promise.all([
+        supabase
+          .from('staff_members')
+          .select('*')
+          .eq('id', staffId)
+          .single(),
+        supabase
+          .from('works')
+          .select('*, customers(name), services(name)')
+          .contains('assigned_staff', [staffId])
+          .order('created_at', { ascending: false }),
+      ]);
 
-      if (staffError) throw staffError;
+      if (staffRes.error) throw staffRes.error;
+      if (worksRes.error) throw worksRes.error;
 
-      // Fetch all works assigned to this staff member
-      const { data: worksData, error: worksError } = await supabase
-        .from('works')
-        .select('*, customers(name), services(name)')
-        .eq('assigned_to', staffId)
-        .order('created_at', { ascending: false });
+      setStaff(staffRes.data);
+      setWorks(worksRes.data || []);
 
-      if (worksError) throw worksError;
+      const allWorks = worksRes.data || [];
+      const completed = allWorks.filter((w) => w.status === 'completed');
+      const pending = allWorks.filter((w) => w.status === 'in_progress' || w.status === 'pending');
+      const overdue = allWorks.filter((w) => {
+        if (w.status === 'completed') return false;
+        return new Date(w.due_date) < new Date();
+      });
 
-      setStaff(staffData);
-      setWorks(worksData || []);
+      const totalHours = completed.reduce((sum, w) => sum + (w.actual_hours || 0), 0);
+      
+      const onTimeCompleted = completed.filter((w) => {
+        return new Date(w.completed_at) <= new Date(w.due_date);
+      });
 
-      // Calculate statistics
-      const stats = calculateWorkStats(worksData || []);
-      setWorkStats(stats);
+      setStatistics({
+        totalWorks: allWorks.length,
+        completedWorks: completed.length,
+        pendingWorks: pending.length,
+        overdueWorks: overdue.length,
+        totalHoursWorked: totalHours,
+        averageCompletionTime: completed.length > 0 ? totalHours / completed.length : 0,
+        onTimeCompletionRate: completed.length > 0 ? (onTimeCompleted.length / completed.length) * 100 : 0,
+      });
     } catch (error: any) {
       console.error('Error fetching staff details:', error.message);
     } finally {
       setLoading(false);
     }
   };
-
-  const calculateWorkStats = (worksData: Work[]): WorkStats => {
-    const total_assigned = worksData.length;
-    const completed = worksData.filter(w => w.status === 'completed').length;
-    const pending = worksData.filter(w => w.status === 'pending').length;
-    const in_progress = worksData.filter(w => w.status === 'in_progress').length;
-    const overdue = worksData.filter(w => w.status === 'overdue').length;
-
-    // Calculate on-time completion
-    const completedWorks = worksData.filter(w => w.status === 'completed');
-    const completed_on_time = completedWorks.filter(w => {
-      if (!w.due_date || !w.completed_at) return false;
-      return new Date(w.completed_at) <= new Date(w.due_date);
-    }).length;
-
-    const on_time_percentage = completed > 0 ? (completed_on_time / completed) * 100 : 0;
-
-    // Calculate average completion time
-    const completedWithDuration = completedWorks.filter(w => w.actual_duration_hours > 0);
-    const average_completion_time =
-      completedWithDuration.length > 0
-        ? completedWithDuration.reduce((sum, w) => sum + w.actual_duration_hours, 0) /
-          completedWithDuration.length
-        : 0;
-
-    return {
-      total_assigned,
-      completed,
-      pending,
-      overdue,
-      in_progress,
-      completed_on_time,
-      average_completion_time,
-      on_time_percentage,
-    };
-  };
-
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: User },
-    { id: 'works', label: 'Works', icon: Briefcase },
-    { id: 'performance', label: 'Performance', icon: TrendingUp },
-    { id: 'timeline', label: 'Timeline', icon: Calendar },
-    { id: 'delegated', label: 'Delegated', icon: Users },
-  ];
 
   if (loading || !staff) {
     return (
@@ -176,225 +134,28 @@ export default function StaffDetails({ staffId, onClose, onUpdate }: StaffDetail
     );
   }
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-600 to-emerald-700">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center">
-              <User size={32} className="text-emerald-600" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">{staff.name}</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-emerald-100">{staff.role}</span>
-                {staff.employee_id && (
-                  <>
-                    <span className="text-emerald-200">•</span>
-                    <span className="text-emerald-100">ID: {staff.employee_id}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
-          >
-            <X size={24} />
-          </button>
-        </div>
+  const tabs: Array<{ id: TabType; label: string; icon: any; count?: number }> = [
+    { id: 'overview', label: 'Overview', icon: User },
+    { id: 'current', label: 'Current Works', icon: Clock, count: statistics.pendingWorks },
+    { id: 'completed', label: 'Completed', icon: CheckCircle, count: statistics.completedWorks },
+    { id: 'pending', label: 'Pending', icon: AlertCircle, count: statistics.pendingWorks },
+    { id: 'overdue', label: 'Overdue', icon: AlertCircle, count: statistics.overdueWorks },
+    { id: 'performance', label: 'Performance', icon: TrendingUp },
+  ];
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 p-6 bg-gray-50 border-b border-gray-200">
-          <StatCard
-            icon={Briefcase}
-            label="Total Works"
-            value={workStats.total_assigned}
-            color="blue"
-          />
-          <StatCard
-            icon={CheckCircle}
-            label="Completed"
-            value={workStats.completed}
-            color="green"
-          />
-          <StatCard
-            icon={Clock}
-            label="In Progress"
-            value={workStats.in_progress}
-            color="yellow"
-          />
-          <StatCard
-            icon={AlertCircle}
-            label="Overdue"
-            value={workStats.overdue}
-            color="red"
-          />
-          <StatCard
-            icon={Target}
-            label="On-Time %"
-            value={`${workStats.on_time_percentage.toFixed(0)}%`}
-            color="teal"
-          />
-          <StatCard
-            icon={Activity}
-            label="Avg. Time"
-            value={`${workStats.average_completion_time.toFixed(1)}h`}
-            color="purple"
-          />
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 bg-gray-50 px-6 overflow-x-auto">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'border-emerald-600 text-emerald-600 bg-white'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Icon size={18} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'overview' && <OverviewTab staff={staff} />}
-          {activeTab === 'works' && <WorksTab works={works} />}
-          {activeTab === 'performance' && <PerformanceTab stats={workStats} works={works} />}
-          {activeTab === 'timeline' && <TimelineTab works={works} />}
-          {activeTab === 'delegated' && <DelegatedTab staffId={staffId} />}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Stat Card Component
-function StatCard({ icon: Icon, label, value, color }: any) {
-  const colorClasses: Record<string, string> = {
-    blue: 'text-blue-600 bg-blue-50',
-    green: 'text-green-600 bg-green-50',
-    yellow: 'text-yellow-600 bg-yellow-50',
-    red: 'text-red-600 bg-red-50',
-    teal: 'text-teal-600 bg-teal-50',
-    purple: 'text-purple-600 bg-purple-50',
-  };
-
-  return (
-    <div className="bg-white rounded-lg p-4 shadow-sm">
-      <div className="flex items-center gap-2 mb-1">
-        <Icon size={16} className={colorClasses[color]?.split(' ')[0] || 'text-gray-600'} />
-        <p className="text-xs font-medium text-gray-600">{label}</p>
-      </div>
-      <p className={`text-xl font-bold ${colorClasses[color]?.split(' ')[0] || 'text-gray-900'}`}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-// Overview Tab
-function OverviewTab({ staff }: { staff: StaffMember }) {
-  return (
-    <div className="space-y-6">
-      {/* Personal Information */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {staff.email && (
-            <div>
-              <p className="text-xs text-gray-500">Email</p>
-              <p className="text-sm font-medium text-gray-900">{staff.email}</p>
-            </div>
-          )}
-          {staff.phone && (
-            <div>
-              <p className="text-xs text-gray-500">Phone</p>
-              <p className="text-sm font-medium text-gray-900">{staff.phone}</p>
-            </div>
-          )}
-          {staff.department && (
-            <div>
-              <p className="text-xs text-gray-500">Department</p>
-              <p className="text-sm font-medium text-gray-900">{staff.department}</p>
-            </div>
-          )}
-          {staff.employment_type && (
-            <div>
-              <p className="text-xs text-gray-500">Employment Type</p>
-              <p className="text-sm font-medium text-gray-900 capitalize">{staff.employment_type}</p>
-            </div>
-          )}
-          {staff.joining_date && (
-            <div>
-              <p className="text-xs text-gray-500">Joining Date</p>
-              <p className="text-sm font-medium text-gray-900">
-                {new Date(staff.joining_date).toLocaleDateString()}
-              </p>
-            </div>
-          )}
-          {staff.hourly_rate && (
-            <div>
-              <p className="text-xs text-gray-500">Hourly Rate</p>
-              <p className="text-sm font-medium text-gray-900">₹{staff.hourly_rate}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Skills & Expertise */}
-      {(staff.skills || staff.expertise_areas) && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Award size={20} className="text-emerald-600" />
-            Skills & Expertise
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {[...(staff.skills || []), ...(staff.expertise_areas || [])].map((skill, idx) => (
-              <span
-                key={idx}
-                className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium"
-              >
-                {skill}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Notes */}
-      {staff.notes && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Notes</h3>
-          <p className="text-gray-700 whitespace-pre-wrap">{staff.notes}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Works Tab
-function WorksTab({ works }: { works: Work[] }) {
-  const [filterStatus, setFilterStatus] = useState('all');
-
-  const filteredWorks = filterStatus === 'all' ? works : works.filter(w => w.status === filterStatus);
+  const currentWorks = works.filter((w) => w.status === 'in_progress');
+  const completedWorks = works.filter((w) => w.status === 'completed');
+  const pendingWorks = works.filter((w) => w.status === 'pending');
+  const overdueWorks = works.filter((w) => {
+    if (w.status === 'completed') return false;
+    return new Date(w.due_date) < new Date();
+  });
 
   const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-700',
-    in_progress: 'bg-blue-100 text-blue-700',
-    completed: 'bg-green-100 text-green-700',
-    overdue: 'bg-red-100 text-red-700',
+    pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    in_progress: 'bg-blue-100 text-blue-700 border-blue-200',
+    completed: 'bg-green-100 text-green-700 border-green-200',
+    overdue: 'bg-red-100 text-red-700 border-red-200',
   };
 
   const priorityColors: Record<string, string> = {
@@ -405,219 +166,413 @@ function WorksTab({ works }: { works: Work[] }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Assigned Works ({works.length})</h3>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-        >
-          <option value="all">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="overdue">Overdue</option>
-        </select>
-      </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
+      <div className="fixed top-16 left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-teal-600 to-emerald-600 flex-shrink-0">
+          <div>
+            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+              <User size={28} />
+              Staff Details
+            </h2>
+            <p className="text-teal-100 text-sm mt-1">
+              Member since {new Date(staff.created_at).toLocaleDateString()}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+            >
+              <Edit2 size={18} />
+              Edit
+            </button>
+            <button
+              onClick={onClose}
+              className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredWorks.map((work) => (
-          <div
-            key={work.id}
-            className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <h4 className="font-semibold text-gray-900 mb-1">{work.title}</h4>
-                <p className="text-sm text-gray-600">{work.services.name}</p>
-              </div>
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  statusColors[work.status] || statusColors.pending
+        {/* Status Badge */}
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <span
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 ${
+                staff.is_active
+                  ? 'bg-green-100 text-green-700 border-green-200'
+                  : 'bg-gray-100 text-gray-700 border-gray-200'
+              }`}
+            >
+              {staff.is_active ? 'Active' : 'Inactive'}
+            </span>
+            <span className="text-sm font-medium text-gray-700 uppercase px-3 py-1 bg-blue-50 rounded-lg">
+              {staff.role}
+            </span>
+            {staff.hourly_rate && (
+              <span className="text-sm font-semibold text-teal-700 bg-teal-50 px-3 py-1 rounded-lg flex items-center gap-1">
+                <DollarSign size={14} />
+                ₹{staff.hourly_rate}/hour
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-4 p-6 bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-gray-200 flex-shrink-0">
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Briefcase size={16} className="text-blue-600" />
+              <p className="text-xs font-medium text-gray-600">Total Works</p>
+            </div>
+            <p className="text-xl font-bold text-blue-600">{statistics.totalWorks}</p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <CheckCircle size={16} className="text-green-600" />
+              <p className="text-xs font-medium text-gray-600">Completed</p>
+            </div>
+            <p className="text-xl font-bold text-green-600">{statistics.completedWorks}</p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Clock size={16} className="text-yellow-600" />
+              <p className="text-xs font-medium text-gray-600">Pending</p>
+            </div>
+            <p className="text-xl font-bold text-yellow-600">{statistics.pendingWorks}</p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertCircle size={16} className="text-red-600" />
+              <p className="text-xs font-medium text-gray-600">Overdue</p>
+            </div>
+            <p className="text-xl font-bold text-red-600">{statistics.overdueWorks}</p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Clock size={16} className="text-teal-600" />
+              <p className="text-xs font-medium text-gray-600">Hours Worked</p>
+            </div>
+            <p className="text-xl font-bold text-teal-600">{statistics.totalHoursWorked.toFixed(1)}</p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp size={16} className="text-purple-600" />
+              <p className="text-xs font-medium text-gray-600">Avg Time</p>
+            </div>
+            <p className="text-xl font-bold text-purple-600">
+              {statistics.averageCompletionTime.toFixed(1)}h
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Award size={16} className="text-emerald-600" />
+              <p className="text-xs font-medium text-gray-600">On-Time Rate</p>
+            </div>
+            <p className="text-xl font-bold text-emerald-600">
+              {statistics.onTimeCompletionRate.toFixed(0)}%
+            </p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-emerald-50 flex-shrink-0 overflow-x-auto">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'bg-white text-teal-700 shadow-sm border-t-2 border-teal-600'
+                    : 'text-gray-600 hover:bg-white/50'
                 }`}
               >
-                {work.status.replace('_', ' ')}
-              </span>
-            </div>
+                <Icon size={18} className="text-teal-600" />
+                {tab.label}
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span className="bg-teal-100 text-teal-700 text-xs px-2 py-0.5 rounded-full">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Customer:</span>
-                <span className="font-medium text-gray-900">{work.customers.name}</span>
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Personal Information */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <User size={20} className="text-teal-600" />
+                  Personal Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Name</label>
+                    <p className="text-gray-900 font-medium mt-1">{staff.name}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Role</label>
+                    <p className="text-gray-900 font-medium mt-1 capitalize">{staff.role}</p>
+                  </div>
+                  {staff.email && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                        <Mail size={14} />
+                        Email
+                      </label>
+                      <p className="text-gray-900 mt-1">
+                        <a href={`mailto:${staff.email}`} className="text-teal-600 hover:underline">
+                          {staff.email}
+                        </a>
+                      </p>
+                    </div>
+                  )}
+                  {staff.phone && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                        <Phone size={14} />
+                        Phone
+                      </label>
+                      <p className="text-gray-900 mt-1">
+                        <a href={`tel:${staff.phone}`} className="text-teal-600 hover:underline">
+                          {staff.phone}
+                        </a>
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-              {work.due_date && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Due Date:</span>
-                  <span className="font-medium text-gray-900">
-                    {new Date(work.due_date).toLocaleDateString()}
-                  </span>
+
+              {/* Skills */}
+              {staff.skills && staff.skills.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Award size={20} className="text-teal-600" />
+                    Skills & Expertise
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {staff.skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="px-4 py-2 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg font-medium"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
-              {work.actual_duration_hours > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Time Spent:</span>
-                  <span className="font-medium text-gray-900">
-                    {work.actual_duration_hours.toFixed(1)}h
-                  </span>
+
+              {/* Notes */}
+              {staff.notes && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Notes</h3>
+                  <p className="text-gray-700 whitespace-pre-wrap">{staff.notes}</p>
                 </div>
               )}
             </div>
-          </div>
-        ))}
+          )}
+
+          {activeTab === 'current' && (
+            <WorksList works={currentWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No works in progress" />
+          )}
+
+          {activeTab === 'completed' && (
+            <WorksList works={completedWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No completed works" />
+          )}
+
+          {activeTab === 'pending' && (
+            <WorksList works={pendingWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No pending works" />
+          )}
+
+          {activeTab === 'overdue' && (
+            <WorksList works={overdueWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No overdue works" />
+          )}
+
+          {activeTab === 'performance' && (
+            <PerformanceTab statistics={statistics} works={works} />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// Performance Tab
-function PerformanceTab({ stats, works }: { stats: WorkStats; works: Work[] }) {
+function WorksList({
+  works,
+  statusColors,
+  priorityColors,
+  emptyMessage,
+}: {
+  works: Work[];
+  statusColors: Record<string, string>;
+  priorityColors: Record<string, string>;
+  emptyMessage: string;
+}) {
+  if (works.length === 0) {
+    return (
+      <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+        <Clock size={48} className="mx-auto text-gray-400 mb-4" />
+        <p className="text-gray-600">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {works.map((work) => (
+        <div
+          key={work.id}
+          className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <h4 className="font-semibold text-gray-900 mb-1">{work.title}</h4>
+              <p className="text-sm text-gray-600">{work.services?.name}</p>
+              <p className="text-sm text-gray-500">{work.customers?.name}</p>
+            </div>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 border ${
+                statusColors[work.status] || statusColors.pending
+              }`}
+            >
+              {work.status.replace('_', ' ')}
+            </span>
+          </div>
+
+          {work.description && (
+            <p className="text-sm text-gray-600 mb-3 line-clamp-2">{work.description}</p>
+          )}
+
+          <div className="flex items-center justify-between text-sm">
+            <span
+              className={`px-2 py-1 rounded text-xs font-medium ${
+                priorityColors[work.priority] || priorityColors.medium
+              }`}
+            >
+              {work.priority}
+            </span>
+            {work.due_date && (
+              <div className="flex items-center gap-1 text-gray-600">
+                <Calendar size={14} />
+                <span>{new Date(work.due_date).toLocaleDateString()}</span>
+              </div>
+            )}
+          </div>
+
+          {work.actual_hours && (
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-sm text-gray-700">
+              <Clock size={14} />
+              <span>Actual: {work.actual_hours}h</span>
+              {work.estimated_hours && (
+                <span className="text-gray-500">/ Est: {work.estimated_hours}h</span>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PerformanceTab({ statistics, works }: { statistics: any; works: Work[] }) {
+  const completedWorks = works.filter((w) => w.status === 'completed');
+  
+  const worksByMonth = completedWorks.reduce((acc: any, work) => {
+    const month = new Date(work.completed_at).toLocaleDateString('en-US', {
+      month: 'short',
+      year: 'numeric',
+    });
+    acc[month] = (acc[month] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
-      {/* Performance Metrics */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 p-6">
+      {/* Performance Summary */}
+      <div className="bg-gradient-to-r from-teal-50 to-emerald-50 rounded-xl border border-teal-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <TrendingUp size={20} className="text-emerald-600" />
+          <TrendingUp size={20} className="text-teal-600" />
           Performance Summary
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <p className="text-sm text-gray-600 mb-1">Completion Rate</p>
-            <p className="text-2xl font-bold text-emerald-600">
-              {stats.total_assigned > 0
-                ? ((stats.completed / stats.total_assigned) * 100).toFixed(1)
-                : 0}
-              %
+            <p className="text-sm text-gray-600 mb-1">Total Hours Worked</p>
+            <p className="text-2xl font-bold text-teal-600">
+              {statistics.totalHoursWorked.toFixed(1)} hours
             </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600 mb-1">On-Time Delivery</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.on_time_percentage.toFixed(1)}%</p>
           </div>
           <div>
             <p className="text-sm text-gray-600 mb-1">Average Completion Time</p>
-            <p className="text-2xl font-bold text-purple-600">
-              {stats.average_completion_time.toFixed(1)}h
+            <p className="text-2xl font-bold text-blue-600">
+              {statistics.averageCompletionTime.toFixed(1)} hours
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600 mb-1">On-Time Delivery Rate</p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {statistics.onTimeCompletionRate.toFixed(0)}%
             </p>
           </div>
         </div>
       </div>
 
-      {/* Work Distribution */}
+      {/* Work Completion by Month */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Work Distribution</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Work Completion by Month</h3>
         <div className="space-y-3">
-          <ProgressBar
-            label="Completed"
-            value={stats.completed}
-            total={stats.total_assigned}
-            color="green"
-          />
-          <ProgressBar
-            label="In Progress"
-            value={stats.in_progress}
-            total={stats.total_assigned}
-            color="blue"
-          />
-          <ProgressBar
-            label="Pending"
-            value={stats.pending}
-            total={stats.total_assigned}
-            color="yellow"
-          />
-          <ProgressBar
-            label="Overdue"
-            value={stats.overdue}
-            total={stats.total_assigned}
-            color="red"
-          />
+          {Object.entries(worksByMonth).map(([month, count]: [string, any]) => (
+            <div key={month} className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700 w-24">{month}</span>
+              <div className="flex-1 bg-gray-200 rounded-full h-6 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-teal-500 to-emerald-500 h-full rounded-full flex items-center justify-end px-2"
+                  style={{ width: `${(count / Math.max(...Object.values(worksByMonth))) * 100}%` }}
+                >
+                  <span className="text-xs font-semibold text-white">{count}</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
-  );
-}
 
-function ProgressBar({ label, value, total, color }: any) {
-  const percentage = total > 0 ? (value / total) * 100 : 0;
-  const colorClasses: Record<string, string> = {
-    green: 'bg-green-500',
-    blue: 'bg-blue-500',
-    yellow: 'bg-yellow-500',
-    red: 'bg-red-500',
-  };
-
-  return (
-    <div>
-      <div className="flex justify-between mb-1">
-        <span className="text-sm font-medium text-gray-700">{label}</span>
-        <span className="text-sm text-gray-600">
-          {value} / {total}
-        </span>
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
-        <div
-          className={`h-2 rounded-full ${colorClasses[color]}`}
-          style={{ width: `${percentage}%` }}
-        ></div>
-      </div>
-    </div>
-  );
-}
-
-// Timeline Tab
-function TimelineTab({ works }: { works: Work[] }) {
-  const completedWorks = works
-    .filter(w => w.status === 'completed' && w.completed_at)
-    .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
-
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">Work History</h3>
-      <div className="space-y-4">
-        {completedWorks.map((work, idx) => (
-          <div key={work.id} className="flex gap-4">
-            <div className="flex flex-col items-center">
-              <div className="w-3 h-3 bg-emerald-600 rounded-full"></div>
-              {idx < completedWorks.length - 1 && (
-                <div className="w-0.5 h-full bg-gray-300 mt-1"></div>
-              )}
-            </div>
-            <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4 mb-4">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-semibold text-gray-900">{work.title}</h4>
-                  <p className="text-sm text-gray-600">{work.customers.name}</p>
-                </div>
-                <span className="text-xs text-gray-500">
-                  {new Date(work.completed_at).toLocaleDateString()}
-                </span>
-              </div>
-              {work.actual_duration_hours > 0 && (
-                <p className="text-sm text-gray-600">
-                  Completed in {work.actual_duration_hours.toFixed(1)} hours
-                </p>
-              )}
-            </div>
+      {/* Work Efficiency */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Work Efficiency</h3>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-700">Total Works Assigned</span>
+            <span className="font-bold text-gray-900">{statistics.totalWorks}</span>
           </div>
-        ))}
-        {completedWorks.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            No completed works yet
+          <div className="flex justify-between items-center">
+            <span className="text-gray-700">Completion Rate</span>
+            <span className="font-bold text-green-600">
+              {statistics.totalWorks > 0
+                ? ((statistics.completedWorks / statistics.totalWorks) * 100).toFixed(1)
+                : 0}%
+            </span>
           </div>
-        )}
+          <div className="flex justify-between items-center">
+            <span className="text-gray-700">Works Overdue</span>
+            <span className="font-bold text-red-600">{statistics.overdueWorks}</span>
+          </div>
+        </div>
       </div>
-    </div>
-  );
-}
-
-// Delegated Tab
-function DelegatedTab({ staffId }: { staffId: string }) {
-  return (
-    <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-      <Users size={48} className="mx-auto text-gray-400 mb-4" />
-      <h4 className="text-lg font-medium text-gray-900 mb-2">Delegated Works</h4>
-      <p className="text-gray-600">Works assigned by this staff member to others.</p>
-      <p className="text-sm text-gray-500 mt-2">Coming soon...</p>
     </div>
   );
 }
