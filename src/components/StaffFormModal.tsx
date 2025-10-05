@@ -2,14 +2,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Users, Briefcase, DollarSign, Award, BookOpen, Phone as PhoneIcon } from 'lucide-react';
 
 interface StaffFormModalProps {
   onClose: () => void;
   onSuccess: () => void;
   editingStaff?: any;
 }
- 
+
 export default function StaffFormModal({ onClose, onSuccess, editingStaff }: StaffFormModalProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
@@ -24,7 +24,11 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
     department: '',
     joining_date: '',
     employment_type: 'full-time',
-    hourly_rate: '',
+    
+    // Salary Configuration
+    salary_method: 'hourly',
+    salary_amount: '',
+    hourly_rate: '', // backward compatibility
     
     // Skills & Expertise
     skills: '',
@@ -52,6 +56,7 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
   });
 
   const [newCert, setNewCert] = useState({ name: '', issued_by: '', year: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (editingStaff) {
@@ -64,6 +69,8 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
         department: editingStaff.department || '',
         joining_date: editingStaff.joining_date || '',
         employment_type: editingStaff.employment_type || 'full-time',
+        salary_method: editingStaff.salary_method || 'hourly',
+        salary_amount: editingStaff.salary_amount?.toString() || '',
         hourly_rate: editingStaff.hourly_rate?.toString() || '',
         skills: editingStaff.skills?.join(', ') || '',
         expertise_areas: editingStaff.expertise_areas?.join(', ') || '',
@@ -79,6 +86,7 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     try {
       const staffData = {
@@ -91,7 +99,11 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
         department: formData.department || null,
         joining_date: formData.joining_date || null,
         employment_type: formData.employment_type,
-        hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
+        salary_method: formData.salary_method,
+        salary_amount: formData.salary_amount ? parseFloat(formData.salary_amount) : null,
+        hourly_rate: formData.salary_method === 'hourly' && formData.salary_amount 
+          ? parseFloat(formData.salary_amount) 
+          : null,
         skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
         expertise_areas: formData.expertise_areas ? formData.expertise_areas.split(',').map(s => s.trim()) : null,
         is_active: formData.is_active,
@@ -120,6 +132,8 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
     } catch (error) {
       console.error('Error saving staff member:', error);
       alert('Failed to save staff member');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -140,28 +154,45 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
     });
   };
 
+  const getSalaryLabel = () => {
+    switch (formData.salary_method) {
+      case 'hourly': return 'Hourly Rate (₹)';
+      case 'monthly': return 'Monthly Salary (₹)';
+      case 'fixed': return 'Fixed Amount (₹)';
+      case 'commission': return 'Commission Rate (%)';
+      default: return 'Amount';
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white p-6 border-b border-gray-200 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-bold text-gray-900">
+      <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-gradient-to-r from-emerald-600 to-teal-600 p-6 border-b border-gray-200 flex items-center justify-between z-10">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+            <Users size={28} />
             {editingStaff ? 'Edit Staff Member' : 'Add New Staff Member'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X size={24} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
           {/* Basic Information */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Users size={20} className="text-emerald-600" />
+              Basic Information
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
@@ -209,7 +240,10 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
 
           {/* Employment Details */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Employment Details</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Briefcase size={20} className="text-emerald-600" />
+              Employment Details
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
@@ -234,7 +268,15 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="e.g., Accounts, Tax, Audit"
+                  list="departments"
                 />
+                <datalist id="departments">
+                  <option value="Accounts" />
+                  <option value="Tax" />
+                  <option value="Audit" />
+                  <option value="Legal" />
+                  <option value="Consulting" />
+                </datalist>
               </div>
 
               <div>
@@ -262,18 +304,6 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Hourly Rate (₹)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.hourly_rate}
-                  onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Availability</label>
                 <select
                   value={formData.availability_status}
@@ -286,24 +316,65 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
                   <option value="unavailable">Unavailable</option>
                 </select>
               </div>
-            </div>
 
-            <div className="mt-4 flex items-center">
-              <label className="flex items-center space-x-2 cursor-pointer">
+              <div className="flex items-center pt-6">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Active Status</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Salary Configuration */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <DollarSign size={20} className="text-emerald-600" />
+              Compensation Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Salary Method</label>
+                <select
+                  value={formData.salary_method}
+                  onChange={(e) => setFormData({ ...formData, salary_method: e.target.value, salary_amount: '' })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="hourly">Hourly Rate</option>
+                  <option value="monthly">Monthly Salary</option>
+                  <option value="fixed">Fixed Project-based</option>
+                  <option value="commission">Commission-based</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{getSalaryLabel()}</label>
                 <input
-                  type="checkbox"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                  type="number"
+                  step={formData.salary_method === 'commission' ? '0.01' : '0.01'}
+                  value={formData.salary_amount}
+                  onChange={(e) => setFormData({ ...formData, salary_amount: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder={formData.salary_method === 'commission' ? '10.00' : '0.00'}
                 />
-                <span className="text-sm font-medium text-gray-700">Active Status</span>
-              </label>
+                {formData.salary_method === 'commission' && (
+                  <p className="text-xs text-gray-500 mt-1">Enter percentage (e.g., 10 for 10%)</p>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Skills & Expertise */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Skills & Expertise</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Award size={20} className="text-emerald-600" />
+              Skills & Expertise
+            </h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -314,7 +385,7 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
                   value={formData.skills}
                   onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="Accounting, Tax Filing, GST"
+                  placeholder="Accounting, Tax Filing, GST, Financial Analysis"
                 />
               </div>
 
@@ -335,10 +406,13 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
 
           {/* Certifications */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Certifications</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Award size={20} className="text-emerald-600" />
+              Certifications
+            </h3>
             <div className="space-y-3">
               {formData.certifications.map((cert, index) => (
-                <div key={index} className="flex items-center space-x-2 p-3 bg-emerald-50 rounded-lg">
+                <div key={index} className="flex items-center space-x-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
                   <div className="flex-1">
                     <span className="text-sm font-medium text-gray-900">{cert.name}</span>
                     <span className="text-sm text-gray-600"> - {cert.issued_by}</span>
@@ -347,50 +421,55 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
                   <button
                     type="button"
                     onClick={() => removeCertification(index)}
-                    className="p-1 text-red-600 hover:bg-red-100 rounded"
+                    className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ))}
 
-              <div className="flex space-x-2">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                 <input
                   type="text"
                   value={newCert.name}
                   onChange={(e) => setNewCert({ ...newCert, name: e.target.value })}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Certification name"
                 />
                 <input
                   type="text"
                   value={newCert.issued_by}
                   onChange={(e) => setNewCert({ ...newCert, issued_by: e.target.value })}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Issued by"
                 />
-                <input
-                  type="text"
-                  value={newCert.year}
-                  onChange={(e) => setNewCert({ ...newCert, year: e.target.value })}
-                  className="w-24 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="Year"
-                />
-                <button
-                  type="button"
-                  onClick={addCertification}
-                  className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors flex items-center space-x-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add</span>
-                </button>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCert.year}
+                    onChange={(e) => setNewCert({ ...newCert, year: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    placeholder="Year"
+                  />
+                  <button
+                    type="button"
+                    onClick={addCertification}
+                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors flex items-center justify-center"
+                    title="Add certification"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Education */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Education</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <BookOpen size={20} className="text-emerald-600" />
+              Education
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Degree</label>
@@ -438,7 +517,10 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
 
           {/* Emergency Contact */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <PhoneIcon size={20} className="text-emerald-600" />
+              Emergency Contact
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
@@ -486,7 +568,7 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -497,19 +579,31 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex space-x-4 pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isSubmitting}
+              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              disabled={isSubmitting}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingStaff ? 'Update' : 'Create'}
+              {isSubmitting ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Saving...
+                </span>
+              ) : (
+                editingStaff ? 'Update Staff Member' : 'Create Staff Member'
+              )}
             </button>
           </div>
         </form>
