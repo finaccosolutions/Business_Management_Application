@@ -1,3 +1,4 @@
+// src/components/LeadDetails.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,7 +15,12 @@ import {
   MessageSquare,
   Clock,
   CheckCircle2,
+  Plus,
+  PhoneIcon as PhoneCall,
+  MessageCircle,
+  Users,
 } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 interface LeadDetailsProps {
   leadId: string;
@@ -49,11 +55,27 @@ interface Communication {
   created_at: string;
 }
 
+interface FollowUp {
+  id: string;
+  followup_date: string;
+  followup_time: string;
+  followup_type: string;
+  remarks: string;
+  status: string;
+  completed_at: string;
+  created_at: string;
+}
+
 export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProps) {
   const { user } = useAuth();
+  const toast = useToast();
   const [lead, setLead] = useState<LeadDetail | null>(null);
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'details' | 'communications' | 'notes'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'communications' | 'notes' | 'followups'>(
+    'details'
+  );
+  const [showAddFollowUpModal, setShowAddFollowUpModal] = useState(false);
 
   useEffect(() => {
     fetchLeadDetails();
@@ -63,12 +85,14 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
     try {
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
-        .select(`
+        .select(
+          `
           *,
           lead_services (
             services (name)
           )
-        `)
+        `
+        )
         .eq('id', leadId)
         .single();
 
@@ -80,14 +104,38 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
         .eq('lead_id', leadId)
         .order('created_at', { ascending: false });
 
+      const { data: followUpsData } = await supabase
+        .from('lead_followups')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('followup_date', { ascending: false });
+
       setLead({
         ...leadData,
         communications: commsData || [],
       });
+      setFollowUps(followUpsData || []);
     } catch (error: any) {
       console.error('Error fetching lead details:', error.message);
+      toast.error('Failed to load lead details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const markFollowUpCompleted = async (followUpId: string) => {
+    try {
+      const { error } = await supabase
+        .from('lead_followups')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', followUpId);
+
+      if (error) throw error;
+      toast.success('Follow-up marked as completed!');
+      fetchLeadDetails();
+    } catch (error: any) {
+      console.error('Error updating follow-up:', error.message);
+      toast.error('Failed to update follow-up');
     }
   };
 
@@ -111,6 +159,13 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
     negotiation: 'bg-orange-100 text-orange-700 border-orange-200',
     lost: 'bg-red-100 text-red-700 border-red-200',
     converted: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  };
+
+  const followUpTypeIcons: Record<string, any> = {
+    call: PhoneCall,
+    email: Mail,
+    whatsapp: MessageCircle,
+    meeting: Users,
   };
 
   return (
@@ -176,6 +231,22 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
           >
             <FileText size={18} className="text-blue-600" />
             Details
+          </button>
+          <button
+            onClick={() => setActiveTab('followups')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all ${
+              activeTab === 'followups'
+                ? 'bg-white text-green-700 shadow-sm border-t-2 border-green-600'
+                : 'text-gray-600 hover:bg-white/50'
+            }`}
+          >
+            <Calendar size={18} className="text-green-600" />
+            Follow-Ups
+            {followUps && followUps.filter((f) => f.status === 'pending').length > 0 && (
+              <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold">
+                {followUps.filter((f) => f.status === 'pending').length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('communications')}
@@ -280,9 +351,7 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
               {/* Interested Services */}
               {lead.lead_services && lead.lead_services.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Interested Services
-                  </h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Interested Services</h3>
                   <div className="flex flex-wrap gap-2">
                     {lead.lead_services.map((ls: any, idx: number) => (
                       <span
@@ -350,6 +419,117 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
             </div>
           )}
 
+          {activeTab === 'followups' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Follow-Up History</h3>
+                <button
+                  onClick={() => setShowAddFollowUpModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all shadow-md"
+                >
+                  <Plus size={18} />
+                  Add Follow-Up
+                </button>
+              </div>
+
+              {followUps && followUps.length > 0 ? (
+                followUps.map((followUp) => {
+                  const Icon = followUpTypeIcons[followUp.followup_type] || Calendar;
+                  const isPending = followUp.status === 'pending';
+                  const isCompleted = followUp.status === 'completed';
+
+                  return (
+                    <div
+                      key={followUp.id}
+                      className={`bg-white rounded-xl shadow-sm border-2 p-6 ${
+                        isPending
+                          ? 'border-blue-200 bg-blue-50/30'
+                          : isCompleted
+                          ? 'border-green-200 bg-green-50/30'
+                          : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-2 rounded-lg ${
+                              isPending
+                                ? 'bg-blue-100'
+                                : isCompleted
+                                ? 'bg-green-100'
+                                : 'bg-gray-100'
+                            }`}
+                          >
+                            <Icon
+                              size={20}
+                              className={
+                                isPending
+                                  ? 'text-blue-600'
+                                  : isCompleted
+                                  ? 'text-green-600'
+                                  : 'text-gray-600'
+                              }
+                            />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-900 capitalize">
+                              {followUp.followup_type}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {new Date(followUp.followup_date).toLocaleDateString()}
+                              {followUp.followup_time && ` at ${followUp.followup_time}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isPending && (
+                            <button
+                              onClick={() => markFollowUpCompleted(followUp.id)}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                              <CheckCircle2 size={16} />
+                              Complete
+                            </button>
+                          )}
+                          {isCompleted && (
+                            <span className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 text-sm rounded-lg font-medium">
+                              <CheckCircle2 size={16} />
+                              Completed
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {followUp.remarks && (
+                        <p className="text-gray-700 whitespace-pre-wrap mt-3 pl-11">
+                          {followUp.remarks}
+                        </p>
+                      )}
+
+                      {isCompleted && followUp.completed_at && (
+                        <p className="text-xs text-gray-500 mt-3 pl-11">
+                          Completed on {new Date(followUp.completed_at).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12">
+                  <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600">No follow-ups scheduled yet</p>
+                  <button
+                    onClick={() => setShowAddFollowUpModal(true)}
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus size={18} />
+                    Schedule First Follow-Up
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'communications' && (
             <div className="space-y-4">
               {lead.communications && lead.communications.length > 0 ? (
@@ -390,6 +570,225 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
             </div>
           )}
         </div>
+      </div>
+
+      {/* Add Follow-Up Modal */}
+      {showAddFollowUpModal && (
+        <AddFollowUpModal
+          leadId={leadId}
+          leadName={lead.name}
+          onClose={() => setShowAddFollowUpModal(false)}
+          onSuccess={() => {
+            setShowAddFollowUpModal(false);
+            fetchLeadDetails();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Simplified AddFollowUpModal component (inline for now)
+function AddFollowUpModal({
+  leadId,
+  leadName,
+  onClose,
+  onSuccess,
+}: {
+  leadId: string;
+  leadName: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { user } = useAuth();
+  const toast = useToast();
+  const [loading, setLoading] = useState(false);
+  const [createReminder, setCreateReminder] = useState(true);
+
+  const [formData, setFormData] = useState({
+    followup_date: '',
+    followup_time: '10:00',
+    followup_type: 'call',
+    remarks: '',
+    reminder_date: '',
+  });
+
+  const followupTypes = [
+    { value: 'call', label: 'Phone Call', icon: PhoneCall, color: 'text-green-600' },
+    { value: 'email', label: 'Email', icon: Mail, color: 'text-blue-600' },
+    { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: 'text-green-500' },
+    { value: 'meeting', label: 'Meeting', icon: Users, color: 'text-orange-600' },
+  ];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const followupData = {
+        user_id: user?.id,
+        lead_id: leadId,
+        ...formData,
+        status: 'pending',
+      };
+
+      const { data: followup, error } = await supabase
+        .from('lead_followups')
+        .insert(followupData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Create reminder if enabled
+      if (createReminder && formData.reminder_date) {
+        await supabase.from('reminders').insert({
+          user_id: user?.id,
+          title: `Follow-up: ${leadName}`,
+          message: `${formData.followup_type} follow-up scheduled for ${leadName}. ${formData.remarks}`,
+          reminder_date: formData.reminder_date,
+          is_read: false,
+        });
+      }
+
+      toast.success('Follow-up scheduled successfully!');
+      onSuccess();
+    } catch (error: any) {
+      console.error('Error saving follow-up:', error.message);
+      toast.error('Failed to save follow-up');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+            <Calendar size={28} />
+            Schedule Follow-Up
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm font-medium text-blue-900">Lead: {leadName}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Follow-Up Type *
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {followupTypes.map((type) => {
+                const Icon = type.icon;
+                return (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, followup_type: type.value })}
+                    className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
+                      formData.followup_type === type.value
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <Icon size={24} className={type.color} />
+                    <span className="text-sm font-medium text-gray-900">{type.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Follow-Up Date *
+              </label>
+              <input
+                type="date"
+                required
+                value={formData.followup_date}
+                onChange={(e) => setFormData({ ...formData, followup_date: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Follow-Up Time
+              </label>
+              <input
+                type="time"
+                value={formData.followup_time}
+                onChange={(e) => setFormData({ ...formData, followup_time: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Remarks / Notes</label>
+            <textarea
+              value={formData.remarks}
+              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+              rows={4}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Add notes about this follow-up..."
+            />
+          </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={createReminder}
+                onChange={(e) => setCreateReminder(e.target.checked)}
+                className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="font-medium text-gray-900">Set reminder</span>
+            </label>
+            {createReminder && (
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Remind me on
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.reminder_date}
+                  onChange={(e) => setFormData({ ...formData, reminder_date: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg"
+            >
+              {loading ? 'Saving...' : 'Schedule Follow-Up'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

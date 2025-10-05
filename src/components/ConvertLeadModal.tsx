@@ -106,19 +106,33 @@ export default function ConvertLeadModal({
     }
   };
 
-const handleCustomerCreated = async (newCustomerId: string) => {
-  setCustomerId(newCustomerId);
+    useEffect(() => {
+      if (lead.lead_services && lead.lead_services.length > 0) {
+        setWorkData({
+          ...workData,
+          service_id: lead.lead_services[0].service_id,
+          title: `Work for ${lead.name} - ${lead.lead_services[0].services.name}`,
+          description: lead.notes || '',
+        });
+      }
+    }, [lead]);
 
-  try {
-    // Mark lead as converted instead of deleting
-    await supabase
-      .from('leads')
-      .update({
-        converted_to_customer_id: newCustomerId,
-        converted_at: new Date().toISOString(),
-        status: 'converted',
-      })
-      .eq('id', lead.id);
+    // Update the handleCustomerCreated function to NOT delete the lead
+    const handleCustomerCreated = async (newCustomerId: string) => {
+      setCustomerId(newCustomerId);
+    
+      try {
+        // Mark lead as converted instead of deleting
+        await supabase
+          .from('leads')
+          .update({
+            converted_to_customer_id: newCustomerId,
+            converted_at: new Date().toISOString(),
+            status: 'converted',
+          })
+          .eq('id', lead.id);
+    
+        // Copy lead services to customer services
         if (lead.lead_services && lead.lead_services.length > 0) {
           const customerServices = lead.lead_services.map((ls: any) => ({
             customer_id: newCustomerId,
@@ -134,45 +148,44 @@ const handleCustomerCreated = async (newCustomerId: string) => {
         if (createWork) {
           setStep('work');
         } else {
-          alert('Lead successfully converted to customer!');
+          toast.success('Lead successfully converted to customer!');
           onSuccess();
         }
       } catch (error: any) {
         console.error('Error converting lead:', error.message);
-        alert(`Failed to convert lead: ${error.message}`);
+        toast.error(`Failed to convert lead: ${error.message}`);
       }
     };
-
-  const handleWorkCreation = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!customerId) return;
-
-    try {
-      const { error } = await supabase.from('works').insert({
-        user_id: user?.id,
-        customer_id: customerId,
-        service_id: workData.service_id,
-        assigned_to: workData.assigned_to || null,
-        title: workData.title,
-        description: workData.description || null,
-        priority: workData.priority,
-        due_date: workData.due_date || null,
-        status: 'pending',
-      });
-
-      if (error) throw error;
-
-      // Delete the lead
-      await supabase.from('leads').delete().eq('id', lead.id);
-
-      alert('Lead converted to customer and work created successfully!');
-      onSuccess();
-    } catch (error: any) {
-      console.error('Error creating work:', error.message);
-      alert('Failed to create work');
-    }
-  };
+    
+    // Update handleWorkCreation to NOT delete lead
+    const handleWorkCreation = async (e: React.FormEvent) => {
+      e.preventDefault();
+    
+      if (!customerId) return;
+    
+      try {
+        const { error } = await supabase.from('works').insert({
+          user_id: user?.id,
+          customer_id: customerId,
+          service_id: workData.service_id,
+          assigned_to: workData.assigned_to || null,
+          title: workData.title,
+          description: workData.description || null,
+          priority: workData.priority,
+          due_date: workData.due_date || null,
+          status: 'pending',
+        });
+    
+        if (error) throw error;
+    
+        // Don't delete the lead - it's already marked as converted
+        toast.success('Lead converted to customer and work created successfully!');
+        onSuccess();
+      } catch (error: any) {
+        console.error('Error creating work:', error.message);
+        toast.error('Failed to create work');
+      }
+    };
 
   if (step === 'work') {
     return (

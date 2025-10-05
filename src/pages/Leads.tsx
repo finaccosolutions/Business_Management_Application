@@ -28,6 +28,7 @@ import AddLeadModal from '../components/AddLeadModal';
 import ConvertLeadModal from '../components/ConvertLeadModal';
 import LeadDetails from '../components/LeadDetails';
 import EditLeadModal from '../components/EditLeadModal';
+import LeadFilters, { FilterState } from '../components/LeadFilters';
 
 interface Lead {
   id: string;
@@ -42,6 +43,8 @@ interface Lead {
   created_at: string;
   converted_to_customer_id: string | null;
   converted_at: string | null;
+  followup_count?: number;
+  next_followup_date?: string;
   lead_services?: { service_id: string; services: { name: string } }[];
 }
 
@@ -139,6 +142,12 @@ export default function Leads() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+  sources: [],
+  serviceTypes: [],
+  dateFrom: '',
+  dateTo: '',
+});
 
 
   useEffect(() => {
@@ -161,57 +170,105 @@ export default function Leads() {
     };
   }, [activeTab, leads]);
 
-  const fetchLeads = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select(`
-          *,
-          lead_services (
-            service_id,
-            services (
-              name
-            )
+const fetchLeads = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('leads')
+      .select(`
+        *,
+        lead_services (
+          service_id,
+          services (
+            name
           )
-        `)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+        )
+      `)
+      .eq('user_id', user?.id)
+      .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setLeads(data || []);
-    } catch (error: any) {
-      console.error('Error fetching leads:', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (error) throw error;
 
-  const filterLeads = () => {
-    let filtered = leads;
+    // Fetch follow-up counts for each lead
+    const leadsWithFollowups = await Promise.all(
+      (data || []).map(async (lead) => {
+        const { data: followups } = await supabase
+          .from('lead_followups')
+          .select('id, followup_date, status')
+          .eq('lead_id', lead.id)
+          .eq('status', 'pending')
+          .order('followup_date', { ascending: true });
 
-    if (activeTab !== 'all') {
-      if (activeTab === 'converted') {
-        filtered = filtered.filter((lead) => lead.converted_to_customer_id !== null);
-      } else {
-        filtered = filtered.filter(
-          (lead) => lead.status === activeTab && !lead.converted_to_customer_id
-        );
-      }
-    }
+        return {
+          ...lead,
+          followup_count: followups?.length || 0,
+          next_followup_date: followups?.[0]?.followup_date || null,
+        };
+      })
+    );
 
-    if (searchTerm) {
+    setLeads(leadsWithFollowups);
+  } catch (error: any) {
+    console.error('Error fetching leads:', error.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Update filterLeads function
+const filterLeads = () => {
+  let filtered = leads;
+
+  // Status filter
+  if (activeTab !== 'all') {
+    if (activeTab === 'converted') {
+      filtered = filtered.filter((lead) => lead.converted_to_customer_id !== null);
+    } else {
       filtered = filtered.filter(
-        (lead) =>
-          lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          lead.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          lead.phone?.includes(searchTerm) ||
-          lead.referred_by?.toLowerCase().includes(searchTerm.toLowerCase())
+        (lead) => lead.status === activeTab && !lead.converted_to_customer_id
       );
     }
+  }
 
-    setFilteredLeads(filtered);
-  };
+  // Source filter
+  if (filters.sources.length > 0) {
+    filtered = filtered.filter((lead) => filters.sources.includes(lead.source));
+  }
+
+  // Service type filter
+  if (filters.serviceTypes.length > 0) {
+    filtered = filtered.filter((lead) =>
+      lead.lead_services?.some((ls: any) =>
+        filters.serviceTypes.includes(ls.service_id)
+      )
+    );
+  }
+
+  // Date range filter
+  if (filters.dateFrom) {
+    filtered = filtered.filter(
+      (lead) => new Date(lead.created_at) >= new Date(filters.dateFrom)
+    );
+  }
+  if (filters.dateTo) {
+    filtered = filtered.filter(
+      (lead) => new Date(lead.created_at) <= new Date(filters.dateTo)
+    );
+  }
+
+  // Search filter
+  if (searchTerm) {
+    filtered = filtered.filter(
+      (lead) =>
+        lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.phone?.includes(searchTerm) ||
+        lead.referred_by?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }
+
+  setFilteredLeads(filtered);
+};
 
   const updateLeadStatus = async (leadId: string, newStatus: string) => {
     try {
@@ -375,6 +432,8 @@ export default function Leads() {
         }
       `}</style>
 
+      <LeadFilters onFilterChange={setFilters} activeFilters={filters} />
+
       {/* Search Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <div className="relative">
@@ -419,17 +478,19 @@ export default function Leads() {
             return (
               <div
                 key={lead.id}
-                className={`bg-white rounded-xl shadow-sm border-2 p-6 hover:shadow-lg transition-all ${
+                className={`bg-white rounded-xl shadow-sm border-2 p-6 hover:shadow-lg transition-all flex flex-col ${
                   isConverted ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200'
                 }`}
               >
+                {/* Top section with status badge */}
                 {isConverted && (
                   <div className="mb-3 flex items-center gap-2 text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg text-sm font-semibold w-fit">
                     <CheckCircle size={16} />
                     Converted to Customer
                   </div>
                 )}
-
+              
+                {/* Header with avatar and name */}
                 <div className="flex items-start gap-4 mb-4">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
                     {lead.name?.charAt(0).toUpperCase()}
@@ -444,7 +505,8 @@ export default function Leads() {
                     )}
                   </div>
                 </div>
-
+              
+                {/* Contact info */}
                 <div className="space-y-2 mb-4">
                   {lead.email && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -467,13 +529,12 @@ export default function Leads() {
                   {lead.referred_by && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Users size={16} className="flex-shrink-0 text-purple-500" />
-                      <span className="truncate font-medium">
-                        Referred by: {lead.referred_by}
-                      </span>
+                      <span className="truncate font-medium">Referred by: {lead.referred_by}</span>
                     </div>
                   )}
                 </div>
-
+              
+                {/* Services */}
                 {lead.lead_services && lead.lead_services.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-medium text-gray-500 mb-2">Interested Services:</p>
@@ -489,7 +550,23 @@ export default function Leads() {
                     </div>
                   </div>
                 )}
-
+              
+                {/* Follow-up indicator */}
+                {lead.followup_count > 0 && (
+                  <div className="mb-4 flex items-center gap-2 text-sm text-orange-700 bg-orange-50 px-3 py-2 rounded-lg">
+                    <Calendar size={16} />
+                    <span className="font-medium">
+                      {lead.followup_count} pending follow-up{lead.followup_count > 1 ? 's' : ''}
+                    </span>
+                    {lead.next_followup_date && (
+                      <span className="text-xs">
+                        (Next: {new Date(lead.next_followup_date).toLocaleDateString()})
+                      </span>
+                    )}
+                  </div>
+                )}
+              
+                {/* Status dropdown (only if not converted) */}
                 {!isConverted && (
                   <div className="mb-4">
                     <select
@@ -508,8 +585,12 @@ export default function Leads() {
                     </select>
                   </div>
                 )}
-
-                <div className="flex gap-2">
+              
+                {/* Spacer to push buttons to bottom */}
+                <div className="flex-grow"></div>
+              
+                {/* Fixed action buttons at bottom */}
+                <div className="mt-4 pt-4 border-t border-gray-100 flex gap-2">
                   <button
                     onClick={() => {
                       setSelectedLead(lead);
@@ -539,7 +620,8 @@ export default function Leads() {
                     <Trash2 size={16} />
                   </button>
                 </div>
-
+              
+                {/* Created date */}
                 <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500 flex items-center gap-1">
                   <Calendar size={12} />
                   {new Date(lead.created_at).toLocaleDateString()}
