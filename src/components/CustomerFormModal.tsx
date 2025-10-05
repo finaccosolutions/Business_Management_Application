@@ -58,6 +58,9 @@ interface CustomerFormModalProps {
   mode: 'create' | 'edit';
   customerId?: string;
   title?: string;
+  showCreateWorkOption?: boolean;
+  createWorkChecked?: boolean;
+  onCreateWorkChange?: (checked: boolean) => void;
 }
 
 type TabType = 'basic' | 'address' | 'tax' | 'bank';
@@ -69,6 +72,9 @@ export default function CustomerFormModal({
   mode = 'create',
   customerId,
   title,
+  showCreateWorkOption = false,
+  createWorkChecked = false,
+  onCreateWorkChange,
 }: CustomerFormModalProps) {
   const { user, userCountry } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -630,27 +636,48 @@ export default function CustomerFormModal({
         </form>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg"
-          >
-            {loading
-              ? mode === 'edit'
-                ? 'Updating...'
-                : 'Creating...'
-              : mode === 'edit'
-              ? 'Update Customer'
-              : 'Create Customer'}
-          </button>
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+          {showCreateWorkOption && (
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={createWorkChecked}
+                onChange={(e) => onCreateWorkChange?.(e.target.checked)}
+                className="w-5 h-5 text-orange-600 rounded focus:ring-2 focus:ring-orange-500"
+              />
+              <div className="flex items-center gap-2">
+                <Briefcase size={20} className="text-orange-600" />
+                <span className="font-medium text-gray-900">
+                  Create work after conversion
+                </span>
+              </div>
+            </label>
+          )}
+
+          {!showCreateWorkOption && <div></div>}
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg"
+            >
+              {loading
+                ? mode === 'edit'
+                  ? 'Updating...'
+                  : 'Creating...'
+                : mode === 'edit'
+                ? 'Update Customer'
+                : 'Create Customer'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

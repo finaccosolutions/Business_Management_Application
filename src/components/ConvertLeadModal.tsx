@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../contexts/ToastContext';
 import CustomerFormModal from './CustomerFormModal';
 import { UserPlus, Briefcase, Users } from 'lucide-react';
 
@@ -47,6 +48,7 @@ export default function ConvertLeadModal({
   onSuccess,
 }: ConvertLeadModalProps) {
   const { user } = useAuth();
+  const toast = useToast();
   const [step, setStep] = useState<'customer' | 'work'>('customer');
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [createWork, setCreateWork] = useState(false);
@@ -117,13 +119,12 @@ export default function ConvertLeadModal({
       }
     }, [lead]);
 
-    // Update the handleCustomerCreated function to NOT delete the lead
     const handleCustomerCreated = async (newCustomerId: string) => {
       setCustomerId(newCustomerId);
-    
+
       try {
         // Mark lead as converted instead of deleting
-        await supabase
+        const { error: leadError } = await supabase
           .from('leads')
           .update({
             converted_to_customer_id: newCustomerId,
@@ -131,7 +132,9 @@ export default function ConvertLeadModal({
             status: 'converted',
           })
           .eq('id', lead.id);
-    
+
+        if (leadError) throw leadError;
+
         // Copy lead services to customer services
         if (lead.lead_services && lead.lead_services.length > 0) {
           const customerServices = lead.lead_services.map((ls: any) => ({
@@ -141,11 +144,16 @@ export default function ConvertLeadModal({
             status: 'active',
             price: 0,
           }));
-    
-          await supabase.from('customer_services').insert(customerServices);
+
+          const { error: servicesError } = await supabase
+            .from('customer_services')
+            .insert(customerServices);
+
+          if (servicesError) throw servicesError;
         }
-    
+
         if (createWork) {
+          toast.success('Customer created successfully! Now create a work assignment.');
           setStep('work');
         } else {
           toast.success('Lead successfully converted to customer!');
@@ -157,12 +165,24 @@ export default function ConvertLeadModal({
       }
     };
     
-    // Update handleWorkCreation to NOT delete lead
     const handleWorkCreation = async (e: React.FormEvent) => {
       e.preventDefault();
-    
-      if (!customerId) return;
-    
+
+      if (!customerId) {
+        toast.error('Customer ID is missing. Please try again.');
+        return;
+      }
+
+      if (!workData.service_id) {
+        toast.error('Please select a service for the work assignment.');
+        return;
+      }
+
+      if (!workData.title) {
+        toast.error('Please enter a title for the work assignment.');
+        return;
+      }
+
       try {
         const { error } = await supabase.from('works').insert({
           user_id: user?.id,
@@ -175,15 +195,14 @@ export default function ConvertLeadModal({
           due_date: workData.due_date || null,
           status: 'pending',
         });
-    
+
         if (error) throw error;
-    
-        // Don't delete the lead - it's already marked as converted
+
         toast.success('Lead converted to customer and work created successfully!');
         onSuccess();
       } catch (error: any) {
         console.error('Error creating work:', error.message);
-        toast.error('Failed to create work');
+        toast.error(`Failed to create work: ${error.message}`);
       }
     };
 
@@ -343,37 +362,15 @@ export default function ConvertLeadModal({
   };
 
   return (
-    <div className="relative">
-      {/* Work Creation Checkbox Overlay */}
-      <div className="fixed inset-0 z-40 pointer-events-none">
-        <div className="absolute top-24 right-8 bg-white rounded-lg shadow-lg p-4 border-2 border-orange-500 pointer-events-auto">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={createWork}
-              onChange={(e) => setCreateWork(e.target.checked)}
-              className="w-5 h-5 text-orange-600 rounded focus:ring-2 focus:ring-orange-500"
-            />
-            <div className="flex items-center gap-2">
-              <Briefcase size={20} className="text-orange-600" />
-              <span className="font-medium text-gray-900">
-                Create work after conversion
-              </span>
-            </div>
-          </label>
-          <p className="text-xs text-gray-500 mt-2 ml-8">
-            Automatically create a work assignment for this customer
-          </p>
-        </div>
-      </div>
-
-      <CustomerFormModal
-        onClose={onClose}
-        onSuccess={handleCustomerCreated}
-        initialData={initialCustomerData}
-        mode="create"
-        title={`Convert Lead to Customer: ${lead.name}`}
-      />
-    </div>
+    <CustomerFormModal
+      onClose={onClose}
+      onSuccess={handleCustomerCreated}
+      initialData={initialCustomerData}
+      mode="create"
+      title={`Convert Lead to Customer: ${lead.name}`}
+      showCreateWorkOption={true}
+      createWorkChecked={createWork}
+      onCreateWorkChange={setCreateWork}
+    />
   );
 }
