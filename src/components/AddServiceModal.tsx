@@ -235,15 +235,20 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-slate-800 p-6 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {editingService ? 'Edit Service' : 'Add New Service'}
-          </h2>
+        <div className="sticky top-0 bg-gradient-to-r from-blue-600 via-cyan-600 to-blue-700 p-6 flex items-center justify-between z-10 rounded-t-xl shadow-lg">
+          <div>
+            <h2 className="text-2xl font-bold text-white drop-shadow-md">
+              {editingService ? 'Edit Service' : 'Add New Service'}
+            </h2>
+            <p className="text-blue-100 text-sm mt-1">
+              {editingService ? 'Update service details and settings' : 'Create a new service for your business'}
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/20 rounded-lg transition-all text-white hover:rotate-90 duration-300"
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
