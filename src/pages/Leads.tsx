@@ -522,22 +522,22 @@ export default function Leads() {
                 <div className="p-5">
                   <div className="flex items-center gap-6">
                     {/* Profile Section */}
-                    <div className="flex items-center gap-4 flex-shrink-0" style={{ width: '280px' }}>
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0">
-                        <span className="text-2xl font-bold">
+                    <div className="flex items-center gap-3 flex-shrink-0" style={{ minWidth: '200px', maxWidth: '200px' }}>
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0">
+                        <span className="text-xl font-bold">
                           {lead.name?.charAt(0).toUpperCase() || 'L'}
                         </span>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-gray-900 text-lg truncate">{lead.name}</h3>
+                        <h3 className="font-bold text-gray-900 text-base truncate">{lead.name}</h3>
                         {lead.company_name && (
-                          <p className="text-sm text-gray-600 truncate flex items-center gap-1">
-                            <Building2 size={14} />
+                          <p className="text-xs text-gray-600 truncate flex items-center gap-1">
+                            <Building2 size={12} />
                             {lead.company_name}
                           </p>
                         )}
                         {isConverted && (
-                          <span className="inline-block mt-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                          <span className="inline-block mt-0.5 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
                             Converted
                           </span>
                         )}
@@ -545,108 +545,106 @@ export default function Leads() {
                     </div>
 
                     {/* Divider */}
-                    <div className="h-16 w-px bg-gray-200"></div>
+                    <div className="h-14 w-px bg-gray-200"></div>
 
-                    {/* Contact & Source Section */}
-                    <div className="flex-1 min-w-0" style={{ maxWidth: '320px' }}>
-                      <div className="space-y-2">
+                    {/* Contact Details - More Space */}
+                    <div className="flex-1 min-w-0" style={{ minWidth: '280px' }}>
+                      <div className="space-y-1.5">
                         {lead.email && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Mail size={16} className="flex-shrink-0 text-blue-500" />
-                            <span className="truncate">{lead.email}</span>
+                          <div className="flex items-center gap-2 text-sm text-gray-700">
+                            <Mail size={15} className="flex-shrink-0 text-blue-500" />
+                            <span className="truncate font-medium">{lead.email}</span>
                           </div>
                         )}
                         {lead.phone && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Phone size={16} className="flex-shrink-0 text-green-500" />
-                            <span>{lead.phone}</span>
+                          <div className="flex items-center gap-2 text-sm text-gray-700">
+                            <Phone size={15} className="flex-shrink-0 text-green-500" />
+                            <span className="font-medium">{lead.phone}</span>
                           </div>
                         )}
-                        {lead.source && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Tag size={16} className="flex-shrink-0 text-orange-500" />
-                            <span className="truncate">Source: {lead.source}</span>
-                          </div>
-                        )}
-                        {lead.referred_by && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Users size={16} className="flex-shrink-0 text-purple-500" />
-                            <span className="truncate">Ref: {lead.referred_by}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {lead.source && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                              <Tag size={13} className="flex-shrink-0 text-orange-500" />
+                              <span className="truncate">{lead.source}</span>
+                            </div>
+                          )}
+                          {lead.referred_by && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                              <Users size={13} className="flex-shrink-0 text-purple-500" />
+                              <span className="truncate">Ref: {lead.referred_by}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     {/* Divider */}
-                    <div className="h-16 w-px bg-gray-200"></div>
+                    <div className="h-14 w-px bg-gray-200"></div>
 
                     {/* Services Section */}
-                    <div className="flex-shrink-0" style={{ width: '240px' }}>
+                    <div className="flex-shrink-0" style={{ width: '180px' }}>
                       {lead.lead_services && lead.lead_services.length > 0 ? (
                         <div>
-                          <p className="text-xs font-medium text-gray-500 mb-2">Interested Services:</p>
+                          <p className="text-xs font-medium text-gray-500 mb-1.5">Services:</p>
                           <div className="flex flex-wrap gap-1">
                             {lead.lead_services.slice(0, 2).map((ls: any, idx: number) => (
                               <span
                                 key={idx}
-                                className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded border border-blue-200"
+                                className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded border border-blue-200"
                               >
                                 {ls.services?.name}
                               </span>
                             ))}
                             {lead.lead_services.length > 2 && (
-                              <span className="text-xs text-gray-500 px-2 py-1">
-                                +{lead.lead_services.length - 2} more
+                              <span className="text-xs text-gray-500 px-1">
+                                +{lead.lead_services.length - 2}
                               </span>
                             )}
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sm text-gray-400 italic">No services specified</p>
+                        <p className="text-xs text-gray-400 italic">No services</p>
                       )}
                     </div>
 
                     {/* Divider */}
-                    <div className="h-16 w-px bg-gray-200"></div>
+                    <div className="h-14 w-px bg-gray-200"></div>
 
                     {/* Status & Follow-up Section */}
-                    <div className="flex-shrink-0" style={{ width: '220px' }}>
-                      <div className="space-y-2">
-                        {/* Status Badge */}
+                    <div className="flex-shrink-0" style={{ width: '180px' }}>
+                      <div className="space-y-1.5">
                         {!isConverted ? (
                           <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1.5 text-xs rounded-lg font-semibold ${getStatusBadgeColor(lead.status, false)}`}>
+                            <span className={`px-2.5 py-1 text-xs rounded-lg font-semibold ${getStatusBadgeColor(lead.status, false)}`}>
                               {statusConfig?.label || lead.status}
                             </span>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-semibold">
-                            <CheckCircle size={14} />
+                          <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                            <CheckCircle size={13} />
                             Customer
                           </div>
                         )}
-                        
-                        {/* Follow-up indicator */}
+
                         {lead.followup_count > 0 && (
-                          <div className="flex items-center gap-2 text-xs text-orange-700 bg-orange-50 px-2 py-1.5 rounded-lg">
-                            <Calendar size={14} />
+                          <div className="flex items-center gap-1.5 text-xs text-orange-700 bg-orange-50 px-2 py-1 rounded-lg">
+                            <Calendar size={13} />
                             <span className="font-medium">
                               {lead.followup_count} follow-up{lead.followup_count > 1 ? 's' : ''}
                             </span>
                           </div>
                         )}
-                        
-                        {/* Next follow-up date */}
+
                         {lead.next_followup_date && (
                           <div className="text-xs text-gray-600 flex items-center gap-1">
-                            <Clock size={12} />
+                            <Clock size={11} />
                             Next: {new Date(lead.next_followup_date).toLocaleDateString()}
                           </div>
                         )}
-                        
-                        {/* Created date */}
+
                         <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <Calendar size={12} />
+                          <Calendar size={11} />
                           {new Date(lead.created_at).toLocaleDateString()}
                         </div>
                       </div>

@@ -1,7 +1,25 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Bell, Calendar, CheckCircle, Circle } from 'lucide-react';
+import {
+  Bell,
+  Calendar,
+  CheckCircle,
+  AlertTriangle,
+  DollarSign,
+  Clock,
+  TrendingDown,
+  Users,
+  Briefcase,
+  PhoneCall,
+  FileText,
+  XCircle,
+  ChevronRight,
+  AlertCircle,
+  Target,
+  Trash2,
+} from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 interface Reminder {
   id: string;
@@ -12,61 +30,327 @@ interface Reminder {
   created_at: string;
 }
 
+interface AlertItem {
+  id: string;
+  type: 'lead_followup' | 'work' | 'invoice' | 'staff_performance' | 'manual_reminder' | 'other';
+  title: string;
+  description: string;
+  date?: string;
+  time?: string;
+  urgency: 'critical' | 'high' | 'medium' | 'low';
+  category: string;
+  actionUrl?: string;
+  metadata?: any;
+}
+
 export default function Reminders() {
   const { user } = useAuth();
+  const toast = useToast();
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
 
   useEffect(() => {
     if (user) {
-      fetchReminders();
+      fetchAllAlerts();
     }
   }, [user]);
 
-  const fetchReminders = async () => {
+  const fetchAllAlerts = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
+      const alertsList: AlertItem[] = [];
+      const now = new Date();
+
+      // 1. Fetch Manual Reminders
+      const { data: remindersData } = await supabase
         .from('reminders')
         .select('*')
+        .eq('user_id', user?.id)
         .order('reminder_date', { ascending: true });
 
-      if (error) throw error;
-      setReminders(data || []);
+      (remindersData || []).forEach((reminder) => {
+        const reminderDate = new Date(reminder.reminder_date);
+        const isOverdue = reminderDate < now;
+        const isToday = reminderDate.toDateString() === now.toDateString();
+
+        let urgency: 'critical' | 'high' | 'medium' | 'low' = 'medium';
+        if (isOverdue) urgency = 'critical';
+        else if (isToday) urgency = 'high';
+
+        alertsList.push({
+          id: reminder.id,
+          type: 'manual_reminder',
+          title: reminder.title,
+          description: reminder.message,
+          date: reminder.reminder_date,
+          urgency: reminder.is_read ? 'low' : urgency,
+          category: 'Manual Reminders',
+          metadata: { is_read: reminder.is_read, reminder_id: reminder.id },
+        });
+      });
+
+      // 2. Fetch Lead Follow-ups
+      const { data: followupsData } = await supabase
+        .from('lead_followups')
+        .select(`
+          *,
+          leads (name, email, phone)
+        `)
+        .eq('user_id', user?.id)
+        .eq('status', 'pending')
+        .order('followup_date', { ascending: true });
+
+      (followupsData || []).forEach((followup: any) => {
+        const followupDate = new Date(followup.followup_date);
+        const daysUntil = Math.ceil((followupDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        let urgency: 'critical' | 'high' | 'medium' | 'low' = 'low';
+        if (daysUntil < 0) urgency = 'critical';
+        else if (daysUntil === 0) urgency = 'high';
+        else if (daysUntil === 1) urgency = 'high';
+        else if (daysUntil <= 3) urgency = 'medium';
+
+        alertsList.push({
+          id: followup.id,
+          type: 'lead_followup',
+          title: `Follow-up: ${followup.leads?.name || 'Unknown Lead'}`,
+          description: `${followup.followup_type} follow-up${followup.remarks ? ': ' + followup.remarks : ''}`,
+          date: followup.followup_date,
+          time: followup.followup_time,
+          urgency,
+          category: 'Lead Follow-ups',
+          metadata: { lead: followup.leads, followup_type: followup.followup_type },
+        });
+      });
+
+      // 3. Fetch Pending/Overdue Works
+      const { data: worksData } = await supabase
+        .from('works')
+        .select(`
+          *,
+          customers (name, email, phone),
+          services (name)
+        `)
+        .eq('user_id', user?.id)
+        .in('status', ['pending', 'in_progress'])
+        .order('due_date', { ascending: true });
+
+      (worksData || []).forEach((work: any) => {
+        if (work.due_date) {
+          const dueDate = new Date(work.due_date);
+          const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+          let urgency: 'critical' | 'high' | 'medium' | 'low' = 'low';
+          if (daysUntil < 0) urgency = 'critical';
+          else if (daysUntil === 0) urgency = 'critical';
+          else if (daysUntil === 1) urgency = 'high';
+          else if (daysUntil <= 3) urgency = 'medium';
+
+          const statusLabel = work.status === 'in_progress' ? 'In Progress' : 'Pending';
+
+          alertsList.push({
+            id: work.id,
+            type: 'work',
+            title: `${statusLabel}: ${work.services?.name || 'Service'} - ${work.customers?.name || 'Customer'}`,
+            description: `Due ${daysUntil < 0 ? Math.abs(daysUntil) + ' days overdue' : daysUntil === 0 ? 'today' : 'in ' + daysUntil + ' days'}`,
+            date: work.due_date,
+            urgency,
+            category: 'Works & Tasks',
+            metadata: { customer: work.customers, service: work.services, status: work.status },
+          });
+        }
+      });
+
+      // 4. Fetch Overdue Invoices
+      const { data: invoicesData } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          customers (name, email, phone)
+        `)
+        .eq('user_id', user?.id)
+        .eq('status', 'pending')
+        .order('due_date', { ascending: true });
+
+      (invoicesData || []).forEach((invoice: any) => {
+        if (invoice.due_date) {
+          const dueDate = new Date(invoice.due_date);
+          const daysOverdue = Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysOverdue >= 0) {
+            let urgency: 'critical' | 'high' | 'medium' | 'low' = 'low';
+            if (daysOverdue > 30) urgency = 'critical';
+            else if (daysOverdue > 14) urgency = 'high';
+            else if (daysOverdue > 7) urgency = 'medium';
+            else urgency = 'low';
+
+            const amount = invoice.total_amount || 0;
+
+            alertsList.push({
+              id: invoice.id,
+              type: 'invoice',
+              title: `Overdue Invoice: ${invoice.customers?.name || 'Customer'}`,
+              description: `Amount: $${amount.toFixed(2)} - ${daysOverdue} days overdue`,
+              date: invoice.due_date,
+              urgency,
+              category: 'Payments & Invoices',
+              metadata: { customer: invoice.customers, amount, invoice_number: invoice.invoice_number },
+            });
+          }
+        }
+      });
+
+      // 5. Check for staff performance issues (example logic)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: staffData } = await supabase
+        .from('staff')
+        .select(`
+          *,
+          works!works_assigned_to_fkey (id, status, due_date, completed_date)
+        `)
+        .eq('user_id', user?.id)
+        .eq('status', 'active');
+
+      (staffData || []).forEach((staff: any) => {
+        const works = staff.works || [];
+        const recentWorks = works.filter((w: any) => new Date(w.due_date) >= thirtyDaysAgo);
+        const overdueWorks = recentWorks.filter((w: any) => {
+          if (w.status === 'completed') return false;
+          return new Date(w.due_date) < now;
+        });
+
+        if (overdueWorks.length >= 3) {
+          alertsList.push({
+            id: staff.id,
+            type: 'staff_performance',
+            title: `Staff Performance Alert: ${staff.name}`,
+            description: `${overdueWorks.length} overdue tasks in the last 30 days`,
+            urgency: 'high',
+            category: 'Staff Performance',
+            metadata: { staff, overdue_count: overdueWorks.length },
+          });
+        }
+      });
+
+      // Sort by urgency and date
+      const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      alertsList.sort((a, b) => {
+        if (urgencyOrder[a.urgency] !== urgencyOrder[b.urgency]) {
+          return urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
+        }
+        if (a.date && b.date) {
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        }
+        return 0;
+      });
+
+      setAlerts(alertsList);
+      setReminders(remindersData || []);
     } catch (error) {
-      console.error('Error fetching reminders:', error);
+      console.error('Error fetching alerts:', error);
+      toast.error('Failed to load alerts');
     } finally {
       setLoading(false);
     }
   };
 
-  const markAsRead = async (id: string) => {
+  const markReminderAsRead = async (reminderId: string) => {
     try {
       const { error } = await supabase
         .from('reminders')
         .update({ is_read: true })
-        .eq('id', id);
+        .eq('id', reminderId);
 
       if (error) throw error;
-      fetchReminders();
+      toast.success('Reminder marked as read');
+      fetchAllAlerts();
     } catch (error) {
       console.error('Error marking reminder as read:', error);
+      toast.error('Failed to mark reminder as read');
     }
   };
 
-  const deleteReminder = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this reminder?')) return;
-
+  const deleteReminder = async (reminderId: string) => {
+    if (!confirm('Delete this reminder?')) return;
     try {
-      const { error } = await supabase.from('reminders').delete().eq('id', id);
-
+      const { error } = await supabase.from('reminders').delete().eq('id', reminderId);
       if (error) throw error;
-      fetchReminders();
+      toast.success('Reminder deleted');
+      fetchAllAlerts();
     } catch (error) {
       console.error('Error deleting reminder:', error);
+      toast.error('Failed to delete reminder');
     }
   };
 
-  const unreadCount = reminders.filter((r) => !r.is_read).length;
+  const getUrgencyIcon = (urgency: string) => {
+    switch (urgency) {
+      case 'critical':
+        return <AlertTriangle className="text-red-600" size={20} />;
+      case 'high':
+        return <AlertCircle className="text-orange-600" size={20} />;
+      case 'medium':
+        return <Bell className="text-yellow-600" size={20} />;
+      default:
+        return <Clock className="text-blue-600" size={20} />;
+    }
+  };
+
+  const getUrgencyColor = (urgency: string) => {
+    switch (urgency) {
+      case 'critical':
+        return 'border-red-500 bg-red-50/50';
+      case 'high':
+        return 'border-orange-500 bg-orange-50/50';
+      case 'medium':
+        return 'border-yellow-500 bg-yellow-50/50';
+      default:
+        return 'border-blue-500 bg-blue-50/50';
+    }
+  };
+
+  const getUrgencyBadge = (urgency: string) => {
+    switch (urgency) {
+      case 'critical':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'high':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      default:
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+    }
+  };
+
+  const getCategoryIcon = (type: string) => {
+    switch (type) {
+      case 'lead_followup':
+        return <PhoneCall size={18} />;
+      case 'work':
+        return <Briefcase size={18} />;
+      case 'invoice':
+        return <DollarSign size={18} />;
+      case 'staff_performance':
+        return <TrendingDown size={18} />;
+      case 'manual_reminder':
+        return <Bell size={18} />;
+      default:
+        return <FileText size={18} />;
+    }
+  };
+
+  const filteredAlerts = activeCategory === 'all'
+    ? alerts
+    : alerts.filter(alert => alert.urgency === activeCategory);
+
+  const criticalCount = alerts.filter(a => a.urgency === 'critical').length;
+  const highCount = alerts.filter(a => a.urgency === 'high').length;
+  const mediumCount = alerts.filter(a => a.urgency === 'medium').length;
+  const lowCount = alerts.filter(a => a.urgency === 'low').length;
 
   if (loading) {
     return (
@@ -78,102 +362,218 @@ export default function Reminders() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Reminders</h1>
-        <p className="text-gray-600 mt-1">
-          {unreadCount > 0
-            ? `You have ${unreadCount} unread reminder${unreadCount > 1 ? 's' : ''}`
-            : 'No unread reminders'}
+        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <Bell size={32} className="text-blue-600" />
+          Critical Alerts & Reminders
+        </h1>
+        <p className="text-gray-600 mt-2">
+          Stay on top of everything important - never miss a deadline, follow-up, or critical business alert
         </p>
       </div>
 
-      <div className="space-y-4">
-        {reminders.map((reminder) => {
-          const isPast = new Date(reminder.reminder_date) < new Date();
-          const isToday =
-            new Date(reminder.reminder_date).toDateString() === new Date().toDateString();
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-sm font-medium">Critical</p>
+              <p className="text-3xl font-bold mt-1">{criticalCount}</p>
+            </div>
+            <AlertTriangle size={40} className="opacity-80" />
+          </div>
+          <p className="text-xs text-red-100 mt-2">Requires immediate attention</p>
+        </div>
 
-          return (
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-100 text-sm font-medium">High Priority</p>
+              <p className="text-3xl font-bold mt-1">{highCount}</p>
+            </div>
+            <AlertCircle size={40} className="opacity-80" />
+          </div>
+          <p className="text-xs text-orange-100 mt-2">Action needed soon</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-yellow-100 text-sm font-medium">Medium Priority</p>
+              <p className="text-3xl font-bold mt-1">{mediumCount}</p>
+            </div>
+            <Bell size={40} className="opacity-80" />
+          </div>
+          <p className="text-xs text-yellow-100 mt-2">Plan ahead</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium">Low Priority</p>
+              <p className="text-3xl font-bold mt-1">{lowCount}</p>
+            </div>
+            <Clock size={40} className="opacity-80" />
+          </div>
+          <p className="text-xs text-blue-100 mt-2">Future items</p>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 flex gap-2 overflow-x-auto">
+        <button
+          onClick={() => setActiveCategory('all')}
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+            activeCategory === 'all'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          All ({alerts.length})
+        </button>
+        <button
+          onClick={() => setActiveCategory('critical')}
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+            activeCategory === 'critical'
+              ? 'bg-red-600 text-white shadow-md'
+              : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          Critical ({criticalCount})
+        </button>
+        <button
+          onClick={() => setActiveCategory('high')}
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+            activeCategory === 'high'
+              ? 'bg-orange-600 text-white shadow-md'
+              : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          High ({highCount})
+        </button>
+        <button
+          onClick={() => setActiveCategory('medium')}
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+            activeCategory === 'medium'
+              ? 'bg-yellow-600 text-white shadow-md'
+              : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          Medium ({mediumCount})
+        </button>
+        <button
+          onClick={() => setActiveCategory('low')}
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+            activeCategory === 'low'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          Low ({lowCount})
+        </button>
+      </div>
+
+      {/* Alerts List */}
+      <div className="space-y-4">
+        {filteredAlerts.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <CheckCircle size={64} className="mx-auto text-green-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">All Clear!</h3>
+            <p className="text-gray-600">
+              {activeCategory === 'all'
+                ? "No alerts at the moment. You're doing great!"
+                : `No ${activeCategory} priority alerts.`}
+            </p>
+          </div>
+        ) : (
+          filteredAlerts.map((alert) => (
             <div
-              key={reminder.id}
-              className={`bg-white rounded-xl shadow-sm border p-6 transform transition-all duration-200 hover:shadow-lg ${
-                reminder.is_read
-                  ? 'border-gray-200 opacity-75'
-                  : 'border-orange-200 bg-gradient-to-r from-white to-orange-50'
-              }`}
+              key={`${alert.type}-${alert.id}`}
+              className={`bg-white rounded-xl shadow-sm border-l-4 p-6 transition-all hover:shadow-md ${getUrgencyColor(alert.urgency)}`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <div
-                      className={`p-2 rounded-lg ${
-                        reminder.is_read ? 'bg-gray-100' : 'bg-orange-100'
-                      }`}
-                    >
-                      <Bell
-                        className={`w-5 h-5 ${
-                          reminder.is_read ? 'text-gray-500' : 'text-orange-600'
-                        }`}
-                      />
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-lg ${alert.urgency === 'critical' ? 'bg-red-100' : alert.urgency === 'high' ? 'bg-orange-100' : alert.urgency === 'medium' ? 'bg-yellow-100' : 'bg-blue-100'} flex-shrink-0`}>
+                      {getCategoryIcon(alert.type)}
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{reminder.title}</h3>
-                      <div className="flex items-center text-sm text-gray-600 mt-1">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        <span>
-                          {new Date(reminder.reminder_date).toLocaleDateString()} -{' '}
-                          {new Date(reminder.reminder_date).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                        {isToday && (
-                          <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                            Today
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-gray-900 text-lg mb-1">{alert.title}</h3>
+                          <p className="text-gray-700">{alert.description}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getUrgencyBadge(alert.urgency)}`}>
+                            {alert.urgency.toUpperCase()}
                           </span>
+                          {getUrgencyIcon(alert.urgency)}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Target size={14} />
+                          <span className="font-medium">{alert.category}</span>
+                        </div>
+                        {alert.date && (
+                          <div className="flex items-center gap-2">
+                            <Calendar size={14} />
+                            <span>
+                              {new Date(alert.date).toLocaleDateString()}
+                              {alert.time && ` at ${alert.time}`}
+                            </span>
+                          </div>
                         )}
-                        {isPast && !isToday && (
-                          <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">
-                            Overdue
-                          </span>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 mt-4">
+                        {alert.type === 'manual_reminder' && !alert.metadata?.is_read && (
+                          <>
+                            <button
+                              onClick={() => markReminderAsRead(alert.metadata.reminder_id)}
+                              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                            >
+                              <CheckCircle size={16} />
+                              Mark as Read
+                            </button>
+                            <button
+                              onClick={() => deleteReminder(alert.metadata.reminder_id)}
+                              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                            >
+                              <Trash2 size={16} />
+                              Delete
+                            </button>
+                          </>
+                        )}
+                        {alert.type === 'lead_followup' && (
+                          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                            View Lead
+                            <ChevronRight size={16} />
+                          </button>
+                        )}
+                        {alert.type === 'work' && (
+                          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                            View Work
+                            <ChevronRight size={16} />
+                          </button>
+                        )}
+                        {alert.type === 'invoice' && (
+                          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                            View Invoice
+                            <ChevronRight size={16} />
+                          </button>
                         )}
                       </div>
                     </div>
                   </div>
-                  <p className="text-gray-700 ml-12">{reminder.message}</p>
-                </div>
-
-                <div className="flex items-center space-x-2 ml-4">
-                  {!reminder.is_read && (
-                    <button
-                      onClick={() => markAsRead(reminder.id)}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                      title="Mark as read"
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => deleteReminder(reminder.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete"
-                  >
-                    <Circle className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
             </div>
-          );
-        })}
-
-        {reminders.length === 0 && (
-          <div className="text-center py-12">
-            <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No reminders</h3>
-            <p className="text-gray-600">
-              You're all caught up! Reminders will appear here automatically.
-            </p>
-          </div>
+          ))
         )}
       </div>
     </div>

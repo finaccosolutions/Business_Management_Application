@@ -1,26 +1,10 @@
-// src/components/LeadDetails.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  X,
-  Mail,
-  Phone,
-  Building2,
-  Calendar,
-  Tag,
-  FileText,
-  Edit,
-  User,
-  MessageSquare,
-  Clock,
-  CheckCircle2,
-  Plus,
-  PhoneIcon as PhoneCall,
-  MessageCircle,
-  Users,
-} from 'lucide-react';
+import { X, Mail, Phone, Building2, Calendar, Tag, FileText, CreditCard as Edit, User, MessageSquare, Clock, CheckCircle2, Plus, Phone as PhoneCall, MessageCircle, Users, Activity, Trash2 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import CommunicationModal from './CommunicationModal';
+import NoteModal from './NoteModal';
 
 interface LeadDetailsProps {
   leadId: string;
@@ -64,6 +48,23 @@ interface FollowUp {
   status: string;
   completed_at: string;
   created_at: string;
+  reminder_date?: string;
+}
+
+interface Note {
+  id: string;
+  note: string;
+  created_at: string;
+}
+
+interface ActivityItem {
+  id: string;
+  type: 'followup' | 'communication' | 'note' | 'status_change' | 'created' | 'converted';
+  title: string;
+  description: string;
+  timestamp: string;
+  icon: any;
+  color: string;
 }
 
 export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProps) {
@@ -71,11 +72,14 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
   const toast = useToast();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'details' | 'communications' | 'notes' | 'followups'>(
+  const [activeTab, setActiveTab] = useState<'details' | 'communications' | 'notes' | 'followups' | 'activity'>(
     'details'
   );
   const [showAddFollowUpModal, setShowAddFollowUpModal] = useState(false);
+  const [showAddCommunicationModal, setShowAddCommunicationModal] = useState(false);
+  const [showAddNoteModal, setShowAddNoteModal] = useState(false);
 
   useEffect(() => {
     fetchLeadDetails();
@@ -110,11 +114,18 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
         .eq('lead_id', leadId)
         .order('followup_date', { ascending: false });
 
+      const { data: notesData } = await supabase
+        .from('customer_notes')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('created_at', { ascending: false });
+
       setLead({
         ...leadData,
         communications: commsData || [],
       });
       setFollowUps(followUpsData || []);
+      setNotes(notesData || []);
     } catch (error: any) {
       console.error('Error fetching lead details:', error.message);
       toast.error('Failed to load lead details');
@@ -137,6 +148,98 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
       console.error('Error updating follow-up:', error.message);
       toast.error('Failed to update follow-up');
     }
+  };
+
+  const deleteNote = async (noteId: string) => {
+    if (!confirm('Delete this note?')) return;
+    try {
+      const { error } = await supabase.from('customer_notes').delete().eq('id', noteId);
+      if (error) throw error;
+      toast.success('Note deleted');
+      fetchLeadDetails();
+    } catch (error: any) {
+      console.error('Error deleting note:', error.message);
+      toast.error('Failed to delete note');
+    }
+  };
+
+  const deleteCommunication = async (commId: string) => {
+    if (!confirm('Delete this communication record?')) return;
+    try {
+      const { error } = await supabase.from('communications').delete().eq('id', commId);
+      if (error) throw error;
+      toast.success('Communication deleted');
+      fetchLeadDetails();
+    } catch (error: any) {
+      console.error('Error deleting communication:', error.message);
+      toast.error('Failed to delete communication');
+    }
+  };
+
+  const generateActivityTimeline = (): ActivityItem[] => {
+    if (!lead) return [];
+
+    const activities: ActivityItem[] = [];
+
+    activities.push({
+      id: 'created',
+      type: 'created',
+      title: 'Lead Created',
+      description: `Lead was added to the system`,
+      timestamp: lead.created_at,
+      icon: User,
+      color: 'text-blue-600 bg-blue-100',
+    });
+
+    followUps.forEach((fu) => {
+      activities.push({
+        id: fu.id,
+        type: 'followup',
+        title: `${fu.status === 'completed' ? 'Completed' : 'Scheduled'} ${fu.followup_type} follow-up`,
+        description: fu.remarks || 'No remarks provided',
+        timestamp: fu.status === 'completed' && fu.completed_at ? fu.completed_at : fu.followup_date,
+        icon: Calendar,
+        color: fu.status === 'completed' ? 'text-green-600 bg-green-100' : 'text-orange-600 bg-orange-100',
+      });
+    });
+
+    lead.communications?.forEach((comm) => {
+      activities.push({
+        id: comm.id,
+        type: 'communication',
+        title: `${comm.type} communication`,
+        description: comm.subject || comm.message.substring(0, 100),
+        timestamp: comm.created_at,
+        icon: MessageSquare,
+        color: 'text-cyan-600 bg-cyan-100',
+      });
+    });
+
+    notes.forEach((note) => {
+      activities.push({
+        id: note.id,
+        type: 'note',
+        title: 'Note Added',
+        description: note.note.substring(0, 100),
+        timestamp: note.created_at,
+        icon: FileText,
+        color: 'text-gray-600 bg-gray-100',
+      });
+    });
+
+    if (lead.converted_at) {
+      activities.push({
+        id: 'converted',
+        type: 'converted',
+        title: 'Converted to Customer',
+        description: 'Lead was successfully converted',
+        timestamp: lead.converted_at,
+        icon: CheckCircle2,
+        color: 'text-emerald-600 bg-emerald-100',
+      });
+    }
+
+    return activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   };
 
   if (loading) {
@@ -168,9 +271,10 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
     meeting: Users,
   };
 
+  const activityTimeline = generateActivityTimeline();
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-      {/* Position: Left edge at sidebar (left-64), Top edge below topbar (top-16) */}
       <div className="fixed top-16 left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600 flex-shrink-0">
@@ -220,10 +324,10 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50 flex-shrink-0">
+        <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50 flex-shrink-0 overflow-x-auto">
           <button
             onClick={() => setActiveTab('details')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all whitespace-nowrap ${
               activeTab === 'details'
                 ? 'bg-white text-blue-700 shadow-sm border-t-2 border-blue-600'
                 : 'text-gray-600 hover:bg-white/50'
@@ -234,7 +338,7 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
           </button>
           <button
             onClick={() => setActiveTab('followups')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all whitespace-nowrap ${
               activeTab === 'followups'
                 ? 'bg-white text-green-700 shadow-sm border-t-2 border-green-600'
                 : 'text-gray-600 hover:bg-white/50'
@@ -250,7 +354,7 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
           </button>
           <button
             onClick={() => setActiveTab('communications')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all whitespace-nowrap ${
               activeTab === 'communications'
                 ? 'bg-white text-cyan-700 shadow-sm border-t-2 border-cyan-600'
                 : 'text-gray-600 hover:bg-white/50'
@@ -266,7 +370,7 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
           </button>
           <button
             onClick={() => setActiveTab('notes')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all whitespace-nowrap ${
               activeTab === 'notes'
                 ? 'bg-white text-orange-700 shadow-sm border-t-2 border-orange-600'
                 : 'text-gray-600 hover:bg-white/50'
@@ -274,6 +378,22 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
           >
             <FileText size={18} className="text-orange-600" />
             Notes
+            {notes.length > 0 && (
+              <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
+                {notes.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('activity')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all whitespace-nowrap ${
+              activeTab === 'activity'
+                ? 'bg-white text-purple-700 shadow-sm border-t-2 border-purple-600'
+                : 'text-gray-600 hover:bg-white/50'
+            }`}
+          >
+            <Activity size={18} className="text-purple-600" />
+            Activity Timeline
           </button>
         </div>
 
@@ -281,7 +401,6 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'details' && (
             <div className="space-y-6">
-              {/* Basic Information */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <User size={20} className="text-blue-600" />
@@ -348,7 +467,6 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
                 </div>
               </div>
 
-              {/* Interested Services */}
               {lead.lead_services && lead.lead_services.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Interested Services</h3>
@@ -365,18 +483,16 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
                 </div>
               )}
 
-              {/* Notes */}
               {lead.notes && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <FileText size={20} className="text-orange-600" />
-                    Notes
+                    Initial Notes
                   </h3>
                   <p className="text-gray-700 whitespace-pre-wrap">{lead.notes}</p>
                 </div>
               )}
 
-              {/* Timeline */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Clock size={20} className="text-gray-600" />
@@ -532,6 +648,17 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
 
           {activeTab === 'communications' && (
             <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Communication History</h3>
+                <button
+                  onClick={() => setShowAddCommunicationModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg hover:from-cyan-700 hover:to-blue-700 transition-all shadow-md"
+                >
+                  <Plus size={18} />
+                  Log Communication
+                </button>
+              </div>
+
               {lead.communications && lead.communications.length > 0 ? (
                 lead.communications.map((comm) => (
                   <div
@@ -541,11 +668,20 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <MessageSquare size={18} className="text-cyan-600" />
-                        <span className="font-semibold text-gray-900">{comm.type}</span>
+                        <span className="font-semibold text-gray-900 capitalize">{comm.type}</span>
                       </div>
-                      <span className="text-sm text-gray-500">
-                        {new Date(comm.created_at).toLocaleDateString()}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">
+                          {new Date(comm.created_at).toLocaleDateString()}
+                        </span>
+                        <button
+                          onClick={() => deleteCommunication(comm.id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                     {comm.subject && (
                       <h4 className="font-medium text-gray-900 mb-2">{comm.subject}</h4>
@@ -556,23 +692,103 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
               ) : (
                 <div className="text-center py-12">
                   <MessageSquare size={48} className="mx-auto text-gray-400 mb-4" />
-                  <p className="text-gray-600">No communications recorded yet</p>
+                  <p className="text-gray-600 mb-4">No communications recorded yet</p>
+                  <button
+                    onClick={() => setShowAddCommunicationModal(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+                  >
+                    <Plus size={18} />
+                    Log First Communication
+                  </button>
                 </div>
               )}
             </div>
           )}
 
           {activeTab === 'notes' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <p className="text-gray-700 whitespace-pre-wrap">
-                {lead.notes || 'No notes available'}
-              </p>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Notes</h3>
+                <button
+                  onClick={() => setShowAddNoteModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 transition-all shadow-md"
+                >
+                  <Plus size={18} />
+                  Add Note
+                </button>
+              </div>
+
+              {notes.length > 0 ? (
+                notes.map((note) => (
+                  <div key={note.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <FileText size={18} className="text-orange-600" />
+                        <span className="text-sm text-gray-500">
+                          {new Date(note.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => deleteNote(note.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    <p className="text-gray-700 whitespace-pre-wrap">{note.note}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-12">
+                  <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600 mb-4">No notes yet</p>
+                  <button
+                    onClick={() => setShowAddNoteModal(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  >
+                    <Plus size={18} />
+                    Add First Note
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'activity' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Timeline</h3>
+              {activityTimeline.length > 0 ? (
+                <div className="space-y-4">
+                  {activityTimeline.map((activity) => {
+                    const Icon = activity.icon;
+                    return (
+                      <div key={activity.id} className="flex items-start gap-4">
+                        <div className={`p-3 rounded-lg ${activity.color} flex-shrink-0`}>
+                          <Icon size={20} />
+                        </div>
+                        <div className="flex-1 pb-4 border-b border-gray-200">
+                          <h4 className="font-semibold text-gray-900">{activity.title}</h4>
+                          <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            {new Date(activity.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Activity size={48} className="mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600">No activity yet</p>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Add Follow-Up Modal */}
       {showAddFollowUpModal && (
         <AddFollowUpModal
           leadId={leadId}
@@ -584,11 +800,34 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
           }}
         />
       )}
+
+      {showAddCommunicationModal && (
+        <CommunicationModal
+          leadId={leadId}
+          customerId={null}
+          onClose={() => setShowAddCommunicationModal(false)}
+          onSuccess={() => {
+            setShowAddCommunicationModal(false);
+            fetchLeadDetails();
+          }}
+        />
+      )}
+
+      {showAddNoteModal && (
+        <NoteModal
+          leadId={leadId}
+          customerId={null}
+          onClose={() => setShowAddNoteModal(false)}
+          onSuccess={() => {
+            setShowAddNoteModal(false);
+            fetchLeadDetails();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-// Simplified AddFollowUpModal component (inline for now)
 function AddFollowUpModal({
   leadId,
   leadName,
@@ -603,7 +842,7 @@ function AddFollowUpModal({
   const { user } = useAuth();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [createReminder, setCreateReminder] = useState(true);
+  const [createReminder, setCreateReminder] = useState(false);
 
   const [formData, setFormData] = useState({
     followup_date: '',
@@ -622,13 +861,22 @@ function AddFollowUpModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (createReminder && !formData.reminder_date) {
+      toast.error('Please set a reminder date or uncheck the reminder option');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const followupData = {
         user_id: user?.id,
         lead_id: leadId,
-        ...formData,
+        followup_date: formData.followup_date,
+        followup_time: formData.followup_time,
+        followup_type: formData.followup_type,
+        remarks: formData.remarks,
         status: 'pending',
       };
 
@@ -640,7 +888,6 @@ function AddFollowUpModal({
 
       if (error) throw error;
 
-      // Create reminder if enabled
       if (createReminder && formData.reminder_date) {
         await supabase.from('reminders').insert({
           user_id: user?.id,
@@ -663,8 +910,8 @@ function AddFollowUpModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600 sticky top-0">
           <h2 className="text-2xl font-bold text-white flex items-center gap-3">
             <Calendar size={28} />
             Schedule Follow-Up
@@ -760,10 +1007,11 @@ function AddFollowUpModal({
             {createReminder && (
               <div className="mt-3">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Remind me on
+                  Remind me on *
                 </label>
                 <input
                   type="datetime-local"
+                  required={createReminder}
                   value={formData.reminder_date}
                   onChange={(e) => setFormData({ ...formData, reminder_date: e.target.value })}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
