@@ -3,7 +3,9 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, FileText, DollarSign, Calendar, X, Users, Trash2, Search, Filter, Eye, CreditCard as Edit2, Printer, Download, TrendingUp, Clock, CheckCircle, AlertCircle, Briefcase } from 'lucide-react';
 import { generateInvoiceHTML, printInvoice, previewInvoice, downloadPDF } from '../lib/invoicePdfGenerator';
+import { generateEnhancedInvoiceHTML, previewEnhancedInvoice, printEnhancedInvoice, downloadEnhancedPDF } from '../lib/enhancedInvoicePDF';
 import { useToast } from '../contexts/ToastContext';
+import EditInvoiceModal from '../components/EditInvoiceModal';
 
 interface Invoice {
   id: string;
@@ -84,6 +86,7 @@ export default function Invoices() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingInvoice, setEditingInvoice] = useState<{ invoice: Invoice; items: InvoiceItem[] } | null>(null);
   const [stats, setStats] = useState<InvoiceStats>({
     totalAmount: 0,
     paidAmount: 0,
@@ -387,19 +390,30 @@ const saveAsDraft = async () => {
         .select('*')
         .eq('invoice_id', invoice.id);
 
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('name, email, phone, address, gstin')
+        .eq('id', invoice.customer_id)
+        .single();
+
       const { data: settings } = await supabase
         .from('company_settings')
         .select('*')
         .eq('user_id', user!.id)
         .maybeSingle();
 
-      const html = generateInvoiceHTML(
-        invoice,
+      const invoiceWithCustomer = {
+        ...invoice,
+        customers: customerData || invoice.customers,
+      };
+
+      const html = generateEnhancedInvoiceHTML(
+        invoiceWithCustomer,
         items || [],
-        settings || { company_name: 'Your Company' }
+        settings || { company_name: 'Your Company', country: 'India' }
       );
 
-      printInvoice(html);
+      printEnhancedInvoice(html);
     } catch (error) {
       console.error('Error printing invoice:', error);
       toast.error('Failed to print invoice');
@@ -414,19 +428,30 @@ const saveAsDraft = async () => {
         .select('*')
         .eq('invoice_id', invoice.id);
 
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('name, email, phone, address, gstin')
+        .eq('id', invoice.customer_id)
+        .single();
+
       const { data: settings } = await supabase
         .from('company_settings')
         .select('*')
         .eq('user_id', user!.id)
         .maybeSingle();
 
-      const html = generateInvoiceHTML(
-        invoice,
+      const invoiceWithCustomer = {
+        ...invoice,
+        customers: customerData || invoice.customers,
+      };
+
+      const html = generateEnhancedInvoiceHTML(
+        invoiceWithCustomer,
         items || [],
-        settings || { company_name: 'Your Company' }
+        settings || { company_name: 'Your Company', country: 'India' }
       );
 
-      await downloadPDF(html, `Invoice-${invoice.invoice_number}`);
+      await downloadEnhancedPDF(html, `Invoice-${invoice.invoice_number}`);
       toast.success('PDF downloaded successfully!');
     } catch (error) {
       console.error('Error downloading invoice:', error);
@@ -441,19 +466,30 @@ const saveAsDraft = async () => {
         .select('*')
         .eq('invoice_id', invoice.id);
 
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('name, email, phone, address, gstin')
+        .eq('id', invoice.customer_id)
+        .single();
+
       const { data: settings } = await supabase
         .from('company_settings')
         .select('*')
         .eq('user_id', user!.id)
         .maybeSingle();
 
-      const html = generateInvoiceHTML(
-        invoice,
+      const invoiceWithCustomer = {
+        ...invoice,
+        customers: customerData || invoice.customers,
+      };
+
+      const html = generateEnhancedInvoiceHTML(
+        invoiceWithCustomer,
         items || [],
-        settings || { company_name: 'Your Company' }
+        settings || { company_name: 'Your Company', country: 'India' }
       );
 
-      previewInvoice(html);
+      previewEnhancedInvoice(html);
     } catch (error) {
       console.error('Error previewing invoice:', error);
       toast.error('Failed to preview invoice');
@@ -461,8 +497,20 @@ const saveAsDraft = async () => {
   };
 
 
-  const handleEditInvoice = (invoice: Invoice) => {
-    toast.info('Edit functionality coming soon!');
+  const handleEditInvoice = async (invoice: Invoice) => {
+    try {
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', invoice.id);
+
+      if (items) {
+        setEditingInvoice({ invoice, items });
+      }
+    } catch (error) {
+      console.error('Error loading invoice items:', error);
+      toast.error('Failed to load invoice details');
+    }
   };
 
   const handleDeleteInvoice = async (id: string) => {
@@ -1159,6 +1207,12 @@ const saveAsDraft = async () => {
                   return;
                 }
 
+                const { data: customerData } = await supabase
+                  .from('customers')
+                  .select('name, email, phone, address, gstin')
+                  .eq('id', formData.customer_id)
+                  .single();
+
                 const draftInvoice = {
                   invoice_number: formData.invoice_number,
                   invoice_date: formData.invoice_date,
@@ -1168,7 +1222,7 @@ const saveAsDraft = async () => {
                   total_amount: totalAmount,
                   status: formData.status,
                   notes: formData.notes,
-                  customers: customer,
+                  customers: customerData || customer,
                 };
 
                 const previewItems = lineItems.map(item => ({
@@ -1176,6 +1230,7 @@ const saveAsDraft = async () => {
                   quantity: parseFloat(item.quantity.toString()),
                   unit_price: parseFloat(item.rate.toString()),
                   amount: calculateItemTotal(item),
+                  tax_rate: parseFloat(item.tax_rate.toString()),
                 }));
 
                 const { data: settings } = await supabase
@@ -1184,13 +1239,13 @@ const saveAsDraft = async () => {
                   .eq('user_id', user!.id)
                   .maybeSingle();
 
-                const html = generateInvoiceHTML(
+                const html = generateEnhancedInvoiceHTML(
                   draftInvoice as any,
                   previewItems,
-                  settings || { company_name: 'Your Company' }
+                  settings || { company_name: 'Your Company', country: 'India' }
                 );
 
-                previewInvoice(html);
+                previewEnhancedInvoice(html);
               } catch (error) {
                 console.error('Error previewing invoice:', error);
                 toast.error('Failed to preview invoice');
@@ -1222,7 +1277,17 @@ const saveAsDraft = async () => {
   </div>
 )}
 
-
+      {editingInvoice && (
+        <EditInvoiceModal
+          invoice={editingInvoice.invoice}
+          items={editingInvoice.items}
+          onClose={() => setEditingInvoice(null)}
+          onSave={() => {
+            fetchData();
+            setEditingInvoice(null);
+          }}
+        />
+      )}
     </div>
   );
 }
