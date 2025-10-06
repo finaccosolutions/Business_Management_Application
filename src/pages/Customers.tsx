@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Plus,
   Search,
+  Filter,
   UserCog,
   Mail,
   Phone,
@@ -119,6 +120,7 @@ export default function Customers() {
     dateFrom: '',
     dateTo: '',
   });
+  const [showFilters, setShowFilters] = useState(false); // ADD THIS LINE
 
   useEffect(() => {
     if (user) {
@@ -342,123 +344,120 @@ export default function Customers() {
         </button>
       </div>
 
-      {/* Statistics Cards */}
-      {!loadingStats && statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Customers</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{statistics.totalCustomers}</p>
+        {/* Statistics Cards */}
+        {!loadingStats && statistics && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl shadow-sm border-2 border-blue-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Customers</p>
+                  <p className="text-3xl font-bold text-blue-600 mt-2">{statistics.totalCustomers}</p>
+                </div>
+                <Users className="w-12 h-12 text-blue-600 opacity-20" />
               </div>
-              <div className="bg-blue-100 p-3 rounded-full">
-                <Users className="text-blue-600" size={24} />
+              <div className="flex items-center gap-1 mt-3">
+                <TrendingUp size={16} className="text-green-500" />
+                <span className="text-sm text-green-600">{statistics.newThisMonth} new this month</span>
               </div>
             </div>
-            <div className="flex items-center gap-1 mt-3">
-              <TrendingUp size={16} className="text-green-500" />
-              <span className="text-sm text-green-600">{statistics.newThisMonth} new this month</span>
+        
+            <div className="bg-white rounded-xl shadow-sm border-2 border-green-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                  <p className="text-3xl font-bold text-green-600 mt-2">
+                    ₹{statistics.totalRevenue.toLocaleString()}
+                  </p>
+                </div>
+                <DollarSign className="w-12 h-12 text-green-600 opacity-20" />
+              </div>
+              <p className="text-sm text-gray-600 mt-3">From paid invoices</p>
+            </div>
+        
+            <div className="bg-white rounded-xl shadow-sm border-2 border-orange-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Avg. Revenue</p>
+                  <p className="text-3xl font-bold text-orange-600 mt-2">
+                    ₹
+                    {statistics.averageRevenue.toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    })}
+                  </p>
+                </div>
+                <Briefcase className="w-12 h-12 text-orange-600 opacity-20" />
+              </div>
+              <p className="text-sm text-gray-600 mt-3">Per customer</p>
+            </div>
+        
+            <div className="bg-white rounded-xl shadow-sm border-2 border-teal-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Active Customers</p>
+                  <p className="text-3xl font-bold text-teal-600 mt-2">{statistics.activeCustomers}</p>
+                </div>
+                <UserCog className="w-12 h-12 text-teal-600 opacity-20" />
+              </div>
+              <p className="text-sm text-gray-600 mt-3">With active services</p>
             </div>
           </div>
+        )}
 
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
-                  ₹{statistics.totalRevenue.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-green-100 p-3 rounded-full">
-                <DollarSign className="text-green-600" size={24} />
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mt-3">From paid invoices</p>
-          </div>
 
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Avg. Revenue</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
-                  ₹
-                  {statistics.averageRevenue.toLocaleString(undefined, {
-                    maximumFractionDigits: 0,
-                  })}
-                </p>
-              </div>
-              <div className="bg-orange-100 p-3 rounded-full">
-                <Briefcase className="text-orange-600" size={24} />
-              </div>
-            </div>
-            <p className="text-sm text-gray-600 mt-3">Per customer</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Customers</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{statistics.activeCustomers}</p>
-              </div>
-              <div className="bg-teal-100 p-3 rounded-full">
-                <UserCog className="text-teal-600" size={24} />
+      {/* Search and Filter Bar */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search Bar */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search customers by name, email, company, phone, city, or GST number..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
             </div>
-            <p className="text-sm text-gray-600 mt-3">With active services</p>
+        
+            {/* Filter Toggle Button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Filter className="w-5 h-5" />
+              <span>Filters</span>
+              {(filters.sources.length > 0 ||
+                filters.serviceTypes.length > 0 ||
+                filters.cities.length > 0 ||
+                filters.states.length > 0 ||
+                filters.gstStatus !== 'all' ||
+                filters.dateFrom ||
+                filters.dateTo) && (
+                <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  {[
+                    filters.sources.length,
+                    filters.serviceTypes.length,
+                    filters.cities.length,
+                    filters.states.length,
+                    filters.gstStatus !== 'all' ? 1 : 0,
+                    filters.dateFrom ? 1 : 0,
+                    filters.dateTo ? 1 : 0,
+                  ].reduce((a, b) => a + b, 0)}
+                </span>
+              )}
+            </button>
           </div>
+        
+          {/* Filter Panel - Collapsible */}
+          {showFilters && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <CustomerFilters onFilterChange={setFilters} activeFilters={filters} />
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Filters */}
-      <CustomerFilters onFilterChange={setFilters} activeFilters={filters} />
-
-      {/* Search Bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="relative">
-          <Search
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-            size={20}
-          />
-          <input
-            type="text"
-            placeholder="Search customers by name, email, company, phone, city, or GST number..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      {/* Color Legend */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-6 flex-wrap text-sm">
-          <span className="font-medium text-gray-700">Color Legend:</span>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-teal-500 rounded"></div>
-            <span className="text-gray-600">New (30 days)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500 rounded"></div>
-            <span className="text-gray-600">Overdue Invoices</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded"></div>
-            <span className="text-gray-600">High Revenue</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-orange-500 rounded"></div>
-            <span className="text-gray-600">Pending Works</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-blue-500 rounded"></div>
-            <span className="text-gray-600">Active Services</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-gray-400 rounded"></div>
-            <span className="text-gray-600">Standard</span>
-          </div>
-        </div>
-      </div>
 
       {/* Customers List - Full Width Rows */}
       {filteredCustomers.length === 0 ? (
