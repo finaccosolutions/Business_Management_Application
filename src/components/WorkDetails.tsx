@@ -1,36 +1,24 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import {
-  X,
-  Users,
-  Clock,
-  CheckSquare,
-  Plus,
-  Play,
-  Pause,
-  FileText,
-  DollarSign,
-  Calendar,
-  AlertCircle,
-  Edit2,
-  Briefcase,
-  TrendingUp,
-  CheckCircle,
-} from 'lucide-react';
+import { X, Users, Clock, CheckSquare, Plus, FileText, DollarSign, Calendar, AlertCircle, CreditCard as Edit2, Briefcase, CheckCircle, Repeat, ArrowRightLeft, Trash2 } from 'lucide-react';
 
 interface WorkDetailsProps {
   workId: string;
   onClose: () => void;
   onUpdate: () => void;
-  onEdit: () => void; // Add this
+  onEdit: () => void;
 }
 
 interface Task {
   id: string;
   title: string;
+  description: string | null;
   status: string;
   assigned_to: string | null;
+  estimated_hours: number | null;
   actual_hours: number;
+  due_date: string | null;
+  remarks: string | null;
   staff_members: { name: string } | null;
 }
 
@@ -47,7 +35,23 @@ interface Assignment {
   id: string;
   assigned_at: string;
   status: string;
+  reassigned_from: string | null;
+  reassignment_reason: string | null;
   staff_members: { name: string };
+  from_staff?: { name: string } | null;
+}
+
+interface RecurringInstance {
+  id: string;
+  period_name: string;
+  period_start_date: string;
+  period_end_date: string;
+  due_date: string;
+  status: string;
+  completed_at: string | null;
+  notes: string | null;
+  completed_by: string | null;
+  staff_members: { name: string } | null;
 }
 
 export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkDetailsProps) {
@@ -55,13 +59,15 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const [tasks, setTasks] = useState<Task[]>([]);
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [recurringInstances, setRecurringInstances] = useState<RecurringInstance[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showRecurringModal, setShowRecurringModal] = useState(false);
+
   const [taskForm, setTaskForm] = useState({
     title: '',
     description: '',
@@ -69,12 +75,21 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     estimated_hours: '',
     due_date: '',
     priority: 'medium',
+    remarks: '',
   });
+
   const [timeForm, setTimeForm] = useState({
     staff_member_id: '',
     start_time: new Date().toISOString().slice(0, 16),
     end_time: '',
     description: '',
+  });
+
+  const [recurringForm, setRecurringForm] = useState({
+    period_name: '',
+    period_start_date: '',
+    period_end_date: '',
+    due_date: '',
   });
 
   useEffect(() => {
@@ -84,7 +99,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
   const fetchWorkDetails = async () => {
     try {
-      const [workRes, tasksRes, timeLogsRes, assignmentsRes] = await Promise.all([
+      const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes] = await Promise.all([
         supabase
           .from('works')
           .select('*, customers(name), services(name), staff_members(name)')
@@ -102,15 +117,21 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .order('start_time', { ascending: false }),
         supabase
           .from('work_assignments')
-          .select('*, staff_members(name)')
+          .select('*, staff_members(name), from_staff:reassigned_from(name)')
           .eq('work_id', workId)
           .order('assigned_at', { ascending: false }),
+        supabase
+          .from('work_recurring_instances')
+          .select('*, staff_members:completed_by(name)')
+          .eq('work_id', workId)
+          .order('due_date', { ascending: false }),
       ]);
 
       if (workRes.data) setWork(workRes.data);
       if (tasksRes.data) setTasks(tasksRes.data);
       if (timeLogsRes.data) setTimeLogs(timeLogsRes.data);
       if (assignmentsRes.data) setAssignments(assignmentsRes.data);
+      if (recurringRes.data) setRecurringInstances(recurringRes.data);
     } catch (error) {
       console.error('Error fetching work details:', error);
     } finally {
@@ -144,6 +165,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         estimated_hours: taskForm.estimated_hours ? parseFloat(taskForm.estimated_hours) : null,
         due_date: taskForm.due_date || null,
         priority: taskForm.priority,
+        remarks: taskForm.remarks || null,
         status: 'pending',
       });
 
@@ -156,11 +178,13 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         estimated_hours: '',
         due_date: '',
         priority: 'medium',
+        remarks: '',
       });
       fetchWorkDetails();
       onUpdate();
     } catch (error) {
       console.error('Error creating task:', error);
+      alert('Failed to create task');
     }
   };
 
@@ -183,6 +207,15 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       });
 
       if (error) throw error;
+
+      if (duration) {
+        const { error: updateError } = await supabase.rpc('increment_work_hours', {
+          work_id: workId,
+          hours_to_add: duration,
+        });
+        if (updateError) console.error('Error updating work hours:', updateError);
+      }
+
       setShowTimeModal(false);
       setTimeForm({
         staff_member_id: '',
@@ -194,6 +227,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       onUpdate();
     } catch (error) {
       console.error('Error logging time:', error);
+      alert('Failed to log time');
     }
   };
 
@@ -217,7 +251,10 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
       await supabase
         .from('works')
-        .update({ assigned_to: staffId })
+        .update({
+          assigned_to: staffId,
+          assigned_date: new Date().toISOString(),
+        })
         .eq('id', workId);
 
       setShowAssignModal(false);
@@ -225,6 +262,45 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       onUpdate();
     } catch (error) {
       console.error('Error assigning staff:', error);
+      alert('Failed to assign staff');
+    }
+  };
+
+  const handleReassignStaff = async (newStaffId: string) => {
+    try {
+      const currentStaffId = work.assigned_to;
+
+      await supabase
+        .from('work_assignments')
+        .update({ is_current: false })
+        .eq('work_id', workId)
+        .eq('is_current', true);
+
+      const { error } = await supabase.from('work_assignments').insert({
+        work_id: workId,
+        staff_member_id: newStaffId,
+        assigned_by: work.user_id,
+        reassigned_from: currentStaffId,
+        status: 'assigned',
+        is_current: true,
+      });
+
+      if (error) throw error;
+
+      await supabase
+        .from('works')
+        .update({
+          assigned_to: newStaffId,
+          assigned_date: new Date().toISOString(),
+        })
+        .eq('id', workId);
+
+      setShowAssignModal(false);
+      fetchWorkDetails();
+      onUpdate();
+    } catch (error) {
+      console.error('Error reassigning staff:', error);
+      alert('Failed to reassign staff');
     }
   };
 
@@ -236,10 +312,82 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         .eq('id', taskId);
 
       if (error) throw error;
+
+      const completedTasks = tasks.filter((t) => t.id === taskId || t.status === 'completed').length +
+        (status === 'completed' ? 1 : 0);
+
+      if (completedTasks === tasks.length && tasks.length > 0) {
+        await supabase
+          .from('works')
+          .update({ status: 'completed', completion_date: new Date().toISOString() })
+          .eq('id', workId);
+      }
+
       fetchWorkDetails();
       onUpdate();
     } catch (error) {
       console.error('Error updating task:', error);
+    }
+  };
+
+  const handleCreateRecurringInstance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase.from('work_recurring_instances').insert({
+        work_id: workId,
+        period_name: recurringForm.period_name,
+        period_start_date: recurringForm.period_start_date,
+        period_end_date: recurringForm.period_end_date,
+        due_date: recurringForm.due_date,
+        status: 'pending',
+      });
+
+      if (error) throw error;
+      setShowRecurringModal(false);
+      setRecurringForm({
+        period_name: '',
+        period_start_date: '',
+        period_end_date: '',
+        due_date: '',
+      });
+      fetchWorkDetails();
+      onUpdate();
+    } catch (error) {
+      console.error('Error creating recurring instance:', error);
+      alert('Failed to create recurring period');
+    }
+  };
+
+  const updateRecurringInstanceStatus = async (instanceId: string, status: string) => {
+    try {
+      const updateData: any = { status, updated_at: new Date().toISOString() };
+      if (status === 'completed') {
+        updateData.completed_at = new Date().toISOString();
+        updateData.completed_by = work.assigned_to;
+      }
+
+      const { error } = await supabase
+        .from('work_recurring_instances')
+        .update(updateData)
+        .eq('id', instanceId);
+
+      if (error) throw error;
+      fetchWorkDetails();
+      onUpdate();
+    } catch (error) {
+      console.error('Error updating recurring instance:', error);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+    try {
+      const { error } = await supabase.from('work_tasks').delete().eq('id', taskId);
+      if (error) throw error;
+      fetchWorkDetails();
+      onUpdate();
+    } catch (error) {
+      console.error('Error deleting task:', error);
     }
   };
 
@@ -271,11 +419,18 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     { id: 'assignments', label: 'Assignments', icon: Users, count: assignments.length },
   ];
 
+  if (work.is_recurring) {
+    tabs.push({
+      id: 'recurring',
+      label: 'Recurring Periods',
+      icon: Repeat,
+      count: recurringInstances.length
+    });
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-      {/* Position: Left edge at sidebar (left-64), Top edge below topbar (top-16) */}
       <div className="fixed top-16 left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600 flex-shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -287,6 +442,12 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {work.is_recurring && (
+              <span className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium">
+                <Repeat size={18} />
+                Recurring Work
+              </span>
+            )}
             <button
               onClick={onEdit}
               className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
@@ -297,13 +458,12 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             <button
               onClick={onClose}
               className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-            > 
+            >
               <X size={24} />
             </button>
           </div>
         </div>
 
-        {/* Status Badge */}
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-4">
             <span
@@ -329,7 +489,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           </div>
         </div>
 
-        {/* Statistics Cards */}
         <div className="grid grid-cols-4 gap-4 p-6 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 flex-shrink-0">
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
@@ -365,7 +524,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
               onClick={() => setShowAssignModal(true)}
               className="text-xs text-blue-600 hover:text-blue-700 mt-1 hover:underline"
             >
-              Reassign
+              {work.assigned_to ? 'Reassign' : 'Assign'}
             </button>
           </div>
 
@@ -381,7 +540,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50 flex-shrink-0">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -395,7 +553,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                     : 'text-gray-600 hover:bg-white/50'
                 }`}
               >
-                <Icon size={18} className="text-orange-600" />
+                <Icon size={18} />
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
                   <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
@@ -407,11 +565,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           })}
         </div>
 
-        {/* Content - Scrollable */}
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* Work Information */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Briefcase size={20} className="text-orange-600" />
@@ -445,54 +601,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                       <label className="text-sm font-medium text-gray-500">Status</label>
                       <p className="text-gray-900 mt-1 capitalize">{work.status.replace('_', ' ')}</p>
                     </div>
-                    {work.due_date && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Due Date</label>
-                        <p className="text-gray-900 mt-1">{new Date(work.due_date).toLocaleDateString()}</p>
-                      </div>
-                    )}
-                    {work.billing_status && (
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Billing Status</label>
-                        <p className="text-gray-900 mt-1 capitalize">{work.billing_status.replace('_', ' ')}</p>
-                      </div>
-                    )}
                   </div>
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Clock size={20} className="text-gray-600" />
-                  Timeline
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-orange-600 rounded-full mt-2"></div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Work Created</p>
-                      <p className="text-xs text-gray-500">{new Date(work.created_at).toLocaleString()}</p>
-                    </div>
-                  </div>
-                  {work.updated_at !== work.created_at && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-yellow-600 rounded-full mt-2"></div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Last Updated</p>
-                        <p className="text-xs text-gray-500">{new Date(work.updated_at).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  )}
-                  {work.status === 'completed' && work.completed_at && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-green-600 rounded-full mt-2"></div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Completed</p>
-                        <p className="text-xs text-gray-500">{new Date(work.completed_at).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -501,7 +610,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           {activeTab === 'tasks' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-gray-900 text-lg">Tasks</h3>
+                <h3 className="font-semibold text-gray-900 text-lg">Tasks & Subtasks</h3>
                 <button
                   onClick={() => setShowTaskModal(true)}
                   className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
@@ -520,28 +629,62 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">{task.title}</h4>
-                        {task.staff_members && (
-                          <p className="text-sm text-gray-600 mt-1">Assigned to: {task.staff_members.name}</p>
+                        {task.description && (
+                          <p className="text-sm text-gray-600 mt-1">{task.description}</p>
                         )}
-                        {task.actual_hours > 0 && (
-                          <p className="text-sm text-gray-600 mt-1">Time: {task.actual_hours}h</p>
+                        <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-600">
+                          {task.staff_members && (
+                            <span className="flex items-center gap-1">
+                              <Users size={14} />
+                              {task.staff_members.name}
+                            </span>
+                          )}
+                          {task.due_date && (
+                            <span className="flex items-center gap-1">
+                              <Calendar size={14} />
+                              {new Date(task.due_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          {task.estimated_hours && (
+                            <span className="flex items-center gap-1">
+                              <Clock size={14} />
+                              Est: {task.estimated_hours}h
+                            </span>
+                          )}
+                          {task.actual_hours > 0 && (
+                            <span className="flex items-center gap-1 text-orange-600">
+                              <Clock size={14} />
+                              Actual: {task.actual_hours}h
+                            </span>
+                          )}
+                        </div>
+                        {task.remarks && (
+                          <p className="text-xs text-gray-500 mt-2 italic">{task.remarks}</p>
                         )}
                       </div>
-                      <select
-                        value={task.status}
-                        onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                        className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer ${
-                          task.status === 'completed'
-                            ? 'bg-green-100 text-green-700'
-                            : task.status === 'in_progress'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={task.status}
+                          onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                          className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer ${
+                            task.status === 'completed'
+                              ? 'bg-green-100 text-green-700'
+                              : task.status === 'in_progress'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                        <button
+                          onClick={() => deleteTask(task.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -608,8 +751,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                   onClick={() => setShowAssignModal(true)}
                   className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
                 >
-                  <Users className="w-4 h-4" />
-                  <span>Reassign</span>
+                  <ArrowRightLeft className="w-4 h-4" />
+                  <span>{work.assigned_to ? 'Reassign' : 'Assign'}</span>
                 </button>
               </div>
 
@@ -622,6 +765,17 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                         <p className="text-sm text-gray-600 mt-1">
                           Assigned: {new Date(assignment.assigned_at).toLocaleString()}
                         </p>
+                        {assignment.reassigned_from && assignment.from_staff && (
+                          <div className="text-sm text-gray-600 mt-1 flex items-center gap-2">
+                            <ArrowRightLeft size={14} />
+                            <span>Reassigned from: {assignment.from_staff.name}</span>
+                          </div>
+                        )}
+                        {assignment.reassignment_reason && (
+                          <p className="text-sm text-gray-500 mt-1 italic">
+                            Reason: {assignment.reassignment_reason}
+                          </p>
+                        )}
                       </div>
                       <span
                         className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -645,13 +799,92 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
               </div>
             </div>
           )}
+
+          {activeTab === 'recurring' && work.is_recurring && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-gray-900 text-lg">Recurring Periods</h3>
+                <button
+                  onClick={() => setShowRecurringModal(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Period</span>
+                </button>
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Repeat className="w-5 h-5 text-orange-600" />
+                  <p className="font-medium text-orange-900">Recurring Work Pattern</p>
+                </div>
+                <div className="text-sm text-gray-700">
+                  <p>Pattern: <span className="font-medium capitalize">{work.recurrence_pattern}</span></p>
+                  {work.recurrence_day && (
+                    <p>Due Day: <span className="font-medium">{work.recurrence_day} of each period</span></p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {recurringInstances.map((instance) => (
+                  <div key={instance.id} className="bg-white border border-gray-200 rounded-xl p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{instance.period_name}</h4>
+                        <div className="space-y-1 mt-2 text-sm text-gray-600">
+                          <p>Period: {new Date(instance.period_start_date).toLocaleDateString()} - {new Date(instance.period_end_date).toLocaleDateString()}</p>
+                          <p className="flex items-center gap-1">
+                            <Calendar size={14} />
+                            Due: {new Date(instance.due_date).toLocaleDateString()}
+                          </p>
+                          {instance.completed_at && (
+                            <p className="flex items-center gap-1 text-green-600">
+                              <CheckCircle size={14} />
+                              Completed: {new Date(instance.completed_at).toLocaleDateString()}
+                              {instance.staff_members && ` by ${instance.staff_members.name}`}
+                            </p>
+                          )}
+                          {instance.notes && (
+                            <p className="text-gray-500 italic mt-1">{instance.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                      <select
+                        value={instance.status}
+                        onChange={(e) => updateRecurringInstanceStatus(instance.id, e.target.value)}
+                        className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer ${
+                          instance.status === 'completed'
+                            ? 'bg-green-100 text-green-700'
+                            : instance.status === 'in_progress'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+
+                {recurringInstances.length === 0 && (
+                  <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                    <Repeat size={48} className="mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-600">No recurring periods yet. Add periods to track them.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Task Modal */}
       {showTaskModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
               <h3 className="text-xl font-bold text-white">Add New Task</h3>
             </div>
@@ -663,8 +896,18 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                   required
                   value={taskForm.title}
                   onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                   placeholder="Task title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={taskForm.description}
+                  onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  rows={3}
                 />
               </div>
 
@@ -674,7 +917,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                   <select
                     value={taskForm.assigned_to}
                     onChange={(e) => setTaskForm({ ...taskForm, assigned_to: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                   >
                     <option value="">Unassigned</option>
                     {staff.map((s) => (
@@ -692,19 +935,44 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                     step="0.5"
                     value={taskForm.estimated_hours}
                     onChange={(e) => setTaskForm({ ...taskForm, estimated_hours: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                     placeholder="0"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                  <input
+                    type="date"
+                    value={taskForm.due_date}
+                    onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                  <select
+                    value={taskForm.priority}
+                    onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
                 <textarea
-                  value={taskForm.description}
-                  onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  rows={3}
+                  value={taskForm.remarks}
+                  onChange={(e) => setTaskForm({ ...taskForm, remarks: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  rows={2}
+                  placeholder="Any additional notes or instructions"
                 />
               </div>
 
@@ -712,13 +980,13 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 <button
                   type="button"
                   onClick={() => setShowTaskModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                 >
                   Add Task
                 </button>
@@ -742,7 +1010,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                   required
                   value={timeForm.staff_member_id}
                   onChange={(e) => setTimeForm({ ...timeForm, staff_member_id: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="">Select staff member</option>
                   {staff.map((s) => (
@@ -761,7 +1029,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                     required
                     value={timeForm.start_time}
                     onChange={(e) => setTimeForm({ ...timeForm, start_time: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                   />
                 </div>
 
@@ -771,7 +1039,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                     type="datetime-local"
                     value={timeForm.end_time}
                     onChange={(e) => setTimeForm({ ...timeForm, end_time: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                   />
                 </div>
               </div>
@@ -781,7 +1049,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 <textarea
                   value={timeForm.description}
                   onChange={(e) => setTimeForm({ ...timeForm, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                   rows={2}
                   placeholder="What did you work on?"
                 />
@@ -791,13 +1059,13 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 <button
                   type="button"
                   onClick={() => setShowTimeModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                 >
                   Log Time
                 </button>
@@ -812,27 +1080,110 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
-              <h3 className="text-xl font-bold text-white">Assign to Staff Member</h3>
+              <h3 className="text-xl font-bold text-white">
+                {work.assigned_to ? 'Reassign Work' : 'Assign Work'}
+              </h3>
             </div>
-            <div className="p-6 space-y-2">
+            <div className="p-6 space-y-2 max-h-96 overflow-y-auto">
               {staff.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => handleAssignStaff(s.id)}
-                  className="w-full px-4 py-3 text-left border border-gray-200 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-colors font-medium"
+                  onClick={() => work.assigned_to ? handleReassignStaff(s.id) : handleAssignStaff(s.id)}
+                  disabled={s.id === work.assigned_to}
+                  className={`w-full px-4 py-3 text-left border border-gray-200 rounded-lg transition-colors font-medium ${
+                    s.id === work.assigned_to
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'hover:border-orange-500 hover:bg-orange-50'
+                  }`}
                 >
                   {s.name}
+                  {s.id === work.assigned_to && <span className="ml-2 text-sm">(Current)</span>}
                 </button>
               ))}
             </div>
             <div className="p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowAssignModal(false)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recurring Instance Modal */}
+      {showRecurringModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
+              <h3 className="text-xl font-bold text-white">Add Recurring Period</h3>
+            </div>
+            <form onSubmit={handleCreateRecurringInstance} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Period Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={recurringForm.period_name}
+                  onChange={(e) => setRecurringForm({ ...recurringForm, period_name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  placeholder="e.g., January 2024, Q1 2024"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Period Start *</label>
+                  <input
+                    type="date"
+                    required
+                    value={recurringForm.period_start_date}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, period_start_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Period End *</label>
+                  <input
+                    type="date"
+                    required
+                    value={recurringForm.period_end_date}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, period_end_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Due Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={recurringForm.due_date}
+                  onChange={(e) => setRecurringForm({ ...recurringForm, due_date: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowRecurringModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                >
+                  Add Period
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

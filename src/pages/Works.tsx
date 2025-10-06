@@ -115,6 +115,9 @@ export default function Works() {
     billing_status: 'not_billed',
     billing_amount: '',
     estimated_hours: '',
+    is_recurring: false,
+    recurrence_pattern: '',
+    recurrence_day: '',
   });
 
   useEffect(() => {
@@ -151,11 +154,34 @@ export default function Works() {
     }
   };
 
+  const handleServiceChange = (serviceId: string) => {
+    setFormData({ ...formData, service_id: serviceId });
+
+    const selectedService = services.find(s => s.id === serviceId);
+    if (selectedService && !editingWork) {
+      const updates: any = {
+        service_id: serviceId,
+      };
+
+      if (selectedService.default_price && !formData.billing_amount) {
+        updates.billing_amount = selectedService.default_price.toString();
+      }
+
+      if (selectedService.is_recurring) {
+        updates.is_recurring = true;
+        updates.recurrence_pattern = selectedService.recurrence_type || 'monthly';
+        updates.recurrence_day = selectedService.recurrence_day?.toString() || '';
+      }
+
+      setFormData({ ...formData, ...updates });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      const workData = {
+      const workData: any = {
         user_id: user!.id,
         customer_id: formData.customer_id,
         service_id: formData.service_id,
@@ -168,10 +194,25 @@ export default function Works() {
         billing_status: formData.billing_status,
         billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
         estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
+        is_recurring: formData.is_recurring,
+        recurrence_pattern: formData.is_recurring ? formData.recurrence_pattern : null,
+        recurrence_day: formData.is_recurring && formData.recurrence_day ? parseInt(formData.recurrence_day) : null,
         updated_at: new Date().toISOString(),
       };
 
+      if (formData.assigned_to && !editingWork) {
+        workData.assigned_date = new Date().toISOString();
+      }
+
+      if (formData.status === 'completed' && !editingWork) {
+        workData.completion_date = new Date().toISOString();
+      }
+
       if (editingWork) {
+        if (formData.status === 'completed' && editingWork.status !== 'completed') {
+          workData.completion_date = new Date().toISOString();
+        }
+
         const { error } = await supabase.from('works').update(workData).eq('id', editingWork.id);
         if (error) throw error;
       } else {
@@ -185,6 +226,7 @@ export default function Works() {
       fetchData();
     } catch (error) {
       console.error('Error saving work:', error);
+      alert('Failed to save work. Please try again.');
     }
   };
 
@@ -215,6 +257,9 @@ export default function Works() {
       billing_status: work.billing_status,
       billing_amount: work.billing_amount?.toString() || '',
       estimated_hours: work.estimated_hours?.toString() || '',
+      is_recurring: false,
+      recurrence_pattern: '',
+      recurrence_day: '',
     });
     setShowModal(true);
   };
@@ -232,6 +277,9 @@ export default function Works() {
       billing_status: 'not_billed',
       billing_amount: '',
       estimated_hours: '',
+      is_recurring: false,
+      recurrence_pattern: '',
+      recurrence_day: '',
     });
   };
 
@@ -708,7 +756,7 @@ const filteredWorks = works.filter((work) => {
                   <select
                     required
                     value={formData.service_id}
-                    onChange={(e) => setFormData({ ...formData, service_id: e.target.value })}
+                    onChange={(e) => handleServiceChange(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   >
                     <option value="">Select Service</option>
@@ -846,6 +894,70 @@ const filteredWorks = works.filter((work) => {
                   placeholder="0"
                 />
               </div>
+
+              {/* Recurring Work Section */}
+              {formData.is_recurring && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Repeat className="w-5 h-5 text-orange-600" />
+                    <h3 className="font-semibold text-orange-900">Recurring Work Settings</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Recurrence Pattern
+                      </label>
+                      <select
+                        value={formData.recurrence_pattern}
+                        onChange={(e) => setFormData({ ...formData, recurrence_pattern: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      >
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="half_yearly">Half Yearly</option>
+                        <option value="yearly">Yearly</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Due Day (Day of Month)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={formData.recurrence_day}
+                        onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        placeholder="e.g., 10 for 10th of each month"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-600 bg-white p-3 rounded border border-gray-200">
+                    <p className="font-medium mb-1">Note:</p>
+                    <p>This creates ONE work that manages all recurring periods. You can track each period's completion inside the work details.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Manual Recurring Toggle */}
+              {!editingWork && (
+                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="is_recurring"
+                    checked={formData.is_recurring}
+                    onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                  />
+                  <label htmlFor="is_recurring" className="text-sm font-medium text-gray-700">
+                    This is a recurring work (e.g., monthly GST filing, quarterly returns)
+                  </label>
+                </div>
+              )}
             </form>
 
             {/* Footer */}
