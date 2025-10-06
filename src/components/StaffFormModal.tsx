@@ -23,7 +23,7 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
     role: 'staff',
     department: '',
     joining_date: '',
-    employment_type: 'full-time',
+    employment_type: 'full_time',
     
     // Salary Configuration
     salary_method: 'hourly',
@@ -38,9 +38,15 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
     is_active: true,
     availability_status: 'available',
     
+    // Address Info
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+
     // Additional Info
     notes: '',
-    
+
     // Complex fields
     education: {
       degree: '',
@@ -76,6 +82,10 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
         expertise_areas: editingStaff.expertise_areas?.join(', ') || '',
         is_active: editingStaff.is_active !== false,
         availability_status: editingStaff.availability_status || 'available',
+        address: editingStaff.address || '',
+        city: editingStaff.city || '',
+        state: editingStaff.state || '',
+        pincode: editingStaff.pincode || '',
         notes: editingStaff.notes || '',
         education: editingStaff.education || { degree: '', institution: '', year: '' },
         emergency_contact: editingStaff.emergency_contact || { name: '', relationship: '', phone: '' },
@@ -108,6 +118,10 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
         expertise_areas: formData.expertise_areas ? formData.expertise_areas.split(',').map(s => s.trim()) : null,
         is_active: formData.is_active,
         availability_status: formData.availability_status,
+        address: formData.address || null,
+        city: formData.city || null,
+        state: formData.state || null,
+        pincode: formData.pincode || null,
         notes: formData.notes || null,
         education: formData.education.degree ? formData.education : null,
         emergency_contact: formData.emergency_contact.name ? formData.emergency_contact : null,
@@ -296,8 +310,8 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
                   onChange={(e) => setFormData({ ...formData, employment_type: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 >
-                  <option value="full-time">Full Time</option>
-                  <option value="part-time">Part Time</option>
+                  <option value="full_time">Full Time</option>
+                  <option value="part_time">Part Time</option>
                   <option value="contract">Contract</option>
                   <option value="intern">Intern</option>
                 </select>
@@ -510,6 +524,59 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
                   })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="2020"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Address Information */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <PhoneIcon size={20} className="text-emerald-600" />
+              Address Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Street address"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                <input
+                  type="text"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="City"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                <input
+                  type="text"
+                  value={formData.state}
+                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="State"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Pincode</label>
+                <input
+                  type="text"
+                  value={formData.pincode}
+                  onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Pincode"
                 />
               </div>
             </div>
