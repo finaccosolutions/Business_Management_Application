@@ -39,6 +39,8 @@ export default function NoteModal({
           .from('customer_notes')
           .update({
             note: formData.note,
+            content: formData.note,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', noteId);
 
@@ -54,12 +56,20 @@ export default function NoteModal({
           });
         }
       } else {
-        const { error } = await supabase.from('customer_notes').insert({
+        const noteData: any = {
           user_id: user.id,
-          customer_id: customerId,
-          lead_id: leadId,
           note: formData.note,
-        });
+          title: 'Note',
+          content: formData.note,
+        };
+
+        if (customerId) {
+          noteData.customer_id = customerId;
+        } else if (leadId) {
+          noteData.lead_id = leadId;
+        }
+
+        const { error } = await supabase.from('customer_notes').insert(noteData);
 
         if (error) throw error;
 

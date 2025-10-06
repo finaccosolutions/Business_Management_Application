@@ -18,6 +18,10 @@ import {
   AlertCircle,
   Target,
   Trash2,
+  UserCheck,
+  Package,
+  CreditCard,
+  Filter,
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
@@ -32,7 +36,7 @@ interface Reminder {
 
 interface AlertItem {
   id: string;
-  type: 'lead_followup' | 'work' | 'invoice' | 'staff_performance' | 'manual_reminder' | 'customer_followup' | 'service_renewal' | 'pending_work_start' | 'upcoming_due_date' | 'overdue_work' | 'unpaid_invoice' | 'inactive_customer' | 'lead_without_followup' | 'incomplete_customer_info' | 'staff_task_overload' | 'other';
+  type: 'lead_followup' | 'work' | 'invoice' | 'staff_performance' | 'manual_reminder' | 'customer_followup' | 'service_renewal' | 'pending_work_start' | 'upcoming_due_date' | 'overdue_work' | 'unpaid_invoice' | 'inactive_customer' | 'lead_without_followup' | 'incomplete_customer_info' | 'staff_task_overload' | 'stale_lead' | 'completed_work_not_invoiced' | 'overdue_payment' | 'other';
   title: string;
   description: string;
   date?: string;
@@ -50,6 +54,7 @@ export default function Reminders() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
+  const [activeTypeFilter, setActiveTypeFilter] = useState<string>('all');
 
   useEffect(() => {
     if (user) {
@@ -272,6 +277,37 @@ export default function Reminders() {
         }
       });
 
+      // 6b. Check for stale leads (no status change in reasonable time)
+      const { data: staleLeadsData } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('user_id', user?.id)
+        .in('status', ['new', 'contacted', 'qualified', 'proposal', 'negotiation'])
+        .is('converted_to_customer_id', null)
+        .order('updated_at', { ascending: true });
+
+      (staleLeadsData || []).forEach((lead: any) => {
+        const daysSinceUpdate = Math.ceil((now.getTime() - new Date(lead.updated_at).getTime()) / (1000 * 60 * 60 * 24));
+        const isCreatedRecently = Math.ceil((now.getTime() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60 * 24)) <= 7;
+
+        if (!isCreatedRecently && daysSinceUpdate >= 14) {
+          let urgency: 'critical' | 'high' | 'medium' | 'low' = 'medium';
+          if (daysSinceUpdate >= 30) urgency = 'high';
+          if (daysSinceUpdate >= 60) urgency = 'critical';
+
+          alertsList.push({
+            id: lead.id + '-stale',
+            type: 'stale_lead',
+            title: `Stale Lead: ${lead.name}`,
+            description: `No status change in ${daysSinceUpdate} days - Current status: ${lead.status}`,
+            date: lead.updated_at,
+            urgency,
+            category: 'Lead Management',
+            metadata: { lead, days_stale: daysSinceUpdate },
+          });
+        }
+      });
+
       // 7. Works starting soon (pending status with start date approaching)
       const { data: upcomingWorksData } = await supabase
         .from('works')
@@ -410,6 +446,79 @@ export default function Reminders() {
         }
       });
 
+      // 11. Completed works not yet invoiced
+      const { data: completedWorksData } = await supabase
+        .from('works')
+        .select(`
+          *,
+          customers (name, email, phone),
+          services (name),
+          invoices!left (id)
+        `)
+        .eq('user_id', user?.id)
+        .eq('status', 'completed')
+        .order('completed_date', { ascending: true });
+
+      (completedWorksData || []).forEach((work: any) => {
+        const hasInvoice = work.invoices && work.invoices.length > 0;
+
+        if (!hasInvoice && work.completed_date) {
+          const daysSinceCompletion = Math.ceil((now.getTime() - new Date(work.completed_date).getTime()) / (1000 * 60 * 60 * 24));
+
+          let urgency: 'critical' | 'high' | 'medium' | 'low' = 'low';
+          if (daysSinceCompletion >= 3) urgency = 'medium';
+          if (daysSinceCompletion >= 7) urgency = 'high';
+          if (daysSinceCompletion >= 14) urgency = 'critical';
+
+          alertsList.push({
+            id: work.id + '-not-invoiced',
+            type: 'completed_work_not_invoiced',
+            title: `Work Completed - Not Invoiced: ${work.customers?.name || 'Customer'}`,
+            description: `${work.services?.name || 'Service'} completed ${daysSinceCompletion} days ago - No invoice created`,
+            date: work.completed_date,
+            urgency,
+            category: 'Billing Required',
+            metadata: { work, customer: work.customers, service: work.services, days_since_completion: daysSinceCompletion },
+          });
+        }
+      });
+
+      // 12. Overdue invoice payments (more detailed)
+      const { data: overduePaymentsData } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          customers (name, email, phone),
+          works (id, services (name))
+        `)
+        .eq('user_id', user?.id)
+        .eq('status', 'pending')
+        .not('due_date', 'is', null)
+        .order('due_date', { ascending: true });
+
+      (overduePaymentsData || []).forEach((invoice: any) => {
+        const dueDate = new Date(invoice.due_date);
+        const daysOverdue = Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysOverdue > 0) {
+          let urgency: 'critical' | 'high' | 'medium' | 'low' = 'low';
+          if (daysOverdue >= 7) urgency = 'medium';
+          if (daysOverdue >= 14) urgency = 'high';
+          if (daysOverdue >= 30) urgency = 'critical';
+
+          alertsList.push({
+            id: invoice.id + '-overdue-payment',
+            type: 'overdue_payment',
+            title: `Payment Overdue: ${invoice.customers?.name || 'Customer'}`,
+            description: `Invoice #${invoice.invoice_number} - $${(invoice.total_amount || 0).toFixed(2)} overdue by ${daysOverdue} days`,
+            date: invoice.due_date,
+            urgency,
+            category: 'Overdue Payments',
+            metadata: { invoice, customer: invoice.customers, days_overdue: daysOverdue, amount: invoice.total_amount },
+          });
+        }
+      });
+
       // Sort by urgency and date
       const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
       alertsList.sort((a, b) => {
@@ -505,6 +614,7 @@ export default function Reminders() {
       case 'lead_followup':
         return <PhoneCall size={18} />;
       case 'lead_without_followup':
+      case 'stale_lead':
         return <Target size={18} />;
       case 'work':
       case 'overdue_work':
@@ -513,7 +623,10 @@ export default function Reminders() {
         return <Clock size={18} />;
       case 'invoice':
       case 'unpaid_invoice':
+      case 'overdue_payment':
         return <DollarSign size={18} />;
+      case 'completed_work_not_invoiced':
+        return <CreditCard size={18} />;
       case 'staff_performance':
         return <TrendingDown size={18} />;
       case 'staff_task_overload':
@@ -521,7 +634,7 @@ export default function Reminders() {
       case 'manual_reminder':
         return <Bell size={18} />;
       case 'inactive_customer':
-        return <Users size={18} />;
+        return <UserCheck size={18} />;
       case 'incomplete_customer_info':
         return <AlertCircle size={18} />;
       case 'service_renewal':
@@ -531,14 +644,30 @@ export default function Reminders() {
     }
   };
 
-  const filteredAlerts = activeCategory === 'all'
-    ? alerts
-    : alerts.filter(alert => alert.urgency === activeCategory);
+  const filteredAlerts = alerts.filter(alert => {
+    const matchesUrgency = activeCategory === 'all' || alert.urgency === activeCategory;
+    const matchesType = activeTypeFilter === 'all' || alert.category === activeTypeFilter;
+    return matchesUrgency && matchesType;
+  });
 
   const criticalCount = alerts.filter(a => a.urgency === 'critical').length;
   const highCount = alerts.filter(a => a.urgency === 'high').length;
   const mediumCount = alerts.filter(a => a.urgency === 'medium').length;
   const lowCount = alerts.filter(a => a.urgency === 'low').length;
+
+  const categoryGroups = {
+    'Lead Management': ['Lead Follow-ups', 'Lead Management'],
+    'Customer Relations': ['Customer Engagement', 'Data Quality'],
+    'Work & Projects': ['Works & Tasks', 'Work Scheduling'],
+    'Financial': ['Payments & Invoices', 'Upcoming Payments', 'Billing Required', 'Overdue Payments'],
+    'Staff & Team': ['Staff Performance', 'Staff Workload'],
+    'General': ['Manual Reminders']
+  };
+
+  const getCountForCategoryGroup = (groupName: string) => {
+    const categories = categoryGroups[groupName as keyof typeof categoryGroups] || [];
+    return alerts.filter(a => categories.includes(a.category)).length;
+  };
 
   if (loading) {
     return (
@@ -561,105 +690,199 @@ export default function Reminders() {
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg">
+      {/* Priority Filter Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <button
+          onClick={() => setActiveCategory('all')}
+          className={`bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
+            activeCategory === 'all' ? 'ring-4 ring-gray-300 transform scale-105' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <div>
+            <div className="text-left">
+              <p className="text-gray-100 text-sm font-medium">All Alerts</p>
+              <p className="text-3xl font-bold mt-1">{alerts.length}</p>
+            </div>
+            <Bell size={40} className="opacity-80" />
+          </div>
+          <p className="text-xs text-gray-100 mt-2">View everything</p>
+        </button>
+
+        <button
+          onClick={() => setActiveCategory('critical')}
+          className={`bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
+            activeCategory === 'critical' ? 'ring-4 ring-red-300 transform scale-105' : ''
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-left">
               <p className="text-red-100 text-sm font-medium">Critical</p>
               <p className="text-3xl font-bold mt-1">{criticalCount}</p>
             </div>
             <AlertTriangle size={40} className="opacity-80" />
           </div>
-          <p className="text-xs text-red-100 mt-2">Requires immediate attention</p>
-        </div>
+          <p className="text-xs text-red-100 mt-2">Immediate attention</p>
+        </button>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
+        <button
+          onClick={() => setActiveCategory('high')}
+          className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
+            activeCategory === 'high' ? 'ring-4 ring-orange-300 transform scale-105' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-100 text-sm font-medium">High Priority</p>
+            <div className="text-left">
+              <p className="text-orange-100 text-sm font-medium">High</p>
               <p className="text-3xl font-bold mt-1">{highCount}</p>
             </div>
             <AlertCircle size={40} className="opacity-80" />
           </div>
           <p className="text-xs text-orange-100 mt-2">Action needed soon</p>
-        </div>
+        </button>
 
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-6 text-white shadow-lg">
+        <button
+          onClick={() => setActiveCategory('medium')}
+          className={`bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
+            activeCategory === 'medium' ? 'ring-4 ring-yellow-300 transform scale-105' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-yellow-100 text-sm font-medium">Medium Priority</p>
+            <div className="text-left">
+              <p className="text-yellow-100 text-sm font-medium">Medium</p>
               <p className="text-3xl font-bold mt-1">{mediumCount}</p>
             </div>
             <Bell size={40} className="opacity-80" />
           </div>
           <p className="text-xs text-yellow-100 mt-2">Plan ahead</p>
-        </div>
+        </button>
 
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+        <button
+          onClick={() => setActiveCategory('low')}
+          className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
+            activeCategory === 'low' ? 'ring-4 ring-blue-300 transform scale-105' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-100 text-sm font-medium">Low Priority</p>
+            <div className="text-left">
+              <p className="text-blue-100 text-sm font-medium">Low</p>
               <p className="text-3xl font-bold mt-1">{lowCount}</p>
             </div>
             <Clock size={40} className="opacity-80" />
           </div>
           <p className="text-xs text-blue-100 mt-2">Future items</p>
-        </div>
+        </button>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 flex gap-2 overflow-x-auto">
-        <button
-          onClick={() => setActiveCategory('all')}
-          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-            activeCategory === 'all'
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          All ({alerts.length})
-        </button>
-        <button
-          onClick={() => setActiveCategory('critical')}
-          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-            activeCategory === 'critical'
-              ? 'bg-red-600 text-white shadow-md'
-              : 'text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          Critical ({criticalCount})
-        </button>
-        <button
-          onClick={() => setActiveCategory('high')}
-          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-            activeCategory === 'high'
-              ? 'bg-orange-600 text-white shadow-md'
-              : 'text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          High ({highCount})
-        </button>
-        <button
-          onClick={() => setActiveCategory('medium')}
-          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-            activeCategory === 'medium'
-              ? 'bg-yellow-600 text-white shadow-md'
-              : 'text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          Medium ({mediumCount})
-        </button>
-        <button
-          onClick={() => setActiveCategory('low')}
-          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-            activeCategory === 'low'
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'text-gray-700 hover:bg-gray-100'
-          }`}
-        >
-          Low ({lowCount})
-        </button>
+      {/* Category Filter */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter size={18} className="text-gray-600" />
+          <h3 className="font-semibold text-gray-900">Filter by Category</h3>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <button
+            onClick={() => setActiveTypeFilter('all')}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
+              activeTypeFilter === 'all'
+                ? 'border-blue-600 bg-blue-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <Bell size={24} className="text-blue-600" />
+            <span className="text-sm font-medium text-gray-900">All</span>
+            <span className="text-xs text-gray-600">{alerts.length}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const cats = categoryGroups['Lead Management'];
+              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+            }}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
+              categoryGroups['Lead Management'].includes(activeTypeFilter)
+                ? 'border-green-600 bg-green-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <Target size={24} className="text-green-600" />
+            <span className="text-sm font-medium text-gray-900">Leads</span>
+            <span className="text-xs text-gray-600">
+              {getCountForCategoryGroup('Lead Management')}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              const cats = categoryGroups['Customer Relations'];
+              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+            }}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
+              categoryGroups['Customer Relations'].includes(activeTypeFilter)
+                ? 'border-cyan-600 bg-cyan-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <UserCheck size={24} className="text-cyan-600" />
+            <span className="text-sm font-medium text-gray-900">Customers</span>
+            <span className="text-xs text-gray-600">
+              {getCountForCategoryGroup('Customer Relations')}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              const cats = categoryGroups['Work & Projects'];
+              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+            }}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
+              categoryGroups['Work & Projects'].includes(activeTypeFilter)
+                ? 'border-orange-600 bg-orange-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <Briefcase size={24} className="text-orange-600" />
+            <span className="text-sm font-medium text-gray-900">Works</span>
+            <span className="text-xs text-gray-600">
+              {getCountForCategoryGroup('Work & Projects')}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              const cats = categoryGroups['Financial'];
+              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+            }}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
+              categoryGroups['Financial'].includes(activeTypeFilter)
+                ? 'border-red-600 bg-red-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <CreditCard size={24} className="text-red-600" />
+            <span className="text-sm font-medium text-gray-900">Invoices</span>
+            <span className="text-xs text-gray-600">
+              {getCountForCategoryGroup('Financial')}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              const cats = categoryGroups['Staff & Team'];
+              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+            }}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
+              categoryGroups['Staff & Team'].includes(activeTypeFilter)
+                ? 'border-gray-600 bg-gray-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <Users size={24} className="text-gray-600" />
+            <span className="text-sm font-medium text-gray-900">Staff</span>
+            <span className="text-xs text-gray-600">
+              {getCountForCategoryGroup('Staff & Team')}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Alerts List */}
