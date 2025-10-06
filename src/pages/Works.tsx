@@ -220,16 +220,34 @@ export default function Works() {
         workData.completion_date = new Date().toISOString();
       }
 
+      let workId: string | null = null;
+      let shouldCreateInvoice = false;
+
       if (editingWork) {
         if (formData.status === 'completed' && editingWork.status !== 'completed') {
           workData.completion_date = new Date().toISOString();
+          shouldCreateInvoice = true;
+          workId = editingWork.id;
         }
 
         const { error } = await supabase.from('works').update(workData).eq('id', editingWork.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('works').insert(workData);
+        const { data: newWork, error } = await supabase
+          .from('works')
+          .insert(workData)
+          .select()
+          .single();
         if (error) throw error;
+
+        if (formData.status === 'completed' && newWork) {
+          shouldCreateInvoice = true;
+          workId = newWork.id;
+        }
+      }
+
+      if (shouldCreateInvoice && workId) {
+        await createInvoiceForWork(workId, formData.customer_id, formData.service_id);
       }
 
       setShowModal(false);
@@ -239,6 +257,69 @@ export default function Works() {
     } catch (error) {
       console.error('Error saving work:', error);
       alert('Failed to save work. Please try again.');
+    }
+  };
+
+  const createInvoiceForWork = async (workId: string, customerId: string, serviceId: string) => {
+    try {
+      const { data: invoiceCount } = await supabase
+        .from('invoices')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user!.id);
+
+      const count = invoiceCount || 0;
+      const invoiceNumber = `INV-${String(count + 1).padStart(4, '0')}`;
+
+      const service = services.find(s => s.id === serviceId);
+      const servicePrice = service?.default_price || 0;
+      const taxRate = 18;
+      const subtotal = servicePrice;
+      const taxAmount = (subtotal * taxRate) / 100;
+      const totalAmount = subtotal + taxAmount;
+
+      const today = new Date();
+      const dueDate = new Date(today);
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      const invoiceData = {
+        user_id: user!.id,
+        customer_id: customerId,
+        work_id: workId,
+        invoice_number: invoiceNumber,
+        invoice_date: today.toISOString().split('T')[0],
+        due_date: dueDate.toISOString().split('T')[0],
+        subtotal: subtotal,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        status: 'draft',
+        notes: 'Auto-generated invoice for completed work',
+      };
+
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert(invoiceData)
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      const invoiceItem = {
+        invoice_id: invoice.id,
+        description: service?.name || 'Service',
+        quantity: 1,
+        unit_price: servicePrice,
+        amount: subtotal + taxAmount,
+      };
+
+      const { error: itemError } = await supabase
+        .from('invoice_items')
+        .insert(invoiceItem);
+
+      if (itemError) throw itemError;
+
+      console.log(`Invoice ${invoiceNumber} created successfully for work ${workId}`);
+    } catch (error) {
+      console.error('Error creating invoice:', error);
     }
   };
 

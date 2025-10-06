@@ -11,12 +11,28 @@ interface Invoice {
   due_date: string;
   total_amount: number;
   status: string;
+  work_id?: string;
   customers: { name: string };
 }
 
 interface Customer {
   id: string;
   name: string;
+}
+
+interface Service {
+  id: string;
+  name: string;
+  description: string;
+  default_price: number;
+}
+
+interface Work {
+  id: string;
+  title: string;
+  customer_id: string;
+  service_id: string;
+  status: string;
 }
 
 const statusColors = {
@@ -31,6 +47,7 @@ export default function Invoices() {
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -39,21 +56,16 @@ export default function Invoices() {
     invoice_number: '',
     invoice_date: new Date().toISOString().split('T')[0],
     due_date: '',
-    subtotal: '',
-    tax_amount: '',
-    total_amount: '',
-    status: 'draft',
-    customer_address: '',
+    work_id: '',
     discount: '0',
-    shipping: '0',
     payment_terms: 'net_30',
     notes: '',
-    po_number: '',
+    status: 'draft',
   });
 
 
   const [lineItems, setLineItems] = useState([
-    { description: '', quantity: 1, rate: 0, tax_rate: 0 }
+    { service_id: '', description: '', custom_description: '', quantity: 1, rate: 0, tax_rate: 0 }
   ]);
 
 
@@ -65,19 +77,22 @@ export default function Invoices() {
 
   const fetchData = async () => {
     try {
-      const [invoicesResult, customersResult] = await Promise.all([
+      const [invoicesResult, customersResult, servicesResult] = await Promise.all([
         supabase
           .from('invoices')
           .select('*, customers(name)')
           .order('created_at', { ascending: false }),
         supabase.from('customers').select('id, name').order('name'),
+        supabase.from('services').select('id, name, description, default_price').order('name'),
       ]);
 
       if (invoicesResult.error) throw invoicesResult.error;
       if (customersResult.error) throw customersResult.error;
+      if (servicesResult.error) throw servicesResult.error;
 
       setInvoices(invoicesResult.data || []);
       setCustomers(customersResult.data || []);
+      setServices(servicesResult.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -95,7 +110,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     const shipping = parseFloat(formData.shipping || '0');
     const totalAmount = subtotal + taxAmount - discount + shipping;
 
-    const invoiceData = {
+    const invoiceData: any = {
       user_id: user!.id,
       customer_id: formData.customer_id,
       invoice_number: formData.invoice_number,
@@ -105,8 +120,13 @@ const handleSubmit = async (e: React.FormEvent) => {
       tax_amount: taxAmount,
       total_amount: totalAmount,
       status: formData.status,
+      notes: formData.notes,
       updated_at: new Date().toISOString(),
     };
+
+    if (formData.work_id) {
+      invoiceData.work_id = formData.work_id;
+    }
 
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
@@ -116,14 +136,17 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     if (invoiceError) throw invoiceError;
 
-    // Insert line items
-    const itemsToInsert = lineItems.map(item => ({
-      invoice_id: invoice.id,
-      description: item.description,
-      quantity: parseFloat(item.quantity.toString()),
-      unit_price: parseFloat(item.rate.toString()),
-      amount: calculateItemTotal(item),
-    }));
+    // Insert invoice items
+    const itemsToInsert = lineItems.map(item => {
+      const finalDescription = item.custom_description || item.description;
+      return {
+        invoice_id: invoice.id,
+        description: finalDescription,
+        quantity: parseFloat(item.quantity.toString()),
+        unit_price: parseFloat(item.rate.toString()),
+        amount: calculateItemTotal(item),
+      };
+    });
 
     const { error: itemsError } = await supabase
       .from('invoice_items')
@@ -166,18 +189,13 @@ const resetForm = () => {
     invoice_number: '',
     invoice_date: new Date().toISOString().split('T')[0],
     due_date: '',
-    subtotal: '',
-    tax_amount: '',
-    total_amount: '',
-    status: 'draft',
-    customer_address: '',
+    work_id: '',
     discount: '0',
-    shipping: '0',
     payment_terms: 'net_30',
     notes: '',
-    po_number: '',
+    status: 'draft',
   });
-  setLineItems([{ description: '', quantity: 1, rate: 0, tax_rate: 0 }]);
+  setLineItems([{ service_id: '', description: '', custom_description: '', quantity: 1, rate: 0, tax_rate: 0 }]);
 };
 
 
@@ -187,7 +205,7 @@ const resetForm = () => {
   };
 
 const addLineItem = () => {
-  setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, tax_rate: 0 }]);
+  setLineItems([...lineItems, { service_id: '', description: '', custom_description: '', quantity: 1, rate: 0, tax_rate: 0 }]);
 };
 
 const removeLineItem = (index: number) => {
@@ -196,7 +214,20 @@ const removeLineItem = (index: number) => {
 
 const updateLineItem = (index: number, field: string, value: any) => {
   const updated = [...lineItems];
-  updated[index] = { ...updated[index], [field]: value };
+  if (field === 'service_id') {
+    const service = services.find(s => s.id === value);
+    if (service) {
+      updated[index] = {
+        ...updated[index],
+        service_id: value,
+        description: service.description || service.name,
+        rate: service.default_price || 0,
+        custom_description: '',
+      };
+    }
+  } else {
+    updated[index] = { ...updated[index], [field]: value };
+  }
   setLineItems(updated);
 };
 
@@ -222,18 +253,16 @@ const calculateTotalTax = () => {
 
 const loadCustomerDetails = async (customerId: string) => {
   try {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('address')
-      .eq('id', customerId)
-      .single();
-    
-    if (error) throw error;
-    if (data) {
-      setFormData(prev => ({ ...prev, customer_address: data.address || '' }));
-    }
+    const { data: invoiceCount } = await supabase
+      .from('invoices')
+      .select('invoice_number', { count: 'exact', head: true })
+      .eq('user_id', user!.id);
+
+    const count = invoiceCount ? 1 : 0;
+    const nextNumber = `INV-${String(count + 1).padStart(4, '0')}`;
+    setFormData(prev => ({ ...prev, invoice_number: nextNumber }));
   } catch (error) {
-    console.error('Error loading customer details:', error);
+    console.error('Error generating invoice number:', error);
   }
 };
 
@@ -380,7 +409,7 @@ const saveAsDraft = async () => {
 
 {showModal && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
       {/* Gradient Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-cyan-600 to-blue-600 flex-shrink-0">
         <div>
@@ -405,10 +434,10 @@ const saveAsDraft = async () => {
           <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-6 border border-cyan-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Users size={20} className="text-cyan-600" />
-              Customer & Invoice Details
+              Invoice Information
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Customer *
                 </label>
@@ -440,7 +469,7 @@ const saveAsDraft = async () => {
                   value={formData.invoice_number}
                   onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  placeholder="INV-001"
+                  placeholder="INV-0001"
                 />
               </div>
 
@@ -470,27 +499,33 @@ const saveAsDraft = async () => {
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Customer Address
+                  Payment Terms *
                 </label>
-                <textarea
-                  value={formData.customer_address}
-                  onChange={(e) => setFormData({ ...formData, customer_address: e.target.value })}
-                  rows={2}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  placeholder="Customer billing address"
-                />
+                <select
+                  required
+                  value={formData.payment_terms}
+                  onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
+                >
+                  <option value="due_on_receipt">Due on Receipt</option>
+                  <option value="net_15">Net 15 Days</option>
+                  <option value="net_30">Net 30 Days</option>
+                  <option value="net_45">Net 45 Days</option>
+                  <option value="net_60">Net 60 Days</option>
+                  <option value="custom">Custom</option>
+                </select>
               </div>
             </div>
           </div>
 
-          {/* Line Items Section */}
+          {/* Services Section */}
           <div className="bg-white rounded-xl p-6 border border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <FileText size={20} className="text-cyan-600" />
-                Line Items
+                Services
               </h3>
               <button
                 type="button"
@@ -498,39 +533,60 @@ const saveAsDraft = async () => {
                 className="flex items-center gap-2 px-4 py-2 bg-cyan-50 text-cyan-600 rounded-lg hover:bg-cyan-100 transition-colors"
               >
                 <Plus size={18} />
-                Add Item
+                Add Service
               </button>
             </div>
-            
-            <div className="space-y-3">
+
+            <div className="space-y-4">
               {lineItems.map((item, index) => (
-                <div key={index} className="grid grid-cols-12 gap-3 items-end p-3 bg-gray-50 rounded-lg">
-                  <div className="col-span-4">
+                <div key={index} className="grid grid-cols-12 gap-3 items-start p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="col-span-12 md:col-span-5">
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Description
+                      Service *
                     </label>
-                    <input
-                      type="text"
-                      value={item.description}
-                      onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      placeholder="Item description"
-                    />
+                    <select
+                      value={item.service_id}
+                      onChange={(e) => updateLineItem(index, 'service_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
+                      required
+                    >
+                      <option value="">Select a service</option>
+                      {services.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-12 md:col-span-7 md:row-span-2">
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Quantity
+                      Custom Description (Optional)
+                    </label>
+                    <textarea
+                      value={item.custom_description}
+                      onChange={(e) => updateLineItem(index, 'custom_description', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
+                      placeholder="Add custom notes or modify description..."
+                      rows={3}
+                    />
+                    {item.description && !item.custom_description && (
+                      <p className="text-xs text-gray-500 mt-1">Default: {item.description}</p>
+                    )}
+                  </div>
+                  <div className="col-span-3 md:col-span-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Qty
                     </label>
                     <input
                       type="number"
                       value={item.quantity}
                       onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
                       placeholder="1"
                       min="1"
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-3 md:col-span-2">
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Rate (₹)
                     </label>
@@ -539,11 +595,11 @@ const saveAsDraft = async () => {
                       step="0.01"
                       value={item.rate}
                       onChange={(e) => updateLineItem(index, 'rate', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
                       placeholder="0.00"
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-3 md:col-span-1">
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Tax %
                     </label>
@@ -552,21 +608,28 @@ const saveAsDraft = async () => {
                       step="0.01"
                       value={item.tax_rate}
                       onChange={(e) => updateLineItem(index, 'tax_rate', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
                       placeholder="0"
                     />
                   </div>
-                  <div className="col-span-2 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-900">
-                      ₹{calculateItemTotal(item).toFixed(2)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeLineItem(index)}
-                      className="text-red-600 hover:text-red-700 p-1"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                  <div className="col-span-3 md:col-span-1 flex flex-col items-end justify-between">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Total
+                    </label>
+                    <div className="flex items-center gap-2 w-full justify-between">
+                      <span className="text-sm font-semibold text-cyan-600">
+                        ₹{calculateItemTotal(item).toFixed(2)}
+                      </span>
+                      {lineItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeLineItem(index)}
+                          className="text-red-600 hover:text-red-700 p-1"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -577,81 +640,49 @@ const saveAsDraft = async () => {
           <div className="bg-gradient-to-r from-gray-50 to-cyan-50 rounded-xl p-6 border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <DollarSign size={20} className="text-cyan-600" />
-              Totals
+              Invoice Summary
             </h3>
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center text-base">
                 <span className="text-gray-700">Subtotal:</span>
-                <span className="text-lg font-semibold text-gray-900">
+                <span className="font-semibold text-gray-900">
                   ₹{calculateSubtotal().toFixed(2)}
                 </span>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center text-base">
                 <span className="text-gray-700">Total Tax:</span>
-                <span className="text-lg font-semibold text-gray-900">
+                <span className="font-semibold text-gray-900">
                   ₹{calculateTotalTax().toFixed(2)}
                 </span>
               </div>
-              <div className="flex justify-between items-center pt-3 border-t-2 border-cyan-200">
-                <span className="text-xl font-bold text-gray-900">Grand Total:</span>
+              <div className="grid grid-cols-2 gap-4 py-3 border-y border-gray-300">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Discount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.discount}
+                    onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 text-sm"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-between items-center pt-3 border-t-2 border-cyan-300">
+                <span className="text-xl font-bold text-gray-900">Total Amount:</span>
                 <span className="text-2xl font-bold text-cyan-600">
-                  ₹{(calculateSubtotal() + calculateTotalTax()).toFixed(2)}
+                  ₹{(calculateSubtotal() + calculateTotalTax() - parseFloat(formData.discount || '0')).toFixed(2)}
                 </span>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Discount (₹)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.discount}
-                  onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
-                  placeholder="0.00"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Shipping/Handling (₹)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.shipping}
-                  onChange={(e) => setFormData({ ...formData, shipping: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
-                  placeholder="0.00"
-                />
               </div>
             </div>
           </div>
 
           {/* Additional Details */}
           <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Information</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h3>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Terms
-                </label>
-                <select
-                  value={formData.payment_terms}
-                  onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
-                >
-                  <option value="net_15">Net 15 Days</option>
-                  <option value="net_30">Net 30 Days</option>
-                  <option value="net_45">Net 45 Days</option>
-                  <option value="net_60">Net 60 Days</option>
-                  <option value="due_on_receipt">Due on Receipt</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Notes / Terms & Conditions
@@ -659,27 +690,14 @@ const saveAsDraft = async () => {
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={4}
+                  rows={3}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Thank you for your business! Payment is due within 30 days..."
+                  placeholder="Thank you for your business..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Purchase Order Number
-                </label>
-                <input
-                  type="text"
-                  value={formData.po_number}
-                  onChange={(e) => setFormData({ ...formData, po_number: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
-                  placeholder="PO-123"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Status</label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
@@ -688,7 +706,6 @@ const saveAsDraft = async () => {
                   <option value="draft">Draft</option>
                   <option value="sent">Sent</option>
                   <option value="paid">Paid</option>
-                  <option value="partially_paid">Partially Paid</option>
                   <option value="overdue">Overdue</option>
                 </select>
               </div>
