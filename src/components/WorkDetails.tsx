@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { X, Users, Clock, CheckSquare, Plus, FileText, DollarSign, Calendar, AlertCircle, Edit2, Briefcase, CheckCircle, Repeat, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { X, Users, Clock, CheckSquare, Plus, FileText, DollarSign, Calendar, AlertCircle, CreditCard as Edit2, Briefcase, CheckCircle, Repeat, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 interface WorkDetailsProps {
@@ -54,6 +54,9 @@ interface RecurringInstance {
   notes: string | null;
   completed_by: string | null;
   staff_members: { name: string } | null;
+  billing_amount: number | null;
+  is_billed: boolean;
+  invoice_id: string | null;
 }
 
 interface ConfirmationModalProps {
@@ -236,6 +239,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     period_start_date: '',
     period_end_date: '',
     due_date: '',
+    billing_amount: '',
   });
 
   useEffect(() => {
@@ -604,17 +608,19 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         period_start_date: recurringForm.period_start_date,
         period_end_date: recurringForm.period_end_date,
         due_date: recurringForm.due_date,
+        billing_amount: recurringForm.billing_amount ? parseFloat(recurringForm.billing_amount) : null,
         status: 'pending',
       });
 
       if (error) throw error;
-      
+
       setShowRecurringModal(false);
       setRecurringForm({
         period_name: '',
         period_start_date: '',
         period_end_date: '',
         due_date: '',
+        billing_amount: '',
       });
       fetchWorkDetails();
       onUpdate();
@@ -637,6 +643,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           period_start_date: recurringForm.period_start_date,
           period_end_date: recurringForm.period_end_date,
           due_date: recurringForm.due_date,
+          billing_amount: recurringForm.billing_amount ? parseFloat(recurringForm.billing_amount) : null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingRecurring.id);
@@ -650,6 +657,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         period_start_date: '',
         period_end_date: '',
         due_date: '',
+        billing_amount: '',
       });
       fetchWorkDetails();
       onUpdate();
@@ -667,6 +675,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       period_start_date: instance.period_start_date,
       period_end_date: instance.period_end_date,
       due_date: instance.due_date,
+      billing_amount: instance.billing_amount?.toString() || '',
     });
     setShowEditRecurringModal(true);
   };
@@ -1200,7 +1209,14 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                   <div key={instance.id} className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{instance.period_name}</h4>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-gray-900">{instance.period_name}</h4>
+                          {instance.billing_amount && (
+                            <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-lg text-sm font-semibold">
+                              ₹{instance.billing_amount.toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
                         <div className="space-y-1 mt-2 text-sm text-gray-600">
                           <p>Period: {new Date(instance.period_start_date).toLocaleDateString()} - {new Date(instance.period_end_date).toLocaleDateString()}</p>
                           <p className="flex items-center gap-1">
@@ -1212,6 +1228,12 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                               <CheckCircle size={14} />
                               Completed: {new Date(instance.completed_at).toLocaleDateString()}
                               {instance.staff_members && ` by ${instance.staff_members.name}`}
+                            </p>
+                          )}
+                          {instance.is_billed && (
+                            <p className="flex items-center gap-1 text-emerald-600 font-medium">
+                              <DollarSign size={14} />
+                              Invoice Generated
                             </p>
                           )}
                           {instance.notes && (
@@ -1836,17 +1858,39 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Due Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={recurringForm.due_date}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, due_date: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Due Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={recurringForm.due_date}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, due_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Billing Amount
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={recurringForm.billing_amount}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, billing_amount: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-gray-700">
+                  <strong>Note:</strong> If billing amount is not specified, it will use the work's default billing amount when generating invoice.
+                </p>
               </div>
 
               <div className="flex space-x-3 pt-4">
@@ -1926,17 +1970,39 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Due Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={recurringForm.due_date}
-                  onChange={(e) => setRecurringForm({ ...recurringForm, due_date: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Due Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={recurringForm.due_date}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, due_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Billing Amount
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={recurringForm.billing_amount}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, billing_amount: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-gray-700">
+                  <strong>Note:</strong> If billing amount is not specified, it will use the work's default billing amount when generating invoice.
+                </p>
               </div>
 
               <div className="flex space-x-3 pt-4">

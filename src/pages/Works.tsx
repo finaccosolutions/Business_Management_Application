@@ -118,6 +118,15 @@ export default function Works() {
     is_recurring: false,
     recurrence_pattern: '',
     recurrence_day: '',
+    auto_bill: true,
+    is_active: true,
+    work_type: 'regular',
+    start_date: '',
+    completion_deadline: '',
+    department: '',
+    work_location: '',
+    requirements: '',
+    deliverables: '',
   });
 
   useEffect(() => {
@@ -197,6 +206,9 @@ export default function Works() {
         is_recurring: formData.is_recurring,
         recurrence_pattern: formData.is_recurring ? formData.recurrence_pattern : null,
         recurrence_day: formData.is_recurring && formData.recurrence_day ? parseInt(formData.recurrence_day) : null,
+        auto_bill: formData.auto_bill,
+        is_active: formData.is_active,
+        work_type: formData.is_recurring ? 'recurring' : 'regular',
         updated_at: new Date().toISOString(),
       };
 
@@ -260,6 +272,15 @@ export default function Works() {
       is_recurring: false,
       recurrence_pattern: '',
       recurrence_day: '',
+      auto_bill: true,
+      is_active: true,
+      work_type: 'regular',
+      start_date: '',
+      completion_deadline: '',
+      department: '',
+      work_location: '',
+      requirements: '',
+      deliverables: '',
     });
     setShowModal(true);
   };
@@ -280,6 +301,15 @@ export default function Works() {
       is_recurring: false,
       recurrence_pattern: '',
       recurrence_day: '',
+      auto_bill: true,
+      is_active: true,
+      work_type: 'regular',
+      start_date: '',
+      completion_deadline: '',
+      department: '',
+      work_location: '',
+      requirements: '',
+      deliverables: '',
     });
   };
 
@@ -881,18 +911,105 @@ const filteredWorks = works.filter((work) => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estimated Hours
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={formData.estimated_hours}
+                    onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Work Location
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.work_location}
+                    onChange={(e) => setFormData({ ...formData, work_location: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Office, Remote, Client site, etc."
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Department
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Accounts, Tax, Legal, etc."
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estimated Hours
+                  Requirements & Instructions
                 </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={formData.estimated_hours}
-                  onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
+                <textarea
+                  value={formData.requirements}
+                  onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                  rows={2}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="0"
+                  placeholder="Specific requirements, documents needed, steps to follow..."
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Expected Deliverables
+                </label>
+                <textarea
+                  value={formData.deliverables}
+                  onChange={(e) => setFormData({ ...formData, deliverables: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="What should be delivered upon completion..."
+                />
+              </div>
+
+              {/* Auto-billing Settings */}
+              <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <DollarSign className="w-4 h-4 text-teal-600" />
+                    Automatic Billing
+                  </label>
+                  <input
+                    type="checkbox"
+                    checked={formData.auto_bill}
+                    onChange={(e) => setFormData({ ...formData, auto_bill: e.target.checked })}
+                    className="w-5 h-5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-600">
+                  When enabled, an invoice will be automatically generated when work is marked as completed.
+                </p>
               </div>
 
               {/* Recurring Work Section */}
