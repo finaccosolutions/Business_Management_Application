@@ -30,7 +30,11 @@ interface SearchResult {
   subtitle?: string;
 }
 
-export default function TopNavBar() {
+interface TopNavBarProps {
+  onNavigate?: (page: string) => void;
+}
+
+export default function TopNavBar({ onNavigate }: TopNavBarProps = {}) {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -382,7 +386,7 @@ export default function TopNavBar() {
                   <button
                     onClick={() => {
                       setShowProfileMenu(false);
-                      // Navigate to settings
+                      if (onNavigate) onNavigate('settings');
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center space-x-2"
                   >

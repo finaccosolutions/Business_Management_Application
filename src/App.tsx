@@ -13,6 +13,7 @@ import Invoices from './pages/Invoices';
 import Reminders from './pages/Reminders';
 import Staff from './pages/Staff';
 import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 import Layout from './components/Layout';
 import { ConfirmationProvider } from './contexts/ConfirmationContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -59,6 +60,8 @@ function AppContent() {
         return <Reminders />;
       case 'reports':
         return <Reports />;
+      case 'settings':
+        return <Settings />;
       default:
         return <Dashboard />;
     }

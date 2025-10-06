@@ -122,7 +122,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
       )}
 
       {/* Top Navigation Bar */}
-      <TopNavBar />
+      <TopNavBar onNavigate={onNavigate} />
 
       {/* Main Content */}
       <main className="lg:pl-64 pt-16 min-h-screen">

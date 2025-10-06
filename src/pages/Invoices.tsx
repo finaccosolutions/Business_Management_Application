@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, FileText, DollarSign, Calendar, X, Users, Trash2, Search, Filter, Eye, CreditCard as Edit2, Printer, Download, TrendingUp, Clock, CheckCircle, AlertCircle, Briefcase } from 'lucide-react';
-import InvoiceViewModal from '../components/InvoiceViewModal';
+import { generateInvoiceHTML, printInvoice, previewInvoice, downloadPDF } from '../lib/invoicePdfGenerator';
+import { useToast } from '../contexts/ToastContext';
 
 interface Invoice {
   id: string;
@@ -73,6 +74,7 @@ const statusColors = {
 
 export default function Invoices() {
   const { user } = useAuth();
+  const toast = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -82,9 +84,6 @@ export default function Invoices() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
-  const [showViewModal, setShowViewModal] = useState(false);
   const [stats, setStats] = useState<InvoiceStats>({
     totalAmount: 0,
     paidAmount: 0,
@@ -381,33 +380,89 @@ const saveAsDraft = async () => {
 };
 
 
-  const handlePrint = (invoice: Invoice) => {
-    window.print();
-  };
-
-  const handleDownloadPDF = async (invoice: Invoice) => {
-    alert('PDF generation feature coming soon!');
-  };
-
-  const handleViewInvoice = async (invoice: Invoice) => {
+  const handlePrint = async (invoice: Invoice) => {
     try {
-      const { data: items, error } = await supabase
+      const { data: items } = await supabase
         .from('invoice_items')
         .select('*')
         .eq('invoice_id', invoice.id);
 
-      if (error) throw error;
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('*')
+        .eq('user_id', user!.id)
+        .maybeSingle();
 
-      setInvoiceItems(items || []);
-      setSelectedInvoice(invoice);
-      setShowViewModal(true);
+      const html = generateInvoiceHTML(
+        invoice,
+        items || [],
+        settings || { company_name: 'Your Company' }
+      );
+
+      printInvoice(html);
     } catch (error) {
-      console.error('Error loading invoice items:', error);
+      console.error('Error printing invoice:', error);
+      toast.error('Failed to print invoice');
     }
   };
 
+  const handleDownloadPDF = async (invoice: Invoice) => {
+    try {
+      toast.info('Generating PDF...');
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', invoice.id);
+
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('*')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      const html = generateInvoiceHTML(
+        invoice,
+        items || [],
+        settings || { company_name: 'Your Company' }
+      );
+
+      await downloadPDF(html, `Invoice-${invoice.invoice_number}`);
+      toast.success('PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handlePreview = async (invoice: Invoice) => {
+    try {
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', invoice.id);
+
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('*')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      const html = generateInvoiceHTML(
+        invoice,
+        items || [],
+        settings || { company_name: 'Your Company' }
+      );
+
+      previewInvoice(html);
+    } catch (error) {
+      console.error('Error previewing invoice:', error);
+      toast.error('Failed to preview invoice');
+    }
+  };
+
+
   const handleEditInvoice = (invoice: Invoice) => {
-    alert('Edit feature coming soon!');
+    toast.info('Edit functionality coming soon!');
   };
 
   const handleDeleteInvoice = async (id: string) => {
@@ -420,6 +475,11 @@ const saveAsDraft = async () => {
     } catch (error) {
       console.error('Error deleting invoice:', error);
     }
+  };
+
+  const getFilterCount = (status: string) => {
+    if (status === 'all') return invoices.length;
+    return invoices.filter(inv => inv.status === status).length;
   };
 
   const filteredInvoices = invoices.filter((inv) => {
@@ -533,38 +593,48 @@ const saveAsDraft = async () => {
       {/* Filter Pills */}
       {showFilters && (
         <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-lg">
-          {['all', 'draft', 'sent', 'paid', 'overdue', 'cancelled'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                filterStatus === status
-                  ? 'bg-cyan-600 text-white shadow-md'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
-          ))}
+          {['all', 'draft', 'sent', 'paid', 'overdue', 'cancelled'].map((status) => {
+            const count = getFilterCount(status);
+            return (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  filterStatus === status
+                    ? 'bg-cyan-600 text-white shadow-md'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                  filterStatus === status
+                    ? 'bg-white/30 text-white'
+                    : 'bg-gray-200 text-gray-700'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* Invoice List - Full Width Cards */}
-      <div className="space-y-4">
+      {/* Invoice List - Enhanced Cards */}
+      <div className="space-y-3">
         {filteredInvoices.map((invoice) => (
           <div
             key={invoice.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow"
           >
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              {/* Left Section - Invoice Info */}
+            <div className="flex items-start justify-between gap-4">
+              {/* Left - Invoice Details */}
               <div className="flex items-start gap-4 flex-1">
-                <div className="p-3 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg">
-                  <FileText className="w-7 h-7 text-cyan-600" />
+                <div className="p-3 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg flex-shrink-0">
+                  <FileText className="w-6 h-6 text-cyan-600" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-gray-900">{invoice.invoice_number}</h3>
+                    <h3 className="text-lg font-bold text-gray-900">{invoice.invoice_number}</h3>
                     <span
                       className={`px-3 py-1 text-xs font-semibold rounded-full ${
                         statusColors[invoice.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'
@@ -573,115 +643,125 @@ const saveAsDraft = async () => {
                       {invoice.status.toUpperCase()}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-                    <div className="flex items-center text-sm">
-                      <Users className="w-4 h-4 mr-2 text-gray-400" />
-                      <div>
-                        <p className="text-xs text-gray-500">Customer</p>
-                        <p className="font-medium text-gray-900">{invoice.customers.name}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                      <div>
-                        <p className="text-xs text-gray-500">Invoice Date</p>
-                        <p className="font-medium text-gray-900">{new Date(invoice.invoice_date).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                      <div>
-                        <p className="text-xs text-gray-500">Due Date</p>
-                        <p className="font-medium text-gray-900">{new Date(invoice.due_date).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Middle Section - Amount */}
-              <div className="flex items-center justify-center lg:justify-end">
-                <div className="text-center lg:text-right bg-gradient-to-br from-cyan-50 to-blue-50 px-6 py-4 rounded-lg">
-                  <p className="text-xs text-gray-600 mb-1">Total Amount</p>
-                  <div className="flex items-center text-3xl font-bold text-cyan-600">
-                    <DollarSign className="w-7 h-7" />
-                    <span>{invoice.total_amount.toLocaleString('en-IN')}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Customer</p>
+                      <p className="font-medium text-gray-900 flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-gray-400" />
+                        {invoice.customers.name}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Invoice Date</p>
+                      <p className="font-medium text-gray-900 flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                        {new Date(invoice.invoice_date).toLocaleDateString('en-IN')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Due Date</p>
+                      <p className="font-medium text-gray-900 flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                        {new Date(invoice.due_date).toLocaleDateString('en-IN')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5">Total Amount</p>
+                      <p className="text-lg font-bold text-cyan-600 flex items-center gap-0.5">
+                        <DollarSign className="w-4 h-4" />
+                        {invoice.total_amount.toLocaleString('en-IN')}
+                      </p>
+                    </div>
                   </div>
+
                   {invoice.status === 'paid' && invoice.paid_at && (
-                    <p className="text-xs text-green-600 mt-1">Paid on {new Date(invoice.paid_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Paid on {new Date(invoice.paid_at).toLocaleDateString('en-IN')}
+                    </p>
                   )}
                 </div>
               </div>
 
-              {/* Right Section - Actions */}
-              <div className="flex flex-wrap lg:flex-col gap-2 lg:min-w-[140px]">
-                <button
-                  onClick={() => handleViewInvoice(invoice)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>View</span>
-                </button>
-                <button
-                  onClick={() => handleEditInvoice(invoice)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  <span>Edit</span>
-                </button>
-                <button
-                  onClick={() => handlePrint(invoice)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors text-sm font-medium"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Print</span>
-                </button>
-                <button
-                  onClick={() => handleDownloadPDF(invoice)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>PDF</span>
-                </button>
-                <button
-                  onClick={() => handleDeleteInvoice(invoice.id)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
+              {/* Right - Actions */}
+              <div className="flex flex-col gap-2 flex-shrink-0">
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditInvoice(invoice);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors text-xs font-medium"
+                    title="Edit Invoice"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePreview(invoice);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors text-xs font-medium"
+                    title="Preview Invoice"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Preview</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrint(invoice);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium"
+                    title="Print Invoice"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Print</span>
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadPDF(invoice);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-xs font-medium"
+                    title="Download PDF"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>PDF</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteInvoice(invoice.id);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-xs font-medium"
+                    title="Delete Invoice"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </button>
+                  <select
+                    value={invoice.status}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      updateInvoiceStatus(invoice.id, e.target.value);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white"
+                    title="Change Status"
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="sent">Sent</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
               </div>
             </div>
-
-            {/* Status Update Actions */}
-            {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
-              <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
-                {invoice.status === 'draft' && (
-                  <button
-                    onClick={() => updateInvoiceStatus(invoice.id, 'sent')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                  >
-                    Mark as Sent
-                  </button>
-                )}
-                {(invoice.status === 'sent' || invoice.status === 'overdue') && (
-                  <button
-                    onClick={() => updateInvoiceStatus(invoice.id, 'paid')}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                  >
-                    Mark as Paid
-                  </button>
-                )}
-                {invoice.status !== 'cancelled' && (
-                  <button
-                    onClick={() => updateInvoiceStatus(invoice.id, 'cancelled')}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                  >
-                    Cancel Invoice
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         ))}
 
@@ -708,8 +788,8 @@ const saveAsDraft = async () => {
       </div>
 
 {showModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex z-50 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full h-full overflow-hidden flex flex-col ml-0 lg:ml-64 mt-16">
+  <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
+    <div className="fixed top-16 left-0 lg:left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
       {/* Gradient Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-cyan-600 to-blue-600 flex-shrink-0">
         <div>
@@ -1061,19 +1141,65 @@ const saveAsDraft = async () => {
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={async () => {
+              if (!formData.customer_id || lineItems.length === 0) {
+                toast.error('Please complete the invoice before previewing');
+                return;
+              }
+
+              try {
+                const subtotal = calculateSubtotal();
+                const taxAmount = calculateTotalTax();
+                const discount = parseFloat(formData.discount || '0');
+                const totalAmount = subtotal + taxAmount - discount;
+
+                const customer = customers.find(c => c.id === formData.customer_id);
+                if (!customer) {
+                  toast.error('Customer not found');
+                  return;
+                }
+
+                const draftInvoice = {
+                  invoice_number: formData.invoice_number,
+                  invoice_date: formData.invoice_date,
+                  due_date: formData.due_date,
+                  subtotal,
+                  tax_amount: taxAmount,
+                  total_amount: totalAmount,
+                  status: formData.status,
+                  notes: formData.notes,
+                  customers: customer,
+                };
+
+                const previewItems = lineItems.map(item => ({
+                  description: item.custom_description || item.description,
+                  quantity: parseFloat(item.quantity.toString()),
+                  unit_price: parseFloat(item.rate.toString()),
+                  amount: calculateItemTotal(item),
+                }));
+
+                const { data: settings } = await supabase
+                  .from('company_settings')
+                  .select('*')
+                  .eq('user_id', user!.id)
+                  .maybeSingle();
+
+                const html = generateInvoiceHTML(
+                  draftInvoice as any,
+                  previewItems,
+                  settings || { company_name: 'Your Company' }
+                );
+
+                previewInvoice(html);
+              } catch (error) {
+                console.error('Error previewing invoice:', error);
+                toast.error('Failed to preview invoice');
+              }
+            }}
             className="flex items-center gap-2 px-6 py-2.5 bg-purple-50 text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors font-medium"
           >
-            <Printer className="w-4 h-4" />
-            Print Invoice
-          </button>
-          <button
-            type="button"
-            onClick={() => alert('PDF generation coming soon!')}
-            className="flex items-center gap-2 px-6 py-2.5 bg-green-50 text-green-600 border border-green-200 rounded-lg hover:bg-green-100 transition-colors font-medium"
-          >
-            <Download className="w-4 h-4" />
-            Create PDF
+            <Eye className="w-4 h-4" />
+            Preview Invoice
           </button>
         </div>
         <div className="flex gap-3">
@@ -1096,18 +1222,6 @@ const saveAsDraft = async () => {
   </div>
 )}
 
-      {/* Invoice View Modal */}
-      {showViewModal && selectedInvoice && (
-        <InvoiceViewModal
-          invoice={selectedInvoice}
-          items={invoiceItems}
-          onClose={() => {
-            setShowViewModal(false);
-            setSelectedInvoice(null);
-            setInvoiceItems([]);
-          }}
-        />
-      )}
 
     </div>
   );
