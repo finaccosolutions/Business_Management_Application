@@ -510,8 +510,8 @@ export default function Leads() {
               <div
                 key={lead.id}
                 className={`bg-white rounded-xl shadow-sm border-l-4 ${
-                  isConverted 
-                    ? 'border-l-emerald-500 hover:bg-emerald-50/30' 
+                  isConverted
+                    ? 'border-l-emerald-500 hover:bg-emerald-50/30'
                     : 'border-l-blue-500 hover:bg-blue-50/30'
                 } border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
                 onClick={() => {
@@ -520,9 +520,9 @@ export default function Leads() {
                 }}
               >
                 <div className="p-5">
-                  <div className="flex items-center gap-6">
+                  <div className="flex flex-col lg:flex-row items-start gap-4">
                     {/* Profile Section */}
-                    <div className="flex items-center gap-3 flex-shrink-0" style={{ minWidth: '200px', maxWidth: '200px' }}>
+                    <div className="flex items-center gap-3 w-full lg:w-auto lg:min-w-[200px] lg:max-w-[200px]">
                       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0">
                         <span className="text-xl font-bold">
                           {lead.name?.charAt(0).toUpperCase() || 'L'}
@@ -545,10 +545,10 @@ export default function Leads() {
                     </div>
 
                     {/* Divider */}
-                    <div className="h-14 w-px bg-gray-200"></div>
+                    <div className="hidden lg:block h-14 w-px bg-gray-200"></div>
 
-                    {/* Contact Details - More Space */}
-                    <div className="flex-1 min-w-0" style={{ minWidth: '280px' }}>
+                    {/* Contact Details */}
+                    <div className="flex-1 min-w-0 w-full lg:w-auto">
                       <div className="space-y-1.5">
                         {lead.email && (
                           <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -580,10 +580,10 @@ export default function Leads() {
                     </div>
 
                     {/* Divider */}
-                    <div className="h-14 w-px bg-gray-200"></div>
+                    <div className="hidden lg:block h-14 w-px bg-gray-200"></div>
 
                     {/* Services Section */}
-                    <div className="flex-shrink-0" style={{ width: '180px' }}>
+                    <div className="w-full lg:w-auto lg:min-w-[180px]">
                       {lead.lead_services && lead.lead_services.length > 0 ? (
                         <div>
                           <p className="text-xs font-medium text-gray-500 mb-1.5">Services:</p>
@@ -609,10 +609,10 @@ export default function Leads() {
                     </div>
 
                     {/* Divider */}
-                    <div className="h-14 w-px bg-gray-200"></div>
+                    <div className="hidden lg:block h-14 w-px bg-gray-200"></div>
 
                     {/* Status & Follow-up Section */}
-                    <div className="flex-shrink-0" style={{ width: '180px' }}>
+                    <div className="w-full lg:w-auto lg:min-w-[180px]">
                       <div className="space-y-1.5">
                         {!isConverted ? (
                           <div className="flex items-center gap-2">
@@ -651,20 +651,21 @@ export default function Leads() {
                     </div>
 
                     {/* Divider */}
-                    <div className="h-16 w-px bg-gray-200"></div>
+                    <div className="hidden lg:block h-16 w-px bg-gray-200"></div>
 
-                    {/* Actions Section */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Actions Section - Vertical Layout */}
+                    <div className="flex flex-col gap-2 flex-shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedLead(lead);
                           setShowDetailsModal(true);
                         }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors whitespace-nowrap"
                         title="View Details"
                       >
-                        <Eye size={20} />
+                        <Eye size={16} />
+                        View Details
                       </button>
                       {!isConverted && (
                         <button
@@ -673,10 +674,11 @@ export default function Leads() {
                             setSelectedLead(lead);
                             setShowConvertModal(true);
                           }}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors whitespace-nowrap"
                           title="Convert to Customer"
                         >
-                          <UserPlus size={20} />
+                          <UserPlus size={16} />
+                          Convert
                         </button>
                       )}
                       <button
@@ -684,10 +686,11 @@ export default function Leads() {
                           e.stopPropagation();
                           deleteLead(lead.id);
                         }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors whitespace-nowrap"
                         title="Delete Lead"
                       >
-                        <Trash2 size={20} />
+                        <Trash2 size={16} />
+                        Delete
                       </button>
                     </div>
                   </div>

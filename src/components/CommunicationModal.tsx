@@ -4,13 +4,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { X, Mail, Phone, MessageSquare, FileText } from 'lucide-react';
 
 interface CommunicationModalProps {
-  customerId: string;
+  customerId: string | null;
+  leadId: string | null;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export default function CommunicationModal({
   customerId,
+  leadId,
   onClose,
   onSuccess,
 }: CommunicationModalProps) {
@@ -31,6 +33,7 @@ export default function CommunicationModal({
       const { error } = await supabase.from('communications').insert({
         user_id: user.id,
         customer_id: customerId,
+        lead_id: leadId,
         type: formData.type,
         subject: formData.subject || null,
         message: formData.message,
@@ -38,14 +41,16 @@ export default function CommunicationModal({
 
       if (error) throw error;
 
-      await supabase.from('customer_activities').insert({
-        user_id: user.id,
-        customer_id: customerId,
-        activity_type: 'communication',
-        activity_title: `${formData.type} communication`,
-        activity_description: formData.subject || formData.message.substring(0, 100),
-        metadata: { type: formData.type },
-      });
+      if (customerId) {
+        await supabase.from('customer_activities').insert({
+          user_id: user.id,
+          customer_id: customerId,
+          activity_type: 'communication',
+          activity_title: `${formData.type} communication`,
+          activity_description: formData.subject || formData.message.substring(0, 100),
+          metadata: { type: formData.type },
+        });
+      }
 
       onSuccess();
       onClose();

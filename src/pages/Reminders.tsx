@@ -32,7 +32,7 @@ interface Reminder {
 
 interface AlertItem {
   id: string;
-  type: 'lead_followup' | 'work' | 'invoice' | 'staff_performance' | 'manual_reminder' | 'other';
+  type: 'lead_followup' | 'work' | 'invoice' | 'staff_performance' | 'manual_reminder' | 'customer_followup' | 'service_renewal' | 'pending_work_start' | 'upcoming_due_date' | 'overdue_work' | 'unpaid_invoice' | 'inactive_customer' | 'lead_without_followup' | 'incomplete_customer_info' | 'staff_task_overload' | 'other';
   title: string;
   description: string;
   date?: string;
@@ -202,7 +202,143 @@ export default function Reminders() {
         }
       });
 
-      // 5. Check for staff performance issues (example logic)
+      // 5. Upcoming invoices due soon
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+
+      const { data: upcomingInvoicesData } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          customers (name, email, phone)
+        `)
+        .eq('user_id', user?.id)
+        .eq('status', 'pending')
+        .gte('due_date', now.toISOString().split('T')[0])
+        .lte('due_date', threeDaysFromNow.toISOString().split('T')[0])
+        .order('due_date', { ascending: true });
+
+      (upcomingInvoicesData || []).forEach((invoice: any) => {
+        const dueDate = new Date(invoice.due_date);
+        const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        let urgency: 'critical' | 'high' | 'medium' | 'low' = 'medium';
+        if (daysUntil === 0) urgency = 'high';
+        else if (daysUntil === 1) urgency = 'high';
+
+        alertsList.push({
+          id: invoice.id,
+          type: 'unpaid_invoice',
+          title: `Invoice Due Soon: ${invoice.customers?.name || 'Customer'}`,
+          description: `Amount: $${(invoice.total_amount || 0).toFixed(2)} - Due ${daysUntil === 0 ? 'today' : 'in ' + daysUntil + ' days'}`,
+          date: invoice.due_date,
+          urgency,
+          category: 'Upcoming Payments',
+          metadata: { customer: invoice.customers, amount: invoice.total_amount, invoice_number: invoice.invoice_number },
+        });
+      });
+
+      // 6. Check for leads without follow-ups
+      const { data: leadsWithoutFollowupData } = await supabase
+        .from('leads')
+        .select(`
+          *,
+          lead_followups (id)
+        `)
+        .eq('user_id', user?.id)
+        .in('status', ['new', 'contacted', 'qualified'])
+        .is('converted_to_customer_id', null)
+        .order('created_at', { ascending: false });
+
+      (leadsWithoutFollowupData || []).forEach((lead: any) => {
+        const hasFollowups = lead.lead_followups && lead.lead_followups.length > 0;
+        const leadAge = Math.ceil((now.getTime() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60 * 24));
+
+        if (!hasFollowups && leadAge >= 3) {
+          let urgency: 'critical' | 'high' | 'medium' | 'low' = 'medium';
+          if (leadAge >= 7) urgency = 'high';
+          if (leadAge >= 14) urgency = 'critical';
+
+          alertsList.push({
+            id: lead.id,
+            type: 'lead_without_followup',
+            title: `Lead Needs Attention: ${lead.name}`,
+            description: `No follow-ups scheduled - Lead created ${leadAge} days ago`,
+            date: lead.created_at,
+            urgency,
+            category: 'Lead Management',
+            metadata: { lead },
+          });
+        }
+      });
+
+      // 7. Works starting soon (pending status with start date approaching)
+      const { data: upcomingWorksData } = await supabase
+        .from('works')
+        .select(`
+          *,
+          customers (name, email, phone),
+          services (name)
+        `)
+        .eq('user_id', user?.id)
+        .eq('status', 'pending')
+        .not('start_date', 'is', null)
+        .gte('start_date', now.toISOString().split('T')[0])
+        .lte('start_date', threeDaysFromNow.toISOString().split('T')[0])
+        .order('start_date', { ascending: true });
+
+      (upcomingWorksData || []).forEach((work: any) => {
+        const startDate = new Date(work.start_date);
+        const daysUntil = Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        let urgency: 'critical' | 'high' | 'medium' | 'low' = 'medium';
+        if (daysUntil === 0) urgency = 'high';
+        else if (daysUntil === 1) urgency = 'high';
+
+        alertsList.push({
+          id: work.id,
+          type: 'pending_work_start',
+          title: `Work Starting Soon: ${work.services?.name || 'Service'} - ${work.customers?.name || 'Customer'}`,
+          description: `Scheduled to start ${daysUntil === 0 ? 'today' : 'in ' + daysUntil + ' days'}`,
+          date: work.start_date,
+          urgency,
+          category: 'Work Scheduling',
+          metadata: { customer: work.customers, service: work.services },
+        });
+      });
+
+      // 8. Inactive customers (no recent services)
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+      const { data: customersData } = await supabase
+        .from('customers')
+        .select(`
+          *,
+          works (id, created_at, status)
+        `)
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: true });
+
+      (customersData || []).forEach((customer: any) => {
+        const works = customer.works || [];
+        const recentWorks = works.filter((w: any) => new Date(w.created_at) >= sixtyDaysAgo);
+        const customerAge = Math.ceil((now.getTime() - new Date(customer.created_at).getTime()) / (1000 * 60 * 60 * 24));
+
+        if (recentWorks.length === 0 && customerAge >= 90) {
+          alertsList.push({
+            id: customer.id,
+            type: 'inactive_customer',
+            title: `Inactive Customer: ${customer.name}`,
+            description: `No services in the last 60 days - Consider a follow-up`,
+            urgency: 'low',
+            category: 'Customer Engagement',
+            metadata: { customer },
+          });
+        }
+      });
+
+      // 9. Staff performance issues
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -222,16 +358,54 @@ export default function Reminders() {
           if (w.status === 'completed') return false;
           return new Date(w.due_date) < now;
         });
+        const pendingWorks = works.filter((w: any) => w.status === 'pending' || w.status === 'in_progress');
 
         if (overdueWorks.length >= 3) {
           alertsList.push({
-            id: staff.id,
+            id: staff.id + '-performance',
             type: 'staff_performance',
             title: `Staff Performance Alert: ${staff.name}`,
             description: `${overdueWorks.length} overdue tasks in the last 30 days`,
             urgency: 'high',
             category: 'Staff Performance',
             metadata: { staff, overdue_count: overdueWorks.length },
+          });
+        }
+
+        if (pendingWorks.length >= 10) {
+          alertsList.push({
+            id: staff.id + '-overload',
+            type: 'staff_task_overload',
+            title: `Staff Task Overload: ${staff.name}`,
+            description: `${pendingWorks.length} pending/active tasks - Consider redistributing`,
+            urgency: 'medium',
+            category: 'Staff Workload',
+            metadata: { staff, pending_count: pendingWorks.length },
+          });
+        }
+      });
+
+      // 10. Customers with incomplete information
+      const { data: incompleteCustomersData } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', user?.id);
+
+      (incompleteCustomersData || []).forEach((customer: any) => {
+        const missingFields = [];
+        if (!customer.email) missingFields.push('email');
+        if (!customer.phone) missingFields.push('phone');
+        if (!customer.address) missingFields.push('address');
+
+        if (missingFields.length >= 2) {
+          alertsList.push({
+            id: customer.id,
+            type: 'incomplete_customer_info',
+            title: `Incomplete Customer Info: ${customer.name}`,
+            description: `Missing: ${missingFields.join(', ')}`,
+            urgency: 'low',
+            category: 'Data Quality',
+            metadata: { customer, missing_fields: missingFields },
           });
         }
       });
@@ -330,14 +504,28 @@ export default function Reminders() {
     switch (type) {
       case 'lead_followup':
         return <PhoneCall size={18} />;
+      case 'lead_without_followup':
+        return <Target size={18} />;
       case 'work':
+      case 'overdue_work':
         return <Briefcase size={18} />;
+      case 'pending_work_start':
+        return <Clock size={18} />;
       case 'invoice':
+      case 'unpaid_invoice':
         return <DollarSign size={18} />;
       case 'staff_performance':
         return <TrendingDown size={18} />;
+      case 'staff_task_overload':
+        return <Users size={18} />;
       case 'manual_reminder':
         return <Bell size={18} />;
+      case 'inactive_customer':
+        return <Users size={18} />;
+      case 'incomplete_customer_info':
+        return <AlertCircle size={18} />;
+      case 'service_renewal':
+        return <Calendar size={18} />;
       default:
         return <FileText size={18} />;
     }

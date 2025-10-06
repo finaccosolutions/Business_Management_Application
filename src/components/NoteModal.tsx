@@ -4,12 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { X, StickyNote } from 'lucide-react';
 
 interface NoteModalProps {
-  customerId: string;
+  customerId: string | null;
+  leadId: string | null;
   noteId?: string;
   initialData?: {
-    title: string;
-    content: string;
-    is_pinned: boolean;
+    note: string;
   };
   onClose: () => void;
   onSuccess: () => void;
@@ -17,6 +16,7 @@ interface NoteModalProps {
 
 export default function NoteModal({
   customerId,
+  leadId,
   noteId,
   initialData,
   onClose,
@@ -25,9 +25,7 @@ export default function NoteModal({
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    title: initialData?.title || '',
-    content: initialData?.content || '',
-    is_pinned: initialData?.is_pinned || false,
+    note: initialData?.note || '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,40 +38,40 @@ export default function NoteModal({
         const { error } = await supabase
           .from('customer_notes')
           .update({
-            title: formData.title,
-            content: formData.content,
-            is_pinned: formData.is_pinned,
-            updated_at: new Date().toISOString(),
+            note: formData.note,
           })
           .eq('id', noteId);
 
         if (error) throw error;
 
-        await supabase.from('customer_activities').insert({
-          user_id: user.id,
-          customer_id: customerId,
-          activity_type: 'note',
-          activity_title: 'Note updated',
-          activity_description: formData.title,
-        });
+        if (customerId) {
+          await supabase.from('customer_activities').insert({
+            user_id: user.id,
+            customer_id: customerId,
+            activity_type: 'note',
+            activity_title: 'Note updated',
+            activity_description: formData.note.substring(0, 100),
+          });
+        }
       } else {
         const { error } = await supabase.from('customer_notes').insert({
           user_id: user.id,
           customer_id: customerId,
-          title: formData.title,
-          content: formData.content,
-          is_pinned: formData.is_pinned,
+          lead_id: leadId,
+          note: formData.note,
         });
 
         if (error) throw error;
 
-        await supabase.from('customer_activities').insert({
-          user_id: user.id,
-          customer_id: customerId,
-          activity_type: 'note',
-          activity_title: 'Note created',
-          activity_description: formData.title,
-        });
+        if (customerId) {
+          await supabase.from('customer_activities').insert({
+            user_id: user.id,
+            customer_id: customerId,
+            activity_type: 'note',
+            activity_title: 'Note created',
+            activity_description: formData.note.substring(0, 100),
+          });
+        }
       }
 
       onSuccess();
@@ -106,43 +104,16 @@ export default function NoteModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Note Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-              placeholder="Enter note title"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Note Content <span className="text-red-500">*</span>
+              Note <span className="text-red-500">*</span>
             </label>
             <textarea
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              value={formData.note}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-              placeholder="Enter note content..."
+              placeholder="Enter your note..."
               rows={8}
               required
             />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="is_pinned"
-              checked={formData.is_pinned}
-              onChange={(e) => setFormData({ ...formData, is_pinned: e.target.checked })}
-              className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
-            />
-            <label htmlFor="is_pinned" className="text-sm font-medium text-gray-700">
-              Pin this note to the top
-            </label>
           </div>
 
           <div className="flex gap-3 pt-4">
