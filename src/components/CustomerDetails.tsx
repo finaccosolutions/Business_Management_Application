@@ -2,27 +2,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  X,
-  User,
-  Briefcase,
-  FileText,
-  DollarSign,
-  Mail,
-  Phone,
-  MapPin,
-  Building2,
-  CreditCard,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Plus,
-  Edit2,
-  TrendingUp,
-  Calendar,
-  MessageSquare,
-} from 'lucide-react';
+import { X, User, Briefcase, FileText, DollarSign, Mail, Phone, MapPin, Building2, CreditCard, Clock, CheckCircle, AlertCircle, Plus, CreditCard as Edit2, TrendingUp, Calendar, MessageSquare, Download, ExternalLink, Trash2, StickyNote, Pin, History } from 'lucide-react';
 import CustomerFormModal from './CustomerFormModal';
+import CommunicationModal from './CommunicationModal';
+import DocumentUploadModal from './DocumentUploadModal';
+import NoteModal from './NoteModal';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirmation } from '../contexts/ConfirmationContext';
 
 interface CustomerDetailsProps {
   customerId: string;
@@ -87,7 +73,45 @@ interface Invoice {
   paid_at: string | null;
 }
 
-type TabType = 'overview' | 'services' | 'works' | 'invoices' | 'communications' | 'documents';
+interface Communication {
+  id: string;
+  type: string;
+  subject: string | null;
+  message: string;
+  sent_at: string;
+  created_at: string;
+}
+
+interface Document {
+  id: string;
+  name: string;
+  file_url: string;
+  file_type: string | null;
+  file_size: number | null;
+  category: string;
+  description: string | null;
+  uploaded_at: string;
+}
+
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Activity {
+  id: string;
+  activity_type: string;
+  activity_title: string;
+  activity_description: string | null;
+  metadata: any;
+  created_at: string;
+}
+
+type TabType = 'overview' | 'services' | 'works' | 'invoices' | 'communications' | 'documents' | 'notes' | 'activity';
 
 export default function CustomerDetails({
   customerId,
@@ -95,14 +119,23 @@ export default function CustomerDetails({
   onUpdate,
 }: CustomerDetailsProps) {
   const { user } = useAuth();
+  const { showToast } = useToast();
+  const { confirm } = useConfirmation();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [services, setServices] = useState<CustomerService[]>([]);
   const [works, setWorks] = useState<Work[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [communications, setCommunications] = useState<Communication[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddWorkModal, setShowAddWorkModal] = useState(false);
+  const [showCommunicationModal, setShowCommunicationModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [statistics, setStatistics] = useState({
     totalInvoiced: 0,
     totalPaid: 0,
@@ -120,7 +153,16 @@ export default function CustomerDetails({
 
   const fetchCustomerDetails = async () => {
     try {
-      const [customerRes, servicesRes, worksRes, invoicesRes] = await Promise.all([
+      const [
+        customerRes,
+        servicesRes,
+        worksRes,
+        invoicesRes,
+        communicationsRes,
+        documentsRes,
+        notesRes,
+        activitiesRes,
+      ] = await Promise.all([
         supabase
           .from('customers')
           .select('*')
@@ -141,17 +183,47 @@ export default function CustomerDetails({
           .select('*')
           .eq('customer_id', customerId)
           .order('invoice_date', { ascending: false }),
+        supabase
+          .from('communications')
+          .select('*')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('customer_documents')
+          .select('*')
+          .eq('customer_id', customerId)
+          .order('uploaded_at', { ascending: false }),
+        supabase
+          .from('customer_notes')
+          .select('*')
+          .eq('customer_id', customerId)
+          .order('is_pinned', { ascending: false })
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('customer_activities')
+          .select('*')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false })
+          .limit(50),
       ]);
 
       if (customerRes.error) throw customerRes.error;
       if (servicesRes.error) throw servicesRes.error;
       if (worksRes.error) throw worksRes.error;
       if (invoicesRes.error) throw invoicesRes.error;
+      if (communicationsRes.error) throw communicationsRes.error;
+      if (documentsRes.error) throw documentsRes.error;
+      if (notesRes.error) throw notesRes.error;
+      if (activitiesRes.error) throw activitiesRes.error;
 
       setCustomer(customerRes.data);
       setServices(servicesRes.data || []);
       setWorks(worksRes.data || []);
       setInvoices(invoicesRes.data || []);
+      setCommunications(communicationsRes.data || []);
+      setDocuments(documentsRes.data || []);
+      setNotes(notesRes.data || []);
+      setActivities(activitiesRes.data || []);
 
       // Calculate statistics
       const totalInvoiced = invoicesRes.data?.reduce((sum, inv) => sum + inv.total_amount, 0) || 0;
@@ -171,7 +243,7 @@ export default function CustomerDetails({
       });
     } catch (error: any) {
       console.error('Error fetching customer details:', error.message);
-      alert('Failed to load customer details');
+      showToast('Failed to load customer details', 'error');
     } finally {
       setLoading(false);
     }
@@ -190,6 +262,8 @@ export default function CustomerDetails({
     { id: 'invoices', label: 'Invoices', icon: FileText },
     { id: 'communications', label: 'Communications', icon: MessageSquare },
     { id: 'documents', label: 'Documents', icon: FileText },
+    { id: 'notes', label: 'Notes', icon: StickyNote },
+    { id: 'activity', label: 'Activity', icon: History },
   ];
 
   if (loading || !customer) {
@@ -341,16 +415,45 @@ export default function CustomerDetails({
           )}
 
           {activeTab === 'communications' && (
-            <CommunicationsTab customerId={customerId} />
+            <CommunicationsTab
+              communications={communications}
+              customerId={customerId}
+              onAdd={() => setShowCommunicationModal(true)}
+              onRefresh={fetchCustomerDetails}
+            />
           )}
 
           {activeTab === 'documents' && (
-            <DocumentsTab customerId={customerId} />
+            <DocumentsTab
+              documents={documents}
+              customerId={customerId}
+              onAdd={() => setShowDocumentModal(true)}
+              onRefresh={fetchCustomerDetails}
+            />
+          )}
+
+          {activeTab === 'notes' && (
+            <NotesTab
+              notes={notes}
+              customerId={customerId}
+              onAdd={() => {
+                setEditingNote(null);
+                setShowNoteModal(true);
+              }}
+              onEdit={(note) => {
+                setEditingNote(note);
+                setShowNoteModal(true);
+              }}
+              onRefresh={fetchCustomerDetails}
+            />
+          )}
+
+          {activeTab === 'activity' && (
+            <ActivityTab activities={activities} />
           )}
         </div>
       </div>
 
-      {/* Edit Modal */}
       {showEditModal && (
         <CustomerFormModal
           onClose={() => setShowEditModal(false)}
@@ -359,6 +462,39 @@ export default function CustomerDetails({
           mode="edit"
           customerId={customerId}
           title={`Edit Customer: ${customer.name}`}
+        />
+      )}
+
+      {showCommunicationModal && (
+        <CommunicationModal
+          customerId={customerId}
+          onClose={() => setShowCommunicationModal(false)}
+          onSuccess={fetchCustomerDetails}
+        />
+      )}
+
+      {showDocumentModal && (
+        <DocumentUploadModal
+          customerId={customerId}
+          onClose={() => setShowDocumentModal(false)}
+          onSuccess={fetchCustomerDetails}
+        />
+      )}
+
+      {showNoteModal && (
+        <NoteModal
+          customerId={customerId}
+          noteId={editingNote?.id}
+          initialData={editingNote ? {
+            title: editingNote.title,
+            content: editingNote.content,
+            is_pinned: editingNote.is_pinned,
+          } : undefined}
+          onClose={() => {
+            setShowNoteModal(false);
+            setEditingNote(null);
+          }}
+          onSuccess={fetchCustomerDetails}
         />
       )}
     </div>
@@ -892,25 +1028,548 @@ function InvoicesTab({
 }
 
 // Communications Tab Component
-function CommunicationsTab({ customerId }: { customerId: string }) {
+function CommunicationsTab({
+  communications,
+  customerId,
+  onAdd,
+  onRefresh,
+}: {
+  communications: Communication[];
+  customerId: string;
+  onAdd: () => void;
+  onRefresh: () => void;
+}) {
+  const { confirm } = useConfirmation();
+  const { showToast } = useToast();
+  const { user } = useAuth();
+  const [filterType, setFilterType] = useState('all');
+
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm(
+      'Delete Communication',
+      'Are you sure you want to delete this communication? This action cannot be undone.'
+    );
+
+    if (confirmed) {
+      try {
+        const { error } = await supabase.from('communications').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Communication deleted successfully', 'success');
+        onRefresh();
+      } catch (error: any) {
+        showToast('Error: ' + error.message, 'error');
+      }
+    }
+  };
+
+  const typeColors: Record<string, string> = {
+    email: 'bg-blue-100 text-blue-700',
+    phone: 'bg-green-100 text-green-700',
+    meeting: 'bg-purple-100 text-purple-700',
+    note: 'bg-yellow-100 text-yellow-700',
+  };
+
+  const typeIcons: Record<string, any> = {
+    email: Mail,
+    phone: Phone,
+    meeting: MessageSquare,
+    note: FileText,
+  };
+
+  const filteredCommunications =
+    filterType === 'all'
+      ? communications
+      : communications.filter((comm) => comm.type === filterType);
+
   return (
-    <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-      <MessageSquare size={48} className="mx-auto text-gray-400 mb-4" />
-      <h4 className="text-lg font-medium text-gray-900 mb-2">Communications</h4>
-      <p className="text-gray-600">Track all communications with this customer.</p>
-      <p className="text-sm text-gray-500 mt-2">Coming soon...</p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h3 className="text-lg font-semibold text-gray-900">
+          Communications ({communications.length})
+        </h3>
+        <div className="flex items-center gap-2">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+          >
+            <option value="all">All Types</option>
+            <option value="email">Email</option>
+            <option value="phone">Phone</option>
+            <option value="meeting">Meeting</option>
+            <option value="note">Note</option>
+          </select>
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus size={18} />
+            Log Communication
+          </button>
+        </div>
+      </div>
+
+      {filteredCommunications.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+          <MessageSquare size={48} className="mx-auto text-gray-400 mb-4" />
+          <h4 className="text-lg font-medium text-gray-900 mb-2">
+            {filterType === 'all' ? 'No communications yet' : 'No communications match the filter'}
+          </h4>
+          <p className="text-gray-600 mb-4">
+            {filterType === 'all'
+              ? 'Start logging communications with this customer.'
+              : 'Try adjusting your filter criteria.'}
+          </p>
+          <button
+            onClick={onAdd}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus size={18} />
+            Log Communication
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredCommunications.map((comm) => {
+            const Icon = typeIcons[comm.type] || MessageSquare;
+            return (
+              <div
+                key={comm.id}
+                className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`p-2 rounded-lg ${typeColors[comm.type] || typeColors.note}`}
+                    >
+                      <Icon size={20} />
+                    </div>
+                    <div>
+                      {comm.subject && (
+                        <h4 className="font-semibold text-gray-900">{comm.subject}</h4>
+                      )}
+                      <p className="text-sm text-gray-600">
+                        {new Date(comm.sent_at).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        typeColors[comm.type] || typeColors.note
+                      }`}
+                    >
+                      {comm.type}
+                    </span>
+                    <button
+                      onClick={() => handleDelete(comm.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-gray-700 whitespace-pre-wrap">{comm.message}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
 // Documents Tab Component
-function DocumentsTab({ customerId }: { customerId: string }) {
+function DocumentsTab({
+  documents,
+  customerId,
+  onAdd,
+  onRefresh,
+}: {
+  documents: Document[];
+  customerId: string;
+  onAdd: () => void;
+  onRefresh: () => void;
+}) {
+  const { confirm } = useConfirmation();
+  const { showToast } = useToast();
+  const { user } = useAuth();
+  const [filterCategory, setFilterCategory] = useState('all');
+
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm(
+      'Delete Document',
+      'Are you sure you want to delete this document? This action cannot be undone.'
+    );
+
+    if (confirmed) {
+      try {
+        const { error } = await supabase.from('customer_documents').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Document deleted successfully', 'success');
+        onRefresh();
+      } catch (error: any) {
+        showToast('Error: ' + error.message, 'error');
+      }
+    }
+  };
+
+  const categoryColors: Record<string, string> = {
+    general: 'bg-gray-100 text-gray-700',
+    contract: 'bg-blue-100 text-blue-700',
+    invoice: 'bg-green-100 text-green-700',
+    report: 'bg-purple-100 text-purple-700',
+    proposal: 'bg-yellow-100 text-yellow-700',
+    agreement: 'bg-red-100 text-red-700',
+    other: 'bg-gray-100 text-gray-700',
+  };
+
+  const filteredDocuments =
+    filterCategory === 'all'
+      ? documents
+      : documents.filter((doc) => doc.category === filterCategory);
+
   return (
-    <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-      <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-      <h4 className="text-lg font-medium text-gray-900 mb-2">Documents</h4>
-      <p className="text-gray-600">Store and manage customer-related documents.</p>
-      <p className="text-sm text-gray-500 mt-2">Coming soon...</p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h3 className="text-lg font-semibold text-gray-900">Documents ({documents.length})</h3>
+        <div className="flex items-center gap-2">
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+          >
+            <option value="all">All Categories</option>
+            <option value="general">General</option>
+            <option value="contract">Contract</option>
+            <option value="invoice">Invoice</option>
+            <option value="report">Report</option>
+            <option value="proposal">Proposal</option>
+            <option value="agreement">Agreement</option>
+            <option value="other">Other</option>
+          </select>
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus size={18} />
+            Upload Document
+          </button>
+        </div>
+      </div>
+
+      {filteredDocuments.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+          <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+          <h4 className="text-lg font-medium text-gray-900 mb-2">
+            {filterCategory === 'all' ? 'No documents yet' : 'No documents match the filter'}
+          </h4>
+          <p className="text-gray-600 mb-4">
+            {filterCategory === 'all'
+              ? 'Upload documents related to this customer.'
+              : 'Try adjusting your filter criteria.'}
+          </p>
+          <button
+            onClick={onAdd}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus size={18} />
+            Upload Document
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredDocuments.map((doc) => (
+            <div
+              key={doc.id}
+              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <FileText size={24} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-gray-900 truncate">{doc.name}</h4>
+                    <p className="text-xs text-gray-500">
+                      {new Date(doc.uploaded_at).toLocaleDateString('en-IN')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {doc.description && (
+                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{doc.description}</p>
+              )}
+
+              <div className="flex items-center justify-between mb-4">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    categoryColors[doc.category] || categoryColors.general
+                  }`}
+                >
+                  {doc.category}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={doc.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                >
+                  <ExternalLink size={16} />
+                  View
+                </a>
+                <button
+                  onClick={() => handleDelete(doc.id)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Notes Tab Component
+function NotesTab({
+  notes,
+  customerId,
+  onAdd,
+  onEdit,
+  onRefresh,
+}: {
+  notes: Note[];
+  customerId: string;
+  onAdd: () => void;
+  onEdit: (note: Note) => void;
+  onRefresh: () => void;
+}) {
+  const { confirm } = useConfirmation();
+  const { showToast } = useToast();
+  const { user } = useAuth();
+
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm(
+      'Delete Note',
+      'Are you sure you want to delete this note? This action cannot be undone.'
+    );
+
+    if (confirmed) {
+      try {
+        const { error } = await supabase.from('customer_notes').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Note deleted successfully', 'success');
+        onRefresh();
+      } catch (error: any) {
+        showToast('Error: ' + error.message, 'error');
+      }
+    }
+  };
+
+  const handleTogglePin = async (note: Note) => {
+    try {
+      const { error } = await supabase
+        .from('customer_notes')
+        .update({ is_pinned: !note.is_pinned })
+        .eq('id', note.id);
+
+      if (error) throw error;
+      showToast(
+        note.is_pinned ? 'Note unpinned' : 'Note pinned',
+        'success'
+      );
+      onRefresh();
+    } catch (error: any) {
+      showToast('Error: ' + error.message, 'error');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900">Notes ({notes.length})</h3>
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+        >
+          <Plus size={18} />
+          Add Note
+        </button>
+      </div>
+
+      {notes.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+          <StickyNote size={48} className="mx-auto text-gray-400 mb-4" />
+          <h4 className="text-lg font-medium text-gray-900 mb-2">No notes yet</h4>
+          <p className="text-gray-600 mb-4">
+            Add notes to keep important information about this customer.
+          </p>
+          <button
+            onClick={onAdd}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+          >
+            <Plus size={18} />
+            Add Note
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {notes.map((note) => (
+            <div
+              key={note.id}
+              className={`bg-white rounded-xl border-2 p-6 hover:shadow-lg transition-shadow ${
+                note.is_pinned
+                  ? 'border-yellow-300 bg-yellow-50'
+                  : 'border-gray-200'
+              }`}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {note.is_pinned && <Pin size={16} className="text-yellow-600" />}
+                  <h4 className="font-semibold text-gray-900">{note.title}</h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleTogglePin(note)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      note.is_pinned
+                        ? 'text-yellow-600 hover:bg-yellow-100'
+                        : 'text-gray-400 hover:bg-gray-100'
+                    }`}
+                    title={note.is_pinned ? 'Unpin note' : 'Pin note'}
+                  >
+                    <Pin size={18} />
+                  </button>
+                  <button
+                    onClick={() => onEdit(note)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(note.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+              <p className="text-gray-700 whitespace-pre-wrap mb-3">{note.content}</p>
+              <div className="text-xs text-gray-500">
+                {note.created_at !== note.updated_at ? (
+                  <span>Updated {new Date(note.updated_at).toLocaleString('en-IN')}</span>
+                ) : (
+                  <span>Created {new Date(note.created_at).toLocaleString('en-IN')}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Activity Tab Component
+function ActivityTab({ activities }: { activities: Activity[] }) {
+  const activityTypeColors: Record<string, string> = {
+    communication: 'bg-blue-100 text-blue-700',
+    document: 'bg-green-100 text-green-700',
+    note: 'bg-yellow-100 text-yellow-700',
+    service: 'bg-purple-100 text-purple-700',
+    work: 'bg-orange-100 text-orange-700',
+    invoice: 'bg-red-100 text-red-700',
+    customer: 'bg-teal-100 text-teal-700',
+  };
+
+  const activityTypeIcons: Record<string, any> = {
+    communication: MessageSquare,
+    document: FileText,
+    note: StickyNote,
+    service: Briefcase,
+    work: Clock,
+    invoice: DollarSign,
+    customer: User,
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-gray-900">Activity Timeline</h3>
+
+      {activities.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+          <History size={48} className="mx-auto text-gray-400 mb-4" />
+          <h4 className="text-lg font-medium text-gray-900 mb-2">No activity yet</h4>
+          <p className="text-gray-600">
+            Customer activities will appear here as you interact with them.
+          </p>
+        </div>
+      ) : (
+        <div className="relative">
+          <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+          <div className="space-y-6">
+            {activities.map((activity, index) => {
+              const Icon = activityTypeIcons[activity.activity_type] || History;
+              return (
+                <div key={activity.id} className="relative flex gap-4">
+                  <div
+                    className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center z-10 ${
+                      activityTypeColors[activity.activity_type] ||
+                      activityTypeColors.customer
+                    }`}
+                  >
+                    <Icon size={20} />
+                  </div>
+                  <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">
+                          {activity.activity_title}
+                        </h4>
+                        {activity.activity_description && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {activity.activity_description}
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${
+                          activityTypeColors[activity.activity_type] ||
+                          activityTypeColors.customer
+                        }`}
+                      >
+                        {activity.activity_type}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {new Date(activity.created_at).toLocaleString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
