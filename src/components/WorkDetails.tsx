@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { X, Users, Clock, CheckSquare, Plus, FileText, DollarSign, Calendar, AlertCircle, CreditCard as Edit2, Briefcase, CheckCircle, Repeat, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { X, Users, Clock, CheckSquare, Plus, FileText, DollarSign, Calendar, AlertCircle, Edit2, Briefcase, CheckCircle, Repeat, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 interface WorkDetailsProps {
   workId: string;
@@ -14,6 +15,7 @@ interface Task {
   title: string;
   description: string | null;
   status: string;
+  priority: string;
   assigned_to: string | null;
   estimated_hours: number | null;
   actual_hours: number;
@@ -54,6 +56,136 @@ interface RecurringInstance {
   staff_members: { name: string } | null;
 }
 
+interface ConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  type?: 'danger' | 'warning' | 'info';
+  showInput?: boolean;
+  inputValue?: string;
+  onInputChange?: (value: string) => void;
+  inputPlaceholder?: string;
+  inputLabel?: string;
+}
+
+function ConfirmationModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
+  type = 'info',
+  showInput = false,
+  inputValue = '',
+  onInputChange,
+  inputPlaceholder = '',
+  inputLabel = '',
+}: ConfirmationModalProps) {
+  if (!isOpen) return null;
+
+  const typeStyles = {
+    danger: {
+      bg: 'bg-red-600',
+      hoverBg: 'hover:bg-red-700',
+      icon: 'text-red-600',
+    },
+    warning: {
+      bg: 'bg-orange-600',
+      hoverBg: 'hover:bg-orange-700',
+      icon: 'text-orange-600',
+    },
+    info: {
+      bg: 'bg-blue-600',
+      hoverBg: 'hover:bg-blue-700',
+      icon: 'text-blue-600',
+    },
+  };
+
+  const styles = typeStyles[type];
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-scale-in">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertCircle className={`${styles.icon}`} size={24} />
+              <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-gray-700">{message}</p>
+
+          {showInput && (
+            <div>
+              {inputLabel && (
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {inputLabel}
+                </label>
+              )}
+              <textarea
+                value={inputValue}
+                onChange={(e) => onInputChange?.(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                rows={3}
+                placeholder={inputPlaceholder}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 border-t border-gray-200 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className={`flex-1 px-4 py-2 ${styles.bg} text-white font-medium rounded-lg ${styles.hoverBg} transition-colors`}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes scale-in {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        .animate-scale-in {
+          animation: scale-in 0.2s ease-out;
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkDetailsProps) {
   const [work, setWork] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -67,6 +199,20 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showRecurringModal, setShowRecurringModal] = useState(false);
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false);
+  const [showEditRecurringModal, setShowEditRecurringModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showReassignReason, setShowReassignReason] = useState(false);
+  const [showEditTimeLogModal, setShowEditTimeLogModal] = useState(false);
+  
+  const [deleteTarget, setDeleteTarget] = useState<{type: string, id: string} | null>(null);
+  const [reassignReason, setReassignReason] = useState('');
+  const [selectedStaffForReassign, setSelectedStaffForReassign] = useState('');
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingRecurring, setEditingRecurring] = useState<RecurringInstance | null>(null);
+  const [editingTimeLog, setEditingTimeLog] = useState<TimeLog | null>(null);
+
+  const toast = useToast();
 
   const [taskForm, setTaskForm] = useState({
     title: '',
@@ -134,6 +280,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       if (recurringRes.data) setRecurringInstances(recurringRes.data);
     } catch (error) {
       console.error('Error fetching work details:', error);
+      toast.error('Failed to load work details');
     } finally {
       setLoading(false);
     }
@@ -141,9 +288,13 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
   const fetchStaff = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('staff_members')
-        .select('id, name')
+        .select('id, name, availability_status')
+        .eq('user_id', user.id)
         .eq('is_active', true)
         .order('name');
 
@@ -170,22 +321,75 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       });
 
       if (error) throw error;
+      
       setShowTaskModal(false);
-      setTaskForm({
-        title: '',
-        description: '',
-        assigned_to: '',
-        estimated_hours: '',
-        due_date: '',
-        priority: 'medium',
-        remarks: '',
-      });
+      resetTaskForm();
       fetchWorkDetails();
       onUpdate();
+      toast.success('Task created successfully!');
     } catch (error) {
       console.error('Error creating task:', error);
-      alert('Failed to create task');
+      toast.error('Failed to create task');
     }
+  };
+
+  const handleEditTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+
+    try {
+      const { error } = await supabase
+        .from('work_tasks')
+        .update({
+          title: taskForm.title,
+          description: taskForm.description || null,
+          assigned_to: taskForm.assigned_to || null,
+          estimated_hours: taskForm.estimated_hours ? parseFloat(taskForm.estimated_hours) : null,
+          due_date: taskForm.due_date || null,
+          priority: taskForm.priority,
+          remarks: taskForm.remarks || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingTask.id);
+
+      if (error) throw error;
+
+      setShowEditTaskModal(false);
+      setEditingTask(null);
+      resetTaskForm();
+      fetchWorkDetails();
+      onUpdate();
+      toast.success('Task updated successfully!');
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
+    }
+  };
+
+  const openEditTaskModal = (task: Task) => {
+    setEditingTask(task);
+    setTaskForm({
+      title: task.title,
+      description: task.description || '',
+      assigned_to: task.assigned_to || '',
+      estimated_hours: task.estimated_hours?.toString() || '',
+      due_date: task.due_date || '',
+      priority: task.priority || 'medium',
+      remarks: task.remarks || '',
+    });
+    setShowEditTaskModal(true);
+  };
+
+  const resetTaskForm = () => {
+    setTaskForm({
+      title: '',
+      description: '',
+      assigned_to: '',
+      estimated_hours: '',
+      due_date: '',
+      priority: 'medium',
+      remarks: '',
+    });
   };
 
   const handleLogTime = async (e: React.FormEvent) => {
@@ -225,10 +429,61 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       });
       fetchWorkDetails();
       onUpdate();
+      toast.success('Time logged successfully!');
     } catch (error) {
       console.error('Error logging time:', error);
-      alert('Failed to log time');
+      toast.error('Failed to log time');
     }
+  };
+
+  const handleEditTimeLog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTimeLog) return;
+
+    try {
+      const start = new Date(timeForm.start_time);
+      const end = timeForm.end_time ? new Date(timeForm.end_time) : null;
+      const duration = end ? (end.getTime() - start.getTime()) / (1000 * 60 * 60) : null;
+
+      const { error } = await supabase
+        .from('time_logs')
+        .update({
+          staff_member_id: timeForm.staff_member_id,
+          start_time: timeForm.start_time,
+          end_time: timeForm.end_time || null,
+          duration_hours: duration,
+          description: timeForm.description || null,
+        })
+        .eq('id', editingTimeLog.id);
+
+      if (error) throw error;
+
+      setShowEditTimeLogModal(false);
+      setEditingTimeLog(null);
+      setTimeForm({
+        staff_member_id: '',
+        start_time: new Date().toISOString().slice(0, 16),
+        end_time: '',
+        description: '',
+      });
+      fetchWorkDetails();
+      onUpdate();
+      toast.success('Time log updated successfully!');
+    } catch (error) {
+      console.error('Error updating time log:', error);
+      toast.error('Failed to update time log');
+    }
+  };
+
+  const openEditTimeLogModal = (log: TimeLog) => {
+    setEditingTimeLog(log);
+    setTimeForm({
+      staff_member_id: log.staff_members ? (staff.find(s => s.name === log.staff_members.name)?.id || '') : '',
+      start_time: new Date(log.start_time).toISOString().slice(0, 16),
+      end_time: log.end_time ? new Date(log.end_time).toISOString().slice(0, 16) : '',
+      description: log.description || '',
+    });
+    setShowEditTimeLogModal(true);
   };
 
   const handleAssignStaff = async (staffId: string) => {
@@ -260,13 +515,16 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       setShowAssignModal(false);
       fetchWorkDetails();
       onUpdate();
+      toast.success('Work assigned successfully!');
     } catch (error) {
       console.error('Error assigning staff:', error);
-      alert('Failed to assign staff');
+      toast.error('Failed to assign staff');
     }
   };
 
-  const handleReassignStaff = async (newStaffId: string) => {
+  const handleReassignWithReason = async () => {
+    if (!selectedStaffForReassign) return;
+
     try {
       const currentStaffId = work.assigned_to;
 
@@ -278,9 +536,10 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
       const { error } = await supabase.from('work_assignments').insert({
         work_id: workId,
-        staff_member_id: newStaffId,
+        staff_member_id: selectedStaffForReassign,
         assigned_by: work.user_id,
         reassigned_from: currentStaffId,
+        reassignment_reason: reassignReason || null,
         status: 'assigned',
         is_current: true,
       });
@@ -290,17 +549,21 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       await supabase
         .from('works')
         .update({
-          assigned_to: newStaffId,
+          assigned_to: selectedStaffForReassign,
           assigned_date: new Date().toISOString(),
         })
         .eq('id', workId);
 
+      setShowReassignReason(false);
       setShowAssignModal(false);
+      setReassignReason('');
+      setSelectedStaffForReassign('');
       fetchWorkDetails();
       onUpdate();
+      toast.success('Work reassigned successfully!');
     } catch (error) {
       console.error('Error reassigning staff:', error);
-      alert('Failed to reassign staff');
+      toast.error('Failed to reassign staff');
     }
   };
 
@@ -325,8 +588,10 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
       fetchWorkDetails();
       onUpdate();
+      toast.success('Task status updated!');
     } catch (error) {
       console.error('Error updating task:', error);
+      toast.error('Failed to update task status');
     }
   };
 
@@ -343,6 +608,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       });
 
       if (error) throw error;
+      
       setShowRecurringModal(false);
       setRecurringForm({
         period_name: '',
@@ -352,10 +618,57 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       });
       fetchWorkDetails();
       onUpdate();
+      toast.success('Recurring period created successfully!');
     } catch (error) {
       console.error('Error creating recurring instance:', error);
-      alert('Failed to create recurring period');
+      toast.error('Failed to create recurring period');
     }
+  };
+
+  const handleEditRecurringInstance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecurring) return;
+
+    try {
+      const { error } = await supabase
+        .from('work_recurring_instances')
+        .update({
+          period_name: recurringForm.period_name,
+          period_start_date: recurringForm.period_start_date,
+          period_end_date: recurringForm.period_end_date,
+          due_date: recurringForm.due_date,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingRecurring.id);
+
+      if (error) throw error;
+
+      setShowEditRecurringModal(false);
+      setEditingRecurring(null);
+      setRecurringForm({
+        period_name: '',
+        period_start_date: '',
+        period_end_date: '',
+        due_date: '',
+      });
+      fetchWorkDetails();
+      onUpdate();
+      toast.success('Recurring period updated successfully!');
+    } catch (error) {
+      console.error('Error updating recurring instance:', error);
+      toast.error('Failed to update period');
+    }
+  };
+
+  const openEditRecurringModal = (instance: RecurringInstance) => {
+    setEditingRecurring(instance);
+    setRecurringForm({
+      period_name: instance.period_name,
+      period_start_date: instance.period_start_date,
+      period_end_date: instance.period_end_date,
+      due_date: instance.due_date,
+    });
+    setShowEditRecurringModal(true);
   };
 
   const updateRecurringInstanceStatus = async (instanceId: string, status: string) => {
@@ -374,20 +687,43 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       if (error) throw error;
       fetchWorkDetails();
       onUpdate();
+      toast.success('Period status updated!');
     } catch (error) {
       console.error('Error updating recurring instance:', error);
+      toast.error('Failed to update period status');
     }
   };
 
-  const deleteTask = async (taskId: string) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+  const confirmDelete = (type: string, id: string) => {
+    setDeleteTarget({ type, id });
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+
     try {
-      const { error } = await supabase.from('work_tasks').delete().eq('id', taskId);
+      const { type, id } = deleteTarget;
+      
+      let error;
+      if (type === 'task') {
+        ({ error } = await supabase.from('work_tasks').delete().eq('id', id));
+      } else if (type === 'recurring') {
+        ({ error } = await supabase.from('work_recurring_instances').delete().eq('id', id));
+      } else if (type === 'timelog') {
+        ({ error } = await supabase.from('time_logs').delete().eq('id', id));
+      }
+
       if (error) throw error;
+
       fetchWorkDetails();
       onUpdate();
+      toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully!`);
     } catch (error) {
-      console.error('Error deleting task:', error);
+      console.error('Error deleting:', error);
+      toast.error('Failed to delete');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -628,7 +964,16 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{task.title}</h4>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-gray-900">{task.title}</h4>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              priorityColors[task.priority] || priorityColors.medium
+                            }`}
+                          >
+                            {task.priority}
+                          </span>
+                        </div>
                         {task.description && (
                           <p className="text-sm text-gray-600 mt-1">{task.description}</p>
                         )}
@@ -663,6 +1008,13 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                         )}
                       </div>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditTaskModal(task)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit task"
+                        >
+                          <Edit2 size={16} />
+                        </button>
                         <select
                           value={task.status}
                           onChange={(e) => updateTaskStatus(task.id, e.target.value)}
@@ -679,8 +1031,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                           <option value="completed">Completed</option>
                         </select>
                         <button
-                          onClick={() => deleteTask(task.id)}
+                          onClick={() => confirmDelete('task', task.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete task"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -716,7 +1069,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 {timeLogs.map((log) => (
                   <div key={log.id} className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium text-gray-900">{log.staff_members.name}</p>
                         <p className="text-sm text-gray-600 mt-1">
                           {new Date(log.start_time).toLocaleString()}
@@ -724,11 +1077,27 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                         </p>
                         {log.description && <p className="text-sm text-gray-600 mt-1">{log.description}</p>}
                       </div>
-                      {log.duration_hours && (
-                        <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
-                          {log.duration_hours.toFixed(2)}h
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {log.duration_hours && (
+                          <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
+                            {log.duration_hours.toFixed(2)}h
+                          </span>
+                        )}
+                        <button
+                          onClick={() => openEditTimeLogModal(log)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit time log"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => confirmDelete('timelog', log.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete time log"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -850,21 +1219,37 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                           )}
                         </div>
                       </div>
-                      <select
-                        value={instance.status}
-                        onChange={(e) => updateRecurringInstanceStatus(instance.id, e.target.value)}
-                        className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer ${
-                          instance.status === 'completed'
-                            ? 'bg-green-100 text-green-700'
-                            : instance.status === 'in_progress'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditRecurringModal(instance)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit period"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <select
+                          value={instance.status}
+                          onChange={(e) => updateRecurringInstanceStatus(instance.id, e.target.value)}
+                          className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer ${
+                            instance.status === 'completed'
+                              ? 'bg-green-100 text-green-700'
+                              : instance.status === 'in_progress'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                        <button
+                          onClick={() => confirmDelete('recurring', instance.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete period"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -881,7 +1266,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         </div>
       </div>
 
-      {/* Task Modal */}
+      {/* Create Task Modal */}
       {showTaskModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -890,7 +1275,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             </div>
             <form onSubmit={handleCreateTask} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Title <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
@@ -929,6 +1316,20 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                  <select
+                    value={taskForm.priority}
+                    onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Est. Hours</label>
                   <input
                     type="number"
@@ -948,20 +1349,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                     onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                  <select
-                    value={taskForm.priority}
-                    onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
                 </div>
               </div>
 
@@ -996,6 +1383,130 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         </div>
       )}
 
+      {/* Edit Task Modal */}
+      {showEditTaskModal && editingTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Edit2 size={24} />
+                Edit Task
+              </h3>
+            </div>
+            <form onSubmit={handleEditTask} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={taskForm.title}
+                  onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Task title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={taskForm.description}
+                  onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Task description"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Assign To</label>
+                  <select
+                    value={taskForm.assigned_to}
+                    onChange={(e) => setTaskForm({ ...taskForm, assigned_to: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Unassigned</option>
+                    {staff.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                  <select
+                    value={taskForm.priority}
+                    onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Est. Hours</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={taskForm.estimated_hours}
+                    onChange={(e) => setTaskForm({ ...taskForm, estimated_hours: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                  <input
+                    type="date"
+                    value={taskForm.due_date}
+                    onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
+                <textarea
+                  value={taskForm.remarks}
+                  onChange={(e) => setTaskForm({ ...taskForm, remarks: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={2}
+                  placeholder="Any additional notes or instructions"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditTaskModal(false);
+                    setEditingTask(null);
+                  }}
+                  className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Update Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Time Log Modal */}
       {showTimeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
@@ -1005,7 +1516,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             </div>
             <form onSubmit={handleLogTime} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Staff Member *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Staff Member <span className="text-red-500">*</span>
+                </label>
                 <select
                   required
                   value={timeForm.staff_member_id}
@@ -1023,7 +1536,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Time *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="datetime-local"
                     required
@@ -1075,38 +1590,196 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         </div>
       )}
 
+      {/* Edit Time Log Modal */}
+      {showEditTimeLogModal && editingTimeLog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Edit2 size={24} />
+                Edit Time Log
+              </h3>
+            </div>
+            <form onSubmit={handleEditTimeLog} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Staff Member <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={timeForm.staff_member_id}
+                  onChange={(e) => setTimeForm({ ...timeForm, staff_member_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select staff member</option>
+                  {staff.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={timeForm.start_time}
+                    onChange={(e) => setTimeForm({ ...timeForm, start_time: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                  <input
+                    type="datetime-local"
+                    value={timeForm.end_time}
+                    onChange={(e) => setTimeForm({ ...timeForm, end_time: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={timeForm.description}
+                  onChange={(e) => setTimeForm({ ...timeForm, description: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  rows={2}
+                  placeholder="What did you work on?"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditTimeLogModal(false);
+                    setEditingTimeLog(null);
+                  }}
+                  className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Update Time Log
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Assign Staff Modal */}
-      {showAssignModal && (
+      {showAssignModal && !showReassignReason && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Users size={24} />
                 {work.assigned_to ? 'Reassign Work' : 'Assign Work'}
               </h3>
+              {work.assigned_to && work.staff_members && (
+                <p className="text-orange-100 text-sm mt-1">
+                  Currently assigned to: {work.staff_members.name}
+                </p>
+              )}
             </div>
             <div className="p-6 space-y-2 max-h-96 overflow-y-auto">
-              {staff.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => work.assigned_to ? handleReassignStaff(s.id) : handleAssignStaff(s.id)}
-                  disabled={s.id === work.assigned_to}
-                  className={`w-full px-4 py-3 text-left border border-gray-200 rounded-lg transition-colors font-medium ${
-                    s.id === work.assigned_to
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'hover:border-orange-500 hover:bg-orange-50'
-                  }`}
-                >
-                  {s.name}
-                  {s.id === work.assigned_to && <span className="ml-2 text-sm">(Current)</span>}
-                </button>
-              ))}
+              {staff.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users size={48} className="mx-auto text-gray-400 mb-3" />
+                  <p className="text-gray-600">No active staff members available</p>
+                  <p className="text-sm text-gray-500 mt-1">Add staff members first</p>
+                </div>
+              ) : (
+                staff.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      if (work.assigned_to && s.id !== work.assigned_to) {
+                        setSelectedStaffForReassign(s.id);
+                        setShowReassignReason(true);
+                      } else if (!work.assigned_to) {
+                        handleAssignStaff(s.id);
+                      }
+                    }}
+                    disabled={s.id === work.assigned_to}
+                    className={`w-full px-4 py-3 text-left border border-gray-200 rounded-lg transition-all font-medium ${
+                      s.id === work.assigned_to
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'hover:border-orange-500 hover:bg-orange-50 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{s.name}</span>
+                      {s.id === work.assigned_to && (
+                        <span className="text-xs bg-gray-200 px-2 py-1 rounded">Current</span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
             <div className="p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowAssignModal(false)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="w-full px-4 py-2 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reassignment Reason Modal */}
+      {showReassignReason && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
+              <h3 className="text-xl font-bold text-white">Reassignment Reason</h3>
+              <p className="text-orange-100 text-sm mt-1">
+                Provide a reason for reassignment (optional)
+              </p>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for Reassignment
+              </label>
+              <textarea
+                value={reassignReason}
+                onChange={(e) => setReassignReason(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                rows={4}
+                placeholder="e.g., Staff member on leave, workload balancing, expertise match..."
+              />
+            </div>
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowReassignReason(false);
+                  setReassignReason('');
+                  setSelectedStaffForReassign('');
+                }}
+                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReassignWithReason}
+                className="flex-1 px-4 py-2 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                Confirm Reassignment
               </button>
             </div>
           </div>
@@ -1122,7 +1795,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             </div>
             <form onSubmit={handleCreateRecurringInstance} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Period Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Period Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
@@ -1135,7 +1810,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Period Start *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Period Start <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="date"
                     required
@@ -1146,7 +1823,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Period End *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Period End <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="date"
                     required
@@ -1158,7 +1837,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Due Date *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Due Date <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="date"
                   required
@@ -1187,6 +1868,114 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           </div>
         </div>
       )}
+
+      {/* Edit Recurring Period Modal */}
+      {showEditRecurringModal && editingRecurring && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Edit2 size={24} />
+                Edit Recurring Period
+              </h3>
+            </div>
+            <form onSubmit={handleEditRecurringInstance} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Period Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={recurringForm.period_name}
+                  onChange={(e) => setRecurringForm({ ...recurringForm, period_name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., January 2024, Q1 2024"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Period Start <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={recurringForm.period_start_date}
+                    onChange={(e) =>
+                      setRecurringForm({ ...recurringForm, period_start_date: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Period End <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={recurringForm.period_end_date}
+                    onChange={(e) =>
+                      setRecurringForm({ ...recurringForm, period_end_date: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Due Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={recurringForm.due_date}
+                  onChange={(e) => setRecurringForm({ ...recurringForm, due_date: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditRecurringModal(false);
+                    setEditingRecurring(null);
+                  }}
+                  className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Update Period
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Confirm Deletion"
+        message={`Are you sure you want to delete this ${deleteTarget?.type}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 }
