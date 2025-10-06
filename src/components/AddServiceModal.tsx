@@ -1,8 +1,7 @@
-// src/components/AddServiceModal.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Image as ImageIcon } from 'lucide-react';
 
 interface AddServiceModalProps {
   onClose: () => void;
@@ -42,8 +41,18 @@ const WEEKDAYS = [
 ];
 
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  { value: 1, label: 'January' },
+  { value: 2, label: 'February' },
+  { value: 3, label: 'March' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'May' },
+  { value: 6, label: 'June' },
+  { value: 7, label: 'July' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'October' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
 ];
 
 export default function AddServiceModal({ onClose, onSuccess, editingService }: AddServiceModalProps) {
@@ -53,6 +62,7 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
     service_code: '',
     category: '',
     description: '',
+    image_url: '',
     estimated_duration_hours: 0,
     estimated_duration_minutes: 0,
     default_price: '',
@@ -60,6 +70,7 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
     is_recurring: false,
     recurrence_type: 'monthly',
     recurrence_day: 1,
+    recurrence_month: 1,
     recurrence_days: [] as number[],
     recurrence_start_date: '',
     recurrence_end_date: '',
@@ -79,6 +90,7 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
         service_code: editingService.service_code || '',
         category: editingService.category || '',
         description: editingService.description || '',
+        image_url: editingService.image_url || '',
         estimated_duration_hours: editingService.estimated_duration_hours || 0,
         estimated_duration_minutes: editingService.estimated_duration_minutes || 0,
         default_price: editingService.default_price?.toString() || '',
@@ -86,6 +98,7 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
         is_recurring: editingService.is_recurring || false,
         recurrence_type: editingService.recurrence_type || 'monthly',
         recurrence_day: editingService.recurrence_day || 1,
+        recurrence_month: editingService.recurrence_month || 1,
         recurrence_days: editingService.recurrence_days || [],
         recurrence_start_date: editingService.recurrence_start_date || '',
         recurrence_end_date: editingService.recurrence_end_date || '',
@@ -101,20 +114,21 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
     e.preventDefault();
 
     try {
-      const serviceData = {
+      const serviceData: any = {
         user_id: user!.id,
         name: formData.name,
         service_code: formData.service_code || null,
         category: formData.category || null,
         description: formData.description || null,
+        image_url: formData.image_url || null,
         estimated_duration_hours: formData.estimated_duration_hours,
         estimated_duration_minutes: formData.estimated_duration_minutes,
         default_price: formData.default_price ? parseFloat(formData.default_price) : null,
         tax_rate: parseFloat(formData.tax_rate),
         is_recurring: formData.is_recurring,
         recurrence_type: formData.is_recurring ? formData.recurrence_type : null,
-        recurrence_day: formData.is_recurring && formData.recurrence_type === 'monthly' ? formData.recurrence_day : null,
-        recurrence_days: formData.is_recurring && formData.recurrence_type === 'weekly' ? formData.recurrence_days : null,
+        recurrence_day: null,
+        recurrence_days: null,
         recurrence_start_date: formData.recurrence_start_date || null,
         recurrence_end_date: formData.recurrence_end_date || null,
         advance_notice_days: formData.advance_notice_days,
@@ -124,6 +138,32 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
         updated_at: new Date().toISOString(),
       };
 
+      if (formData.is_recurring) {
+        if (formData.recurrence_type === 'monthly') {
+          serviceData.recurrence_day = formData.recurrence_day;
+        } else if (formData.recurrence_type === 'weekly') {
+          serviceData.recurrence_days = formData.recurrence_days;
+        } else if (formData.recurrence_type === 'quarterly') {
+          serviceData.custom_fields = {
+            ...formData.custom_fields,
+            quarterly_day: formData.recurrence_day,
+            quarterly_month: ((formData.recurrence_day - 1) % 3) + 1,
+          };
+        } else if (formData.recurrence_type === 'half-yearly') {
+          serviceData.custom_fields = {
+            ...formData.custom_fields,
+            half_yearly_day: formData.recurrence_day,
+            half_yearly_month: formData.recurrence_month,
+          };
+        } else if (formData.recurrence_type === 'yearly') {
+          serviceData.custom_fields = {
+            ...formData.custom_fields,
+            yearly_day: formData.recurrence_day,
+            yearly_month: formData.recurrence_month,
+          };
+        }
+      }
+
       if (editingService) {
         const { error } = await supabase
           .from('services')
@@ -131,6 +171,16 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
           .eq('id', editingService.id);
 
         if (error) throw error;
+
+        if (formData.is_recurring && editingService.is_recurring) {
+          await supabase
+            .from('works')
+            .update({
+              due_date: new Date().toISOString(),
+            })
+            .eq('service_id', editingService.id)
+            .eq('status', 'pending');
+        }
       } else {
         const { error } = await supabase.from('services').insert(serviceData);
         if (error) throw error;
@@ -175,6 +225,13 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
     setFormData({ ...formData, recurrence_days: days });
   };
 
+  const getOrdinalSuffix = (num: number) => {
+    if (num === 1 || num === 21 || num === 31) return 'st';
+    if (num === 2 || num === 22) return 'nd';
+    if (num === 3 || num === 23) return 'rd';
+    return 'th';
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -191,7 +248,6 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Basic Information */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Basic Information
@@ -269,9 +325,39 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
                 placeholder="Brief description of the service"
               />
             </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Service Image URL
+              </label>
+              <div className="flex space-x-2">
+                <input
+                  type="url"
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  placeholder="https://example.com/service-image.jpg"
+                />
+                {formData.image_url && (
+                  <div className="w-12 h-12 border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-slate-700">
+                    <img
+                      src={formData.image_url}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                    <ImageIcon className="w-6 h-6 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                Provide a URL to an image representing this service
+              </p>
+            </div>
           </div>
 
-          {/* Duration and Pricing */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Duration & Pricing
@@ -348,7 +434,6 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
             </div>
           </div>
 
-          {/* Recurring Service Settings */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <input
@@ -402,8 +487,7 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
                         ))}
                       </select>
                       <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                        Service due on the {formData.recurrence_day}
-                        {formData.recurrence_day === 1 ? 'st' : formData.recurrence_day === 2 ? 'nd' : formData.recurrence_day === 3 ? 'rd' : 'th'} of every month
+                        Service due on the {formData.recurrence_day}{getOrdinalSuffix(formData.recurrence_day)} of every month
                       </p>
                     </div>
                   )}
@@ -432,10 +516,10 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
                     </div>
                   )}
 
-                  {formData.recurrence_type === 'yearly' && (
+                  {formData.recurrence_type === 'quarterly' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                        Day of Year (Due Date)
+                        Day of Quarter (Due Date)
                       </label>
                       <select
                         value={formData.recurrence_day}
@@ -450,7 +534,98 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
                           </option>
                         ))}
                       </select>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                        Service due on the {formData.recurrence_day}{getOrdinalSuffix(formData.recurrence_day)} day of the first month of each quarter (Jan, Apr, Jul, Oct)
+                      </p>
                     </div>
+                  )}
+
+                  {formData.recurrence_type === 'half-yearly' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                          Month (Half-Yearly)
+                        </label>
+                        <select
+                          value={formData.recurrence_month}
+                          onChange={(e) =>
+                            setFormData({ ...formData, recurrence_month: parseInt(e.target.value) })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                          {MONTHS.slice(0, 6).map((month) => (
+                            <option key={month.value} value={month.value}>
+                              {month.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                          Day (Due Date)
+                        </label>
+                        <select
+                          value={formData.recurrence_day}
+                          onChange={(e) =>
+                            setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <option key={day} value={day}>
+                              {day}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                          Due every 6 months: {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day} and {MONTHS[formData.recurrence_month + 5].label} {formData.recurrence_day}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {formData.recurrence_type === 'yearly' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                          Month (Yearly Due)
+                        </label>
+                        <select
+                          value={formData.recurrence_month}
+                          onChange={(e) =>
+                            setFormData({ ...formData, recurrence_month: parseInt(e.target.value) })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                          {MONTHS.map((month) => (
+                            <option key={month.value} value={month.value}>
+                              {month.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                          Day (Due Date)
+                        </label>
+                        <select
+                          value={formData.recurrence_day}
+                          onChange={(e) =>
+                            setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <option key={day} value={day}>
+                              {day}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                          Service due every year on {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day}{getOrdinalSuffix(formData.recurrence_day)}
+                        </p>
+                      </div>
+                    </>
                   )}
 
                   <div>
@@ -521,7 +696,6 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
             )}
           </div>
 
-          {/* Custom Fields */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Custom Fields
@@ -572,7 +746,6 @@ export default function AddServiceModal({ onClose, onSuccess, editingService }: 
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex space-x-3 pt-4 border-t border-gray-200 dark:border-slate-700">
             <button
               type="button"

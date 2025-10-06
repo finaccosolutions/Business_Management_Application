@@ -125,3 +125,41 @@ export function generateDueDatesInRange(
 
   return dates;
 }
+
+// Sync works with updated service due date configuration
+export async function syncWorkDueDates(
+  serviceId: string,
+  config: RecurringServiceConfig,
+  supabase: any
+): Promise<void> {
+  try {
+    const { data: works, error: fetchError } = await supabase
+      .from('works')
+      .select('id, due_date, status')
+      .eq('service_id', serviceId)
+      .eq('status', 'pending')
+      .order('due_date', { ascending: true });
+
+    if (fetchError) throw fetchError;
+    if (!works || works.length === 0) return;
+
+    const startDate = new Date(config.recurrence_start_date);
+    let currentDueDate = startDate;
+
+    for (const work of works) {
+      const { error: updateError } = await supabase
+        .from('works')
+        .update({ due_date: currentDueDate.toISOString() })
+        .eq('id', work.id);
+
+      if (updateError) {
+        console.error('Error updating work due date:', updateError);
+      }
+
+      currentDueDate = calculateNextDueDate(config, currentDueDate);
+    }
+  } catch (error) {
+    console.error('Error syncing work due dates:', error);
+    throw error;
+  }
+}
