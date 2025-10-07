@@ -63,38 +63,31 @@ interface CustomerStatistics {
   averageRevenue: number;
 }
 
-// Helper function to determine border color based on customer status
 const getCustomerBorderColor = (customer: Customer, avgRevenue: number): string => {
   const daysSinceCreated = Math.floor(
     (Date.now() - new Date(customer.created_at).getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  // New customer (within 30 days) - Teal
   if (daysSinceCreated <= 30) {
     return 'border-l-teal-500 hover:bg-teal-50/30';
   }
 
-  // Has overdue invoices - Red (highest priority)
   if (customer.overdue_invoices && customer.overdue_invoices > 0) {
     return 'border-l-red-500 hover:bg-red-50/30';
   }
 
-  // High-value customer (revenue > average) - Green
   if (customer.total_revenue && customer.total_revenue > avgRevenue && avgRevenue > 0) {
     return 'border-l-green-500 hover:bg-green-50/30';
   }
 
-  // Has pending works - Orange
   if (customer.pending_works && customer.pending_works > 0) {
     return 'border-l-orange-500 hover:bg-orange-50/30';
   }
 
-  // Active services (3+) - Blue
   if (customer.active_services && customer.active_services >= 3) {
     return 'border-l-blue-500 hover:bg-blue-50/30';
   }
 
-  // Default/Inactive - Gray
   return 'border-l-gray-400 hover:bg-gray-50/30';
 };
 
@@ -105,6 +98,7 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [statistics, setStatistics] = useState<CustomerStatistics | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -120,7 +114,7 @@ export default function Customers() {
     dateFrom: '',
     dateTo: '',
   });
-  const [showFilters, setShowFilters] = useState(false); // ADD THIS LINE
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -143,17 +137,14 @@ export default function Customers() {
 
       if (error) throw error;
 
-      // Enrich customer data with additional info
       const enrichedCustomers = await Promise.all(
         (data || []).map(async (customer) => {
-          // Get active service count
           const { data: servicesData } = await supabase
             .from('customer_services')
             .select('id')
             .eq('customer_id', customer.id)
             .eq('status', 'active');
 
-          // Get total revenue and last invoice date
           const { data: invoicesData } = await supabase
             .from('invoices')
             .select('total_amount, invoice_date, status, due_date')
@@ -164,16 +155,14 @@ export default function Customers() {
             invoicesData
               ?.filter((inv) => inv.status === 'paid')
               .reduce((sum, inv) => sum + inv.total_amount, 0) || 0;
-          
+
           const lastInvoiceDate = invoicesData?.[0]?.invoice_date || null;
 
-          // Count overdue invoices
           const now = new Date();
           const overdueCount = invoicesData?.filter(
             (inv) => inv.status !== 'paid' && new Date(inv.due_date) < now
           ).length || 0;
 
-          // Get pending works count
           const { data: worksData } = await supabase
             .from('works')
             .select('id')
@@ -246,24 +235,20 @@ export default function Customers() {
   const applyFilters = () => {
     let filtered = customers;
 
-    // Apply city filter
     if (filters.cities.length > 0) {
       filtered = filtered.filter((c) => c.city && filters.cities.includes(c.city));
     }
 
-    // Apply state filter
     if (filters.states.length > 0) {
       filtered = filtered.filter((c) => c.state && filters.states.includes(c.state));
     }
 
-    // Apply GST status filter
     if (filters.gstStatus === 'has_gst') {
       filtered = filtered.filter((c) => c.gstin);
     } else if (filters.gstStatus === 'no_gst') {
       filtered = filtered.filter((c) => !c.gstin);
     }
 
-    // Apply date range filter
     if (filters.dateFrom) {
       filtered = filtered.filter((c) => new Date(c.created_at) >= new Date(filters.dateFrom));
     }
@@ -271,7 +256,6 @@ export default function Customers() {
       filtered = filtered.filter((c) => new Date(c.created_at) <= new Date(filters.dateTo));
     }
 
-    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (c) =>
@@ -317,6 +301,17 @@ export default function Customers() {
     setSelectedCustomerId(customerId);
   };
 
+  const handleEditSuccess = () => {
+    setEditingCustomerId(null);
+    fetchCustomers();
+    fetchStatistics();
+  };
+
+  const handleEdit = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCustomerId(id);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -325,9 +320,10 @@ export default function Customers() {
     );
   }
 
+  const editingCustomer = editingCustomerId ? customers.find(c => c.id === editingCustomerId) : null;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
@@ -344,122 +340,114 @@ export default function Customers() {
         </button>
       </div>
 
-        {/* Statistics Cards */}
-        {!loadingStats && statistics && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl shadow-sm border-2 border-blue-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Customers</p>
-                  <p className="text-3xl font-bold text-blue-600 mt-2">{statistics.totalCustomers}</p>
-                </div>
-                <Users className="w-12 h-12 text-blue-600 opacity-20" />
+      {!loadingStats && statistics && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl shadow-sm border-2 border-blue-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Customers</p>
+                <p className="text-3xl font-bold text-blue-600 mt-2">{statistics.totalCustomers}</p>
               </div>
-              <div className="flex items-center gap-1 mt-3">
-                <TrendingUp size={16} className="text-green-500" />
-                <span className="text-sm text-green-600">{statistics.newThisMonth} new this month</span>
-              </div>
+              <Users className="w-12 h-12 text-blue-600 opacity-20" />
             </div>
-        
-            <div className="bg-white rounded-xl shadow-sm border-2 border-green-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                  <p className="text-3xl font-bold text-green-600 mt-2">
-                    ₹{statistics.totalRevenue.toLocaleString()}
-                  </p>
-                </div>
-                <DollarSign className="w-12 h-12 text-green-600 opacity-20" />
-              </div>
-              <p className="text-sm text-gray-600 mt-3">From paid invoices</p>
-            </div>
-        
-            <div className="bg-white rounded-xl shadow-sm border-2 border-orange-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Avg. Revenue</p>
-                  <p className="text-3xl font-bold text-orange-600 mt-2">
-                    ₹
-                    {statistics.averageRevenue.toLocaleString(undefined, {
-                      maximumFractionDigits: 0,
-                    })}
-                  </p>
-                </div>
-                <Briefcase className="w-12 h-12 text-orange-600 opacity-20" />
-              </div>
-              <p className="text-sm text-gray-600 mt-3">Per customer</p>
-            </div>
-        
-            <div className="bg-white rounded-xl shadow-sm border-2 border-teal-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Active Customers</p>
-                  <p className="text-3xl font-bold text-teal-600 mt-2">{statistics.activeCustomers}</p>
-                </div>
-                <UserCog className="w-12 h-12 text-teal-600 opacity-20" />
-              </div>
-              <p className="text-sm text-gray-600 mt-3">With active services</p>
+            <div className="flex items-center gap-1 mt-3">
+              <TrendingUp size={16} className="text-green-500" />
+              <span className="text-sm text-green-600">{statistics.newThisMonth} new this month</span>
             </div>
           </div>
-        )}
 
-
-      {/* Search and Filter Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search Bar */}
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search customers by name, email, company, phone, city, or GST number..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+          <div className="bg-white rounded-xl shadow-sm border-2 border-green-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">
+                  ₹{statistics.totalRevenue.toLocaleString()}
+                </p>
               </div>
+              <DollarSign className="w-12 h-12 text-green-600 opacity-20" />
             </div>
-        
-            {/* Filter Toggle Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Filter className="w-5 h-5" />
-              <span>Filters</span>
-              {(filters.sources.length > 0 ||
-                filters.serviceTypes.length > 0 ||
-                filters.cities.length > 0 ||
-                filters.states.length > 0 ||
-                filters.gstStatus !== 'all' ||
-                filters.dateFrom ||
-                filters.dateTo) && (
-                <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {[
-                    filters.sources.length,
-                    filters.serviceTypes.length,
-                    filters.cities.length,
-                    filters.states.length,
-                    filters.gstStatus !== 'all' ? 1 : 0,
-                    filters.dateFrom ? 1 : 0,
-                    filters.dateTo ? 1 : 0,
-                  ].reduce((a, b) => a + b, 0)}
-                </span>
-              )}
-            </button>
+            <p className="text-sm text-gray-600 mt-3">From paid invoices</p>
           </div>
-        
-          {/* Filter Panel - Collapsible */}
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <CustomerFilters onFilterChange={setFilters} activeFilters={filters} />
+
+          <div className="bg-white rounded-xl shadow-sm border-2 border-orange-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Avg. Revenue</p>
+                <p className="text-3xl font-bold text-orange-600 mt-2">
+                  ₹
+                  {statistics.averageRevenue.toLocaleString(undefined, {
+                    maximumFractionDigits: 0,
+                  })}
+                </p>
+              </div>
+              <Briefcase className="w-12 h-12 text-orange-600 opacity-20" />
             </div>
-          )}
+            <p className="text-sm text-gray-600 mt-3">Per customer</p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border-2 border-teal-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Active Customers</p>
+                <p className="text-3xl font-bold text-teal-600 mt-2">{statistics.activeCustomers}</p>
+              </div>
+              <UserCog className="w-12 h-12 text-teal-600 opacity-20" />
+            </div>
+            <p className="text-sm text-gray-600 mt-3">With active services</p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search customers by name, email, company, phone, city, or GST number..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Filter className="w-5 h-5" />
+            <span>Filters</span>
+            {(filters.sources.length > 0 ||
+              filters.serviceTypes.length > 0 ||
+              filters.cities.length > 0 ||
+              filters.states.length > 0 ||
+              filters.gstStatus !== 'all' ||
+              filters.dateFrom ||
+              filters.dateTo) && (
+              <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {[
+                  filters.sources.length,
+                  filters.serviceTypes.length,
+                  filters.cities.length,
+                  filters.states.length,
+                  filters.gstStatus !== 'all' ? 1 : 0,
+                  filters.dateFrom ? 1 : 0,
+                  filters.dateTo ? 1 : 0,
+                ].reduce((a, b) => a + b, 0)}
+              </span>
+            )}
+          </button>
         </div>
 
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <CustomerFilters onFilterChange={setFilters} activeFilters={filters} />
+          </div>
+        )}
+      </div>
 
-      {/* Customers List - Full Width Rows */}
       {filteredCustomers.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <Users size={48} className="mx-auto text-gray-400 mb-4" />
@@ -495,8 +483,7 @@ export default function Customers() {
               >
                 <div className="p-5">
                   <div className="flex items-center gap-6">
-                    {/* Profile Section */}
-                    <div className="flex items-center gap-4 flex-shrink-0" style={{ width: '280px' }}>
+                    <div className="flex items-center gap-4 flex-shrink-0" style={{ width: '240px' }}>
                       <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
                         {customer.image_url ? (
                           <img
@@ -537,16 +524,14 @@ export default function Customers() {
                       </div>
                     </div>
 
-                    {/* Divider */}
                     <div className="h-16 w-px bg-gray-200"></div>
 
-                    {/* Contact & Location Section */}
-                    <div className="flex-1 min-w-0" style={{ maxWidth: '320px' }}>
+                    <div className="flex-1 min-w-0" style={{ maxWidth: '400px' }}>
                       <div className="space-y-2">
                         {customer.email && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <Mail size={16} className="flex-shrink-0 text-blue-500" />
-                            <span className="truncate">{customer.email}</span>
+                            <span className="truncate" title={customer.email}>{customer.email}</span>
                           </div>
                         )}
                         {customer.phone && (
@@ -572,6 +557,7 @@ export default function Customers() {
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
                               className="truncate hover:text-blue-600"
+                              title={customer.website}
                             >
                               {customer.website}
                             </a>
@@ -580,11 +566,9 @@ export default function Customers() {
                       </div>
                     </div>
 
-                    {/* Divider */}
                     <div className="h-16 w-px bg-gray-200"></div>
 
-                    {/* Business Details Section */}
-                    <div className="flex-shrink-0" style={{ width: '200px' }}>
+                    <div className="flex-shrink-0" style={{ width: '160px' }}>
                       <div className="space-y-2">
                         {customer.gstin && (
                           <div className="flex items-center gap-2">
@@ -607,10 +591,8 @@ export default function Customers() {
                       </div>
                     </div>
 
-                    {/* Divider */}
                     <div className="h-16 w-px bg-gray-200"></div>
 
-                    {/* Metrics Section */}
                     <div className="flex-shrink-0" style={{ width: '280px' }}>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-blue-50 rounded-lg p-2">
@@ -652,27 +634,35 @@ export default function Customers() {
                       </div>
                     </div>
 
-                    {/* Divider */}
                     <div className="h-16 w-px bg-gray-200"></div>
 
-                    {/* Actions Section */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex flex-col gap-2 flex-shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedCustomerId(customer.id);
                         }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
                         title="View Details"
                       >
-                        <Eye size={20} />
+                        <Eye size={18} />
+                        View
+                      </button>
+                      <button
+                        onClick={(e) => handleEdit(customer.id, e)}
+                        className="flex items-center gap-2 px-3 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors text-sm font-medium"
+                        title="Edit Customer"
+                      >
+                        <Edit2 size={18} />
+                        Edit
                       </button>
                       <button
                         onClick={(e) => handleDelete(customer.id, e)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
                         title="Delete Customer"
                       >
-                        <Trash2 size={20} />
+                        <Trash2 size={18} />
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -683,12 +673,22 @@ export default function Customers() {
         </div>
       )}
 
-      {/* Modals */}
       {showAddModal && (
         <CustomerFormModal
           onClose={() => setShowAddModal(false)}
           onSuccess={handleAddSuccess}
           mode="create"
+        />
+      )}
+
+      {editingCustomerId && editingCustomer && (
+        <CustomerFormModal
+          onClose={() => setEditingCustomerId(null)}
+          onSuccess={handleEditSuccess}
+          initialData={editingCustomer}
+          mode="edit"
+          customerId={editingCustomerId}
+          title={`Edit Customer: ${editingCustomer.name}`}
         />
       )}
 
