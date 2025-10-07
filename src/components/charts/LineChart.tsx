@@ -49,31 +49,40 @@ export default function LineChart({ data, height = 200, color = '#3b82f6' }: Lin
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
-        className="w-full"
+        className="w-full drop-shadow-md"
         style={{ height: `${height}px` }}
       >
         <defs>
           <linearGradient id={`gradient-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style={{ stopColor: color, stopOpacity: 0.3 }} />
+            <stop offset="0%" style={{ stopColor: color, stopOpacity: 0.4 }} />
+            <stop offset="50%" style={{ stopColor: color, stopOpacity: 0.2 }} />
             <stop offset="100%" style={{ stopColor: color, stopOpacity: 0.05 }} />
           </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
         </defs>
 
         <path
           d={areaPath}
           fill={`url(#gradient-${color})`}
-          className="transition-all duration-500"
+          className="transition-all duration-700"
         />
 
         <polyline
           points={points}
           fill="none"
           stroke={color}
-          strokeWidth="2"
+          strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="transition-all duration-500"
+          className="transition-all duration-700"
           vectorEffect="non-scaling-stroke"
+          filter="url(#glow)"
         />
 
         {data.map((item, index) => {
@@ -84,22 +93,37 @@ export default function LineChart({ data, height = 200, color = '#3b82f6' }: Lin
           const y = chartHeight - ((item.value - minValue) / range) * chartHeight;
 
           return (
-            <circle
-              key={index}
-              cx={x}
-              cy={y}
-              r="1.5"
-              fill={color}
-              className="transition-all duration-500"
-            />
+            <g key={index}>
+              <circle
+                cx={x}
+                cy={y}
+                r="3"
+                fill="white"
+                stroke={color}
+                strokeWidth="2.5"
+                className="transition-all duration-700 hover:r-4"
+              />
+              <circle
+                cx={x}
+                cy={y}
+                r="1.5"
+                fill={color}
+                className="transition-all duration-700"
+              />
+            </g>
           );
         })}
       </svg>
 
-      <div className="flex justify-between mt-2">
+      <div className="flex justify-between mt-4 px-2">
         {data.map((item, index) => (
-          <div key={index} className="text-xs text-gray-600 text-center flex-1">
-            {item.label}
+          <div key={index} className="flex flex-col items-center flex-1">
+            <div className="text-sm text-gray-700 font-semibold text-center">
+              {item.label}
+            </div>
+            <div className="text-xs text-gray-500 font-medium mt-1">
+              ₹{item.value.toLocaleString('en-IN')}
+            </div>
           </div>
         ))}
       </div>

@@ -615,42 +615,77 @@ export function generateEnhancedInvoiceHTML(
 }
 
 export function previewEnhancedInvoice(html: string): void {
-  const printWindow = window.open('', '_blank');
-  if (printWindow) {
-    printWindow.document.write(html);
-    printWindow.document.close();
-  }
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
 }
 
 export function printEnhancedInvoice(html: string): void {
-  const printWindow = window.open('', '_blank');
-  if (printWindow) {
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.onload = () => {
-      printWindow.print();
-    };
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    iframe.contentWindow?.focus();
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 500);
   }
 }
 
 export async function downloadEnhancedPDF(html: string, filename: string): Promise<void> {
-  const element = document.createElement('div');
-  element.innerHTML = html;
-  element.style.position = 'absolute';
-  element.style.left = '-9999px';
-  document.body.appendChild(element);
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'fixed';
+  wrapper.style.left = '-9999px';
+  wrapper.style.top = '0';
+  wrapper.style.width = '210mm';
+  wrapper.style.zIndex = '-1';
+  wrapper.innerHTML = html;
+  document.body.appendChild(wrapper);
+
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  const element = wrapper.querySelector('.invoice-container') as HTMLElement;
+  if (!element) {
+    document.body.removeChild(wrapper);
+    throw new Error('Invoice container not found');
+  }
 
   const options = {
-    margin: 0,
+    margin: [5, 5, 5, 5],
     filename: `${filename}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      letterRendering: true,
+      scrollY: 0,
+      scrollX: 0,
+      windowWidth: 800,
+      windowHeight: element.scrollHeight
+    },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
   };
 
   try {
     await html2pdf().set(options).from(element).save();
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    throw error;
   } finally {
-    document.body.removeChild(element);
+    document.body.removeChild(wrapper);
   }
 }

@@ -236,9 +236,10 @@ export default function Dashboard() {
       title: 'Total Leads',
       value: stats.totalLeads,
       icon: Users,
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-600',
+      gradient: 'from-blue-500 via-blue-600 to-blue-700',
+      bgColor: 'bg-gradient-to-br from-blue-50 to-blue-100',
+      textColor: 'text-blue-700',
+      iconBg: 'bg-blue-500',
       change: '+12%',
       changePositive: true,
     },
@@ -246,9 +247,10 @@ export default function Dashboard() {
       title: 'Total Customers',
       value: stats.totalCustomers,
       icon: UserCog,
-      color: 'from-green-500 to-green-600',
-      bgColor: 'bg-green-50',
-      textColor: 'text-green-600',
+      gradient: 'from-emerald-500 via-emerald-600 to-emerald-700',
+      bgColor: 'bg-gradient-to-br from-emerald-50 to-emerald-100',
+      textColor: 'text-emerald-700',
+      iconBg: 'bg-emerald-500',
       change: '+8%',
       changePositive: true,
     },
@@ -256,9 +258,10 @@ export default function Dashboard() {
       title: 'Active Staff',
       value: stats.activeStaff,
       icon: Briefcase,
-      color: 'from-teal-500 to-teal-600',
-      bgColor: 'bg-teal-50',
-      textColor: 'text-teal-600',
+      gradient: 'from-amber-500 via-amber-600 to-amber-700',
+      bgColor: 'bg-gradient-to-br from-amber-50 to-amber-100',
+      textColor: 'text-amber-700',
+      iconBg: 'bg-amber-500',
       change: '0%',
       changePositive: true,
     },
@@ -266,9 +269,10 @@ export default function Dashboard() {
       title: 'Total Works',
       value: stats.totalWorks,
       icon: ClipboardList,
-      color: 'from-orange-500 to-orange-600',
-      bgColor: 'bg-orange-50',
-      textColor: 'text-orange-600',
+      gradient: 'from-orange-500 via-orange-600 to-orange-700',
+      bgColor: 'bg-gradient-to-br from-orange-50 to-orange-100',
+      textColor: 'text-orange-700',
+      iconBg: 'bg-orange-500',
       change: '+15%',
       changePositive: true,
     },
@@ -276,9 +280,10 @@ export default function Dashboard() {
       title: 'Total Services',
       value: stats.totalServices,
       icon: Activity,
-      color: 'from-pink-500 to-pink-600',
-      bgColor: 'bg-pink-50',
-      textColor: 'text-pink-600',
+      gradient: 'from-rose-500 via-rose-600 to-rose-700',
+      bgColor: 'bg-gradient-to-br from-rose-50 to-rose-100',
+      textColor: 'text-rose-700',
+      iconBg: 'bg-rose-500',
       change: '+5%',
       changePositive: true,
     },
@@ -286,9 +291,10 @@ export default function Dashboard() {
       title: 'Total Invoices',
       value: stats.totalInvoices,
       icon: FileText,
-      color: 'from-cyan-500 to-cyan-600',
-      bgColor: 'bg-cyan-50',
-      textColor: 'text-cyan-600',
+      gradient: 'from-cyan-500 via-cyan-600 to-cyan-700',
+      bgColor: 'bg-gradient-to-br from-cyan-50 to-cyan-100',
+      textColor: 'text-cyan-700',
+      iconBg: 'bg-cyan-500',
       change: '+20%',
       changePositive: true,
     },
@@ -327,39 +333,41 @@ export default function Dashboard() {
   }
 
   const workStatusData = [
-    { label: 'Pending', value: stats.pendingWorks, color: '#eab308' },
-    { label: 'Overdue', value: stats.overdueWorks, color: '#ef4444' },
-    { label: 'Completed', value: stats.completedWorks, color: '#22c55e' },
+    { label: 'Pending', value: stats.pendingWorks, color: '#f59e0b' },
+    { label: 'Overdue', value: stats.overdueWorks, color: '#dc2626' },
+    { label: 'Completed', value: stats.completedWorks, color: '#059669' },
   ];
 
   const invoiceStatusData = [
-    { label: 'Paid', value: stats.paidInvoices, color: '#22c55e' },
-    { label: 'Unpaid', value: stats.unpaidInvoices, color: '#ef4444' },
+    { label: 'Paid', value: stats.paidInvoices, color: '#10b981' },
+    { label: 'Unpaid', value: stats.unpaidInvoices, color: '#f43f5e' },
   ];
 
   const businessMetrics = [
-    { label: 'Leads', value: stats.totalLeads, color: 'bg-blue-500' },
-    { label: 'Customers', value: stats.totalCustomers, color: 'bg-green-500' },
-    { label: 'Staff', value: stats.activeStaff, color: 'bg-teal-500' },
-    { label: 'Services', value: stats.totalServices, color: 'bg-pink-500' },
+    { label: 'Leads', value: stats.totalLeads, color: 'bg-gradient-to-t from-blue-600 to-blue-400' },
+    { label: 'Customers', value: stats.totalCustomers, color: 'bg-gradient-to-t from-emerald-600 to-emerald-400' },
+    { label: 'Staff', value: stats.activeStaff, color: 'bg-gradient-to-t from-amber-600 to-amber-400' },
+    { label: 'Services', value: stats.totalServices, color: 'bg-gradient-to-t from-rose-600 to-rose-400' },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 rounded-2xl shadow-lg p-8 text-white">
-        <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-2xl shadow-2xl p-8 text-white border border-slate-600 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl"></div>
+        <div className="relative z-10 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-2">
+            <h1 className="text-5xl font-extrabold mb-3 tracking-tight">
               {companySettings?.company_name || 'Dashboard'}
             </h1>
-            <p className="text-blue-100 text-lg">
+            <p className="text-slate-200 text-lg font-medium">
               Welcome back! Here's a complete overview of your business performance.
             </p>
           </div>
           <div className="hidden md:block">
-            <div className="text-right">
-              <p className="text-blue-100 text-sm">Total Revenue</p>
-              <p className="text-4xl font-bold mt-1">
+            <div className="text-right bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
+              <p className="text-slate-200 text-sm font-semibold uppercase tracking-wider">Total Revenue</p>
+              <p className="text-5xl font-extrabold mt-2 bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
                 ₹{stats.totalRevenue.toLocaleString('en-IN')}
               </p>
             </div>
@@ -373,16 +381,16 @@ export default function Dashboard() {
           return (
             <div
               key={index}
-              className="bg-white rounded-xl shadow-md border border-gray-200 p-6 transform transition-all duration-200 hover:shadow-xl hover:scale-[1.02]"
+              className={`${stat.bgColor} rounded-2xl shadow-lg border-2 border-white p-6 transform transition-all duration-300 hover:shadow-2xl hover:scale-[1.03] hover:-translate-y-1 cursor-pointer`}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-5">
                 <div
-                  className={`p-3 rounded-xl ${stat.bgColor} transform transition-transform hover:scale-110`}
+                  className={`p-4 rounded-xl ${stat.iconBg} shadow-lg transform transition-transform hover:scale-110 hover:rotate-6`}
                 >
-                  <Icon className={`w-7 h-7 ${stat.textColor}`} />
+                  <Icon className="w-8 h-8 text-white" />
                 </div>
-                <div className={`flex items-center gap-1 text-sm font-semibold ${
-                  stat.changePositive ? 'text-green-600' : 'text-red-600'
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold shadow-md ${
+                  stat.changePositive ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                 }`}>
                   {stat.changePositive ? (
                     <TrendingUp className="w-4 h-4" />
@@ -393,8 +401,8 @@ export default function Dashboard() {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
-                <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">{stat.title}</p>
+                <p className={`text-4xl font-extrabold ${stat.textColor}`}>{stat.value}</p>
               </div>
             </div>
           );
@@ -483,42 +491,50 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-            <BarChart3 className="w-6 h-6 mr-2 text-blue-600" />
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 hover:shadow-2xl transition-shadow duration-300">
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-8 flex items-center">
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg mr-3 shadow-lg">
+              <BarChart3 className="w-6 h-6 text-white" />
+            </div>
             Business Metrics
           </h2>
-          <BarChart data={businessMetrics} height={250} />
+          <BarChart data={businessMetrics} height={280} />
         </div>
 
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-            <PieChartIcon className="w-6 h-6 mr-2 text-green-600" />
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 hover:shadow-2xl transition-shadow duration-300">
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-8 flex items-center">
+            <div className="p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg mr-3 shadow-lg">
+              <PieChartIcon className="w-6 h-6 text-white" />
+            </div>
             Work Distribution
           </h2>
-          <PieChart data={workStatusData} size={200} />
+          <PieChart data={workStatusData} size={220} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-            <TrendingUp className="w-6 h-6 mr-2 text-cyan-600" />
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 hover:shadow-2xl transition-shadow duration-300">
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-8 flex items-center">
+            <div className="p-2 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg mr-3 shadow-lg">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
             Revenue Trend (Last 6 Months)
           </h2>
           <LineChart
             data={monthlyRevenue.map(m => ({ label: m.month, value: m.revenue }))}
-            height={250}
+            height={280}
             color="#06b6d4"
           />
         </div>
 
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-            <FileText className="w-6 h-6 mr-2 text-orange-600" />
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 hover:shadow-2xl transition-shadow duration-300">
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-8 flex items-center">
+            <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg mr-3 shadow-lg">
+              <FileText className="w-6 h-6 text-white" />
+            </div>
             Invoice Status
           </h2>
-          <PieChart data={invoiceStatusData} size={200} />
+          <PieChart data={invoiceStatusData} size={220} />
         </div>
       </div>
 
