@@ -6,7 +6,7 @@ import { X, Plus, Trash2, Image as ImageIcon } from 'lucide-react';
 interface AddServiceModalProps {
   onClose: () => void;
   onSuccess: () => void;
-  editingService?: any;
+  service?: any;
 }
 
 const SERVICE_CATEGORIES = [
@@ -55,7 +55,7 @@ const MONTHS = [
   { value: 12, label: 'December' },
 ];
 
-export default function AddServiceModal({ onClose, onSuccess, editingService }: AddServiceModalProps) {
+export default function AddServiceModal({ onClose, onSuccess, service: editingService }: AddServiceModalProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',

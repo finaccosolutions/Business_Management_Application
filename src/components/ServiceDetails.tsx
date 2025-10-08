@@ -12,6 +12,9 @@ import {
   Edit2,
   User,
   CheckCircle,
+  CheckSquare,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 
 interface ServiceDetailsProps {
@@ -49,15 +52,29 @@ interface Work {
   customers: { name: string };
 }
 
-type TabType = 'overview' | 'customers' | 'works' | 'revenue' | 'history';
+interface ServiceTask {
+  id: string;
+  title: string;
+  description: string | null;
+  priority: string;
+  estimated_hours: number | null;
+  sort_order: number;
+  is_active: boolean;
+  notes: string | null;
+}
+
+type TabType = 'overview' | 'customers' | 'works' | 'revenue' | 'history' | 'tasks';
 
 export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDetailsProps) {
   const { user } = useAuth();
   const [service, setService] = useState<Service | null>(null);
   const [customerServices, setCustomerServices] = useState<CustomerService[]>([]);
   const [works, setWorks] = useState<Work[]>([]);
+  const [serviceTasks, setServiceTasks] = useState<ServiceTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<ServiceTask | null>(null);
   const [statistics, setStatistics] = useState({
     totalCustomers: 0,
     activeCustomers: 0,
@@ -75,7 +92,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
 
   const fetchServiceDetails = async () => {
     try {
-      const [serviceRes, customerServicesRes, worksRes] = await Promise.all([
+      const [serviceRes, customerServicesRes, worksRes, tasksRes] = await Promise.all([
         supabase
           .from('services')
           .select('*')
@@ -91,15 +108,22 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
           .select('*, customers(name)')
           .eq('service_id', serviceId)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('service_tasks')
+          .select('*')
+          .eq('service_id', serviceId)
+          .order('sort_order'),
       ]);
 
       if (serviceRes.error) throw serviceRes.error;
       if (customerServicesRes.error) throw customerServicesRes.error;
       if (worksRes.error) throw worksRes.error;
+      if (tasksRes.error) throw tasksRes.error;
 
       setService(serviceRes.data);
       setCustomerServices(customerServicesRes.data || []);
       setWorks(worksRes.data || []);
+      setServiceTasks(tasksRes.data || []);
 
       const allCustomerServices = customerServicesRes.data || [];
       const activeCS = allCustomerServices.filter((cs) => cs.status === 'active');
@@ -134,6 +158,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
 
   const tabs: Array<{ id: TabType; label: string; icon: any; count?: number }> = [
     { id: 'overview', label: 'Overview', icon: Briefcase },
+    { id: 'tasks', label: 'Task Templates', icon: CheckSquare, count: serviceTasks.length },
     { id: 'customers', label: 'Customers', icon: Users, count: statistics.totalCustomers },
     { id: 'works', label: 'Works', icon: Clock, count: statistics.totalWorks },
     { id: 'revenue', label: 'Revenue', icon: DollarSign },
@@ -522,6 +547,133 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
             </div>
           )}
 
+          {activeTab === 'tasks' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Service Task Templates</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Define tasks that will be automatically added when creating work for this service
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingTask(null);
+                    setShowTaskModal(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus size={18} />
+                  Add Task
+                </button>
+              </div>
+
+              {serviceTasks.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                  <CheckSquare size={48} className="mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600">No task templates defined yet</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Add tasks to create a standard workflow for this service
+                  </p>
+                  <button
+                    onClick={() => {
+                      setEditingTask(null);
+                      setShowTaskModal(true);
+                    }}
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus size={18} />
+                    Add First Task
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {serviceTasks.map((task, index) => (
+                    <div
+                      key={task.id}
+                      className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                              {index + 1}
+                            </span>
+                            <h4 className="font-medium text-gray-900">{task.title}</h4>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                task.priority === 'urgent'
+                                  ? 'bg-red-100 text-red-700'
+                                  : task.priority === 'high'
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : task.priority === 'low'
+                                  ? 'bg-gray-100 text-gray-700'
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}
+                            >
+                              {task.priority}
+                            </span>
+                          </div>
+                          {task.description && (
+                            <p className="text-sm text-gray-600 ml-11">{task.description}</p>
+                          )}
+                          <div className="flex items-center gap-4 mt-2 ml-11 text-sm text-gray-500">
+                            {task.estimated_hours && (
+                              <span className="flex items-center gap-1">
+                                <Clock size={14} />
+                                Est: {task.estimated_hours}h
+                              </span>
+                            )}
+                            {!task.is_active && (
+                              <span className="text-red-600 font-medium">Inactive</span>
+                            )}
+                          </div>
+                          {task.notes && (
+                            <p className="text-xs text-gray-500 mt-2 ml-11 italic">{task.notes}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingTask(task);
+                              setShowTaskModal(true);
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit task"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (
+                                !confirm('Are you sure you want to delete this task template?')
+                              )
+                                return;
+                              try {
+                                const { error } = await supabase
+                                  .from('service_tasks')
+                                  .delete()
+                                  .eq('id', task.id);
+                                if (error) throw error;
+                                fetchServiceDetails();
+                              } catch (error) {
+                                console.error('Error deleting task:', error);
+                              }
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete task"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'history' && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Service History</h3>
@@ -551,7 +703,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
                   )}
                   {statistics.totalCustomers > 0 && (
                     <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-purple-600 rounded-full mt-2"></div>
+                      <div className="w-2 h-2 bg-teal-600 rounded-full mt-2"></div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
                           Total Customers Served
@@ -566,6 +718,142 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
           )}
         </div>
       </div>
+
+      {/* Task Modal */}
+      {showTaskModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
+              <h3 className="text-xl font-bold text-white">
+                {editingTask ? 'Edit Task Template' : 'Add Task Template'}
+              </h3>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const taskData = {
+                  service_id: serviceId,
+                  title: formData.get('title') as string,
+                  description: (formData.get('description') as string) || null,
+                  priority: formData.get('priority') as string,
+                  estimated_hours: formData.get('estimated_hours')
+                    ? parseFloat(formData.get('estimated_hours') as string)
+                    : null,
+                  notes: (formData.get('notes') as string) || null,
+                  is_active: true,
+                  sort_order: serviceTasks.length,
+                };
+
+                try {
+                  if (editingTask) {
+                    const { error } = await supabase
+                      .from('service_tasks')
+                      .update(taskData)
+                      .eq('id', editingTask.id);
+                    if (error) throw error;
+                  } else {
+                    const { error } = await supabase.from('service_tasks').insert(taskData);
+                    if (error) throw error;
+                  }
+                  setShowTaskModal(false);
+                  setEditingTask(null);
+                  fetchServiceDetails();
+                } catch (error) {
+                  console.error('Error saving task:', error);
+                  alert('Failed to save task template');
+                }
+              }}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  required
+                  defaultValue={editingTask?.title || ''}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Collect purchase & sales data"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  name="description"
+                  defaultValue={editingTask?.description || ''}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Detailed description of this task..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                  <select
+                    name="priority"
+                    defaultValue={editingTask?.priority || 'medium'}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estimated Hours
+                  </label>
+                  <input
+                    type="number"
+                    name="estimated_hours"
+                    step="0.5"
+                    defaultValue={editingTask?.estimated_hours || ''}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                <textarea
+                  name="notes"
+                  defaultValue={editingTask?.notes || ''}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  rows={2}
+                  placeholder="Any additional notes or instructions..."
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTaskModal(false);
+                    setEditingTask(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  {editingTask ? 'Update Task' : 'Add Task'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { copyServiceTasksToWork } from '../lib/serviceTaskUtils';
 import {
   Plus,
   X,
@@ -240,9 +241,13 @@ export default function Works() {
           .single();
         if (error) throw error;
 
-        if (formData.status === 'completed' && newWork) {
-          shouldCreateInvoice = true;
-          workId = newWork.id;
+        if (newWork) {
+          await copyServiceTasksToWork(formData.service_id, newWork.id);
+
+          if (formData.status === 'completed') {
+            shouldCreateInvoice = true;
+            workId = newWork.id;
+          }
         }
       }
 

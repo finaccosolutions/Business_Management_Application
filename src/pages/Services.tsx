@@ -13,7 +13,8 @@ import {
   TrendingUp,
   CheckCircle,
   Clock,
-  Tag
+  Tag,
+  Edit2
 } from 'lucide-react';
 import ServiceDetails from '../components/ServiceDetails';
 import AddServiceModal from '../components/AddServiceModal';
@@ -41,6 +42,7 @@ export default function Services() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [editingService, setEditingService] = useState<Service | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
     category: '',
@@ -245,7 +247,11 @@ export default function Services() {
         {filteredServices.map((service) => (
           <div
             key={service.id}
-            className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border-2 border-gray-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.02] flex flex-col"
+            onClick={() => {
+              setSelectedServiceId(service.id);
+              setShowDetailsModal(true);
+            }}
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border-2 border-gray-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.02] flex flex-col cursor-pointer"
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-start space-x-3 flex-1">
@@ -317,18 +323,34 @@ export default function Services() {
 
             <div className="flex space-x-2 pt-4 border-t border-gray-200 dark:border-slate-700 mt-auto">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setSelectedServiceId(service.id);
                   setShowDetailsModal(true);
                 }}
                 className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors font-medium"
               >
                 <Eye className="w-4 h-4" />
-                <span>View Details</span>
+                <span>View</span>
               </button>
               <button
-                onClick={() => handleDelete(service.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingService(service);
+                  setShowModal(true);
+                }}
+                className="px-4 py-2 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+                title="Edit service"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(service.id);
+                }}
                 className="px-4 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+                title="Delete service"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -362,10 +384,15 @@ export default function Services() {
 
       {showModal && (
         <AddServiceModal
-          onClose={() => setShowModal(false)}
+          service={editingService}
+          onClose={() => {
+            setShowModal(false);
+            setEditingService(null);
+          }}
           onSuccess={() => {
             fetchServices();
             setShowModal(false);
+            setEditingService(null);
           }}
         />
       )}
