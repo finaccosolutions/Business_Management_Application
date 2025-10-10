@@ -250,33 +250,57 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const fetchWorkDetails = async () => {
     try {
       const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes] = await Promise.all([
+        // 1. Works query - with explicit foreign key
         supabase
           .from('works')
-          .select('*, customers(name), services(name), staff_members(name)')
+          .select(`
+            *,
+            customers(name),
+            services(name),
+            staff_members!works_assigned_to_staff_members_fkey(name)
+          `)
           .eq('id', workId)
           .single(),
+        
+        // 2. Tasks query - with explicit foreign key
         supabase
           .from('work_tasks')
-          .select('*, staff_members(name)')
+          .select(`
+            *,
+            staff_members!work_tasks_assigned_to_staff_members_fkey(name)
+          `)
           .eq('work_id', workId)
           .order('sort_order'),
+        
+        // 3. Time logs query - single relationship, no change needed
         supabase
           .from('time_logs')
           .select('*, staff_members(name)')
           .eq('work_id', workId)
           .order('start_time', { ascending: false }),
+        
+        // 4. Assignments query - with proper aliasing for two relationships
         supabase
           .from('work_assignments')
-          .select('*, staff_members(name), from_staff:reassigned_from(name)')
+          .select(`
+            *,
+            staff_members!work_assignments_staff_member_id_fkey(name),
+            from_staff:staff_members!work_assignments_reassigned_from_fkey(name)
+          `)
           .eq('work_id', workId)
           .order('assigned_at', { ascending: false }),
+        
+        // 5. Recurring instances query - with explicit foreign key
         supabase
           .from('work_recurring_instances')
-          .select('*, staff_members:completed_by(name)')
+          .select(`
+            *,
+            staff_members!work_recurring_instances_completed_by_fkey(name)
+          `)
           .eq('work_id', workId)
           .order('due_date', { ascending: false }),
       ]);
-
+  
       if (workRes.data) setWork(workRes.data);
       if (tasksRes.data) setTasks(tasksRes.data);
       if (timeLogsRes.data) setTimeLogs(timeLogsRes.data);
@@ -289,6 +313,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       setLoading(false);
     }
   };
+
 
   const fetchStaff = async () => {
     try {
