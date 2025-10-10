@@ -88,8 +88,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           icon: Info,
           iconColor: 'text-white',
         };
+      default:
+        return {
+          bg: 'bg-gray-600',
+          icon: Info,
+          iconColor: 'text-white',
+        };
     }
   };
+
 
   return (
     <ToastContext.Provider value={{ showToast, success, error, warning, info }}>

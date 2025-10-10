@@ -175,7 +175,7 @@ export default function CustomerDetails({
           .order('created_at', { ascending: false }),
         supabase
           .from('works')
-          .select('*, services(name)')
+          .select('*, services!service_id(name)')
           .eq('customer_id', customerId)
           .order('created_at', { ascending: false }),
         supabase

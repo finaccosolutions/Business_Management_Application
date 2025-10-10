@@ -85,7 +85,7 @@ export default function StaffDetails({ staffId, onClose, onEdit }: StaffDetailsP
           .single(),
         supabase
           .from('works')
-          .select('*, customers(name), services(name)')
+          .select('*, customers(name), services!service_id(name)')
           .eq('assigned_to', staffId)
           .order('created_at', { ascending: false }),
       ]);

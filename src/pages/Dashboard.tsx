@@ -428,7 +428,7 @@ export default function Dashboard() {
 
       let query = supabase
         .from('works')
-        .select('service_id, services(name), invoices(total_amount, status)')
+        .select('service_id, services!service_id(name), invoices(total_amount, status)')
         .eq('invoices.status', 'paid');
 
       if (dateRange.start) query = query.gte('created_at', dateRange.start);
