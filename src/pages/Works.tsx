@@ -77,7 +77,7 @@ const priorityColors = {
   high: 'bg-orange-100 text-orange-700',
   urgent: 'bg-red-100 text-red-700',
 };
-
+ 
 const billingStatusColors = {
   not_billed: 'bg-gray-100 text-gray-700',
   billed: 'bg-green-100 text-green-700',
@@ -192,7 +192,6 @@ export default function Works() {
 
     try {
       const workData: any = {
-        user_id: user!.id,
         customer_id: formData.customer_id,
         service_id: formData.service_id,
         assigned_to: formData.assigned_to || null,
@@ -201,17 +200,19 @@ export default function Works() {
         status: formData.status,
         priority: formData.priority,
         due_date: formData.due_date || null,
+        start_date: formData.start_date || null,
         billing_status: formData.billing_status,
         billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
         estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
         is_recurring: formData.is_recurring,
         recurrence_pattern: formData.is_recurring ? formData.recurrence_pattern : null,
         recurrence_day: formData.is_recurring && formData.recurrence_day ? parseInt(formData.recurrence_day) : null,
-        auto_bill: formData.auto_bill,
-        is_active: formData.is_active,
-        work_type: formData.is_recurring ? 'recurring' : 'regular',
         updated_at: new Date().toISOString(),
       };
+
+      if (!editingWork) {
+        workData.user_id = user!.id;
+      }
 
       if (formData.assigned_to && !editingWork) {
         workData.assigned_date = new Date().toISOString();
@@ -229,6 +230,10 @@ export default function Works() {
           workData.completion_date = new Date().toISOString();
           shouldCreateInvoice = true;
           workId = editingWork.id;
+        }
+
+        if (formData.assigned_to && formData.assigned_to !== editingWork.assigned_to) {
+          workData.assigned_date = new Date().toISOString();
         }
 
         const { error } = await supabase.from('works').update(workData).eq('id', editingWork.id);

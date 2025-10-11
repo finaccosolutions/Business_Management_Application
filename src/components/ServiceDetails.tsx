@@ -19,7 +19,7 @@ import {
 
 interface ServiceDetailsProps {
   serviceId: string;
-  onClose: () => void;
+  onClose: () => vfvoid;
   onEdit: () => void;
 }
 
