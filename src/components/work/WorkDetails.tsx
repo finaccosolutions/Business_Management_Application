@@ -70,55 +70,107 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes] = await Promise.all([
         supabase
           .from('works')
-          .select(`
-            *,
-            customers(name),
-            services(name),
-            staff_members!works_assigned_to_staff_members_fkey(name)
-          `)
+          .select('*')
           .eq('id', workId)
           .single(),
 
         supabase
           .from('work_tasks')
-          .select(`
-            *,
-            staff_members!work_tasks_assigned_to_staff_members_fkey(name)
-          `)
+          .select('*')
           .eq('work_id', workId)
           .order('sort_order'),
 
         supabase
           .from('time_logs')
-          .select('*, staff_members(name)')
+          .select('*')
           .eq('work_id', workId)
           .order('start_time', { ascending: false }),
 
         supabase
           .from('work_assignments')
-          .select(`
-            *,
-            staff_members!work_assignments_staff_member_id_fkey(name),
-            from_staff:staff_members!work_assignments_reassigned_from_fkey(name)
-          `)
+          .select('*')
           .eq('work_id', workId)
           .order('assigned_at', { ascending: false }),
 
         supabase
           .from('work_recurring_instances')
-          .select(`
-            *,
-            staff_members!work_recurring_instances_completed_by_fkey(name)
-          `)
+          .select('*')
           .eq('work_id', workId)
           .order('due_date', { ascending: false }),
       ]);
 
-      if (workRes.data) setWork(workRes.data);
-      if (tasksRes.data) setTasks(tasksRes.data);
-      if (timeLogsRes.data) setTimeLogs(timeLogsRes.data);
-      if (assignmentsRes.data) setAssignments(assignmentsRes.data);
-      if (recurringRes.data) setRecurringInstances(recurringRes.data);
+      if (workRes.data) {
+        const work = workRes.data;
+
+        const [customerRes, serviceRes, assignedStaffRes] = await Promise.all([
+          work.customer_id ? supabase.from('customers').select('name').eq('id', work.customer_id).maybeSingle() : Promise.resolve({ data: null }),
+          work.service_id ? supabase.from('services').select('name').eq('id', work.service_id).maybeSingle() : Promise.resolve({ data: null }),
+          work.assigned_to ? supabase.from('staff_members').select('name').eq('id', work.assigned_to).maybeSingle() : Promise.resolve({ data: null })
+        ]);
+
+        setWork({
+          ...work,
+          customers: customerRes.data,
+          services: serviceRes.data,
+          staff_members: assignedStaffRes.data
+        });
+      }
+
+      if (tasksRes.data) {
+        const tasksWithStaff = await Promise.all(
+          tasksRes.data.map(async (task: any) => {
+            if (task.assigned_to) {
+              const { data } = await supabase.from('staff_members').select('name').eq('id', task.assigned_to).maybeSingle();
+              return { ...task, staff_members: data };
+            }
+            return { ...task, staff_members: null };
+          })
+        );
+        setTasks(tasksWithStaff);
+      }
+
+      if (timeLogsRes.data) {
+        const logsWithStaff = await Promise.all(
+          timeLogsRes.data.map(async (log: any) => {
+            if (log.staff_member_id) {
+              const { data } = await supabase.from('staff_members').select('name').eq('id', log.staff_member_id).maybeSingle();
+              return { ...log, staff_members: data };
+            }
+            return { ...log, staff_members: null };
+          })
+        );
+        setTimeLogs(logsWithStaff);
+      }
+
+      if (assignmentsRes.data) {
+        const assignmentsWithStaff = await Promise.all(
+          assignmentsRes.data.map(async (assignment: any) => {
+            const [staffRes, fromStaffRes] = await Promise.all([
+              assignment.staff_member_id ? supabase.from('staff_members').select('name').eq('id', assignment.staff_member_id).maybeSingle() : Promise.resolve({ data: null }),
+              assignment.reassigned_from ? supabase.from('staff_members').select('name').eq('id', assignment.reassigned_from).maybeSingle() : Promise.resolve({ data: null })
+            ]);
+            return {
+              ...assignment,
+              staff_members: staffRes.data,
+              from_staff: fromStaffRes.data
+            };
+          })
+        );
+        setAssignments(assignmentsWithStaff);
+      }
+
+      if (recurringRes.data) {
+        const recurringWithStaff = await Promise.all(
+          recurringRes.data.map(async (instance: any) => {
+            if (instance.completed_by) {
+              const { data } = await supabase.from('staff_members').select('name').eq('id', instance.completed_by).maybeSingle();
+              return { ...instance, staff_members: data };
+            }
+            return { ...instance, staff_members: null };
+          })
+        );
+        setRecurringInstances(recurringWithStaff);
+      }
     } catch (error) {
       console.error('Error fetching work details:', error);
       toast.error('Failed to load work details');
