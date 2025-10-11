@@ -19,7 +19,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
-import WorkDetails from '../components/WorkDetails';
+import WorkDetails from '../components/work/WorkDetails';
 
 interface Work {
   id: string;
