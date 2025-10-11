@@ -261,7 +261,7 @@ export function AssignmentsTab({ assignments, work, onAssign }: AssignmentsTabPr
           <div key={assignment.id} className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-gray-900">{assignment.staff_members.name}</p>
+                <p className="font-medium text-gray-900">{assignment.staff_member?.name || 'Unknown'}</p>
                 <p className="text-sm text-gray-600 mt-1">
                   Assigned: {new Date(assignment.assigned_at).toLocaleString()}
                 </p>
@@ -367,7 +367,7 @@ export function RecurringTab({
                     <p className="flex items-center gap-1 text-green-600">
                       <CheckCircle size={14} />
                       Completed: {new Date(instance.completed_at).toLocaleDateString()}
-                      {instance.staff_members && ` by ${instance.staff_members.name}`}
+                      {instance.completed_staff && ` by ${instance.completed_staff.name}`}
                     </p>
                   )}
                   {instance.is_billed && (

@@ -74,7 +74,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             *,
             customers(name),
             services(name),
-            staff_members!works_assigned_to_staff_members_fkey(name)
+            staff_members(name)
           `)
           .eq('id', workId)
           .single(),
@@ -83,7 +83,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .from('work_tasks')
           .select(`
             *,
-            staff_members!work_tasks_assigned_to_staff_members_fkey(name)
+            staff_members(name)
           `)
           .eq('work_id', workId)
           .order('sort_order'),
@@ -98,8 +98,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .from('work_assignments')
           .select(`
             *,
-            staff_members!work_assignments_staff_member_id_fkey(name),
-            from_staff:staff_members!work_assignments_reassigned_from_fkey(name)
+            staff_member:staff_members!staff_member_id(name),
+            from_staff:staff_members!reassigned_from(name)
           `)
           .eq('work_id', workId)
           .order('assigned_at', { ascending: false }),
@@ -108,7 +108,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .from('work_recurring_instances')
           .select(`
             *,
-            staff_members!work_recurring_instances_completed_by_fkey(name)
+            completed_staff:staff_members!completed_by(name)
           `)
           .eq('work_id', workId)
           .order('due_date', { ascending: false }),

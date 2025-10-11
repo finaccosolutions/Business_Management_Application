@@ -34,7 +34,7 @@ export interface Assignment {
   status: string;
   reassigned_from: string | null;
   reassignment_reason: string | null;
-  staff_members: { name: string };
+  staff_member?: { name: string } | null;
   from_staff?: { name: string } | null;
 }
 
@@ -48,7 +48,7 @@ export interface RecurringInstance {
   completed_at: string | null;
   notes: string | null;
   completed_by: string | null;
-  staff_members: { name: string } | null;
+  completed_staff?: { name: string } | null;
   billing_amount: number | null;
   is_billed: boolean;
   invoice_id: string | null;

@@ -141,7 +141,7 @@ export default function Works() {
       const [worksResult, customersResult, servicesResult, staffResult] = await Promise.all([
         supabase
           .from('works')
-          .select('*, customers(name), services!service_id(name, is_recurring), staff_members(name)')
+          .select('*, customers(name), services(name, is_recurring), staff_members(name)')
           .order('created_at', { ascending: false }),
         supabase.from('customers').select('id, name').order('name'),
         supabase.from('services').select('*').order('name'),
