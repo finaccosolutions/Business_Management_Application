@@ -256,7 +256,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .select(`
             *,
             customers(name),
-            services(name),
+            services!works_service_id_fkey(name),
             staff_members(name)
           `)
           .eq('id', workId)

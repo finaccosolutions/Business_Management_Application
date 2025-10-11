@@ -125,7 +125,7 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
     try {
       const { data } = await supabase
         .from('works')
-        .select('id, title, customer_id, service_id, status, billing_amount, customers(name), services(name, default_price, tax_rate)')
+        .select('id, title, customer_id, service_id, status, billing_amount, customers(name), services!works_service_id_fkey(name, default_price, tax_rate)')
         .eq('status', 'completed')
         .order('created_at', { ascending: false });
       setWorks(data || []);

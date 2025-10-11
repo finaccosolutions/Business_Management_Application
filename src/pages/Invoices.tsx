@@ -83,6 +83,7 @@ export default function Invoices() {
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,7 +131,7 @@ export default function Invoices() {
         supabase.from('customers').select('id, name').order('name'),
         supabase.from('services').select('id, name, description, default_price, tax_rate').order('name'),
         supabase.from('works')
-          .select('id, title, customer_id, service_id, status, billing_amount, customers(name), services(name, default_price, tax_rate)')
+          .select('id, title, customer_id, service_id, status, billing_amount, customers(name), services!works_service_id_fkey(name, default_price, tax_rate)')
           .eq('status', 'completed')
           .order('created_at', { ascending: false }),
       ]);
@@ -147,8 +148,16 @@ export default function Invoices() {
       setWorks(worksResult.data || []);
 
       calculateStats(invoiceData);
+      setDataLoaded(true);
+
+      console.log('Data loaded:', {
+        customersCount: customersResult.data?.length || 0,
+        servicesCount: servicesResult.data?.length || 0,
+        worksCount: worksResult.data?.length || 0
+      });
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast.error('Failed to load data. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -554,7 +563,14 @@ const saveAsDraft = async () => {
           <p className="text-gray-600 mt-1">Manage your invoices and billing</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            if (!dataLoaded) {
+              toast.info('Loading data...');
+              fetchData().then(() => setShowModal(true));
+            } else {
+              setShowModal(true);
+            }
+          }}
           className="flex items-center space-x-2 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white px-6 py-3 rounded-lg hover:from-cyan-600 hover:to-cyan-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
         >
           <Plus className="w-5 h-5" />
@@ -909,13 +925,21 @@ const saveAsDraft = async () => {
                   }}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 >
-                  <option value="">Select customer</option>
+                  <option value="">
+                    {customers.length === 0 ? 'No customers available' : 'Select customer'}
+                  </option>
                   {customers.map((customer) => (
                     <option key={customer.id} value={customer.id}>
                       {customer.name}
                     </option>
                   ))}
                 </select>
+                {customers.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    No customers found. Please add a customer first.
+                  </p>
+                )}
               </div>
 
               <div className="md:col-span-3">
@@ -1028,13 +1052,21 @@ const saveAsDraft = async () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
                         required
                       >
-                        <option value="">Select service</option>
+                        <option value="">
+                          {services.length === 0 ? 'No services available' : 'Select service'}
+                        </option>
                         {services.map((service) => (
                           <option key={service.id} value={service.id}>
                             {service.name}
                           </option>
                         ))}
                       </select>
+                      {services.length === 0 && (
+                        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          No services found. Please add a service first.
+                        </p>
+                      )}
                     </div>
                     <div className="col-span-6 md:col-span-2">
                       <label className="block text-xs font-medium text-gray-700 mb-1">
