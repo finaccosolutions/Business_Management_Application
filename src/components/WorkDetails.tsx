@@ -250,36 +250,36 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const fetchWorkDetails = async () => {
     try {
       const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes] = await Promise.all([
-        // 1. Works query - with explicit foreign key
+        // 1. Works query
         supabase
           .from('works')
           .select(`
             *,
             customers(name),
             services(name),
-            staff_members!works_assigned_to_staff_members_fkey(name)
+            assigned_staff:staff_members!works_assigned_to_fkey(name)
           `)
           .eq('id', workId)
           .single(),
-        
-        // 2. Tasks query - with explicit foreign key
+
+        // 2. Tasks query
         supabase
           .from('work_tasks')
           .select(`
             *,
-            staff_members!work_tasks_assigned_to_staff_members_fkey(name)
+            staff_members!work_tasks_assigned_to_fkey(name)
           `)
           .eq('work_id', workId)
           .order('sort_order'),
-        
-        // 3. Time logs query - single relationship, no change needed
+
+        // 3. Time logs query
         supabase
           .from('time_logs')
           .select('*, staff_members(name)')
           .eq('work_id', workId)
           .order('start_time', { ascending: false }),
-        
-        // 4. Assignments query - with proper aliasing for two relationships
+
+        // 4. Assignments query with proper aliasing for two relationships
         supabase
           .from('work_assignments')
           .select(`
@@ -289,8 +289,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           `)
           .eq('work_id', workId)
           .order('assigned_at', { ascending: false }),
-        
-        // 5. Recurring instances query - with explicit foreign key
+
+        // 5. Recurring instances query
         supabase
           .from('work_recurring_instances')
           .select(`
@@ -300,7 +300,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .eq('work_id', workId)
           .order('due_date', { ascending: false }),
       ]);
-  
+
       if (workRes.data) setWork(workRes.data);
       if (tasksRes.data) setTasks(tasksRes.data);
       if (timeLogsRes.data) setTimeLogs(timeLogsRes.data);
@@ -888,7 +888,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
               <p className="text-xs font-medium text-gray-600">Assigned To</p>
             </div>
             <p className="text-lg font-semibold text-blue-600 truncate">
-              {work.staff_members?.name || 'Unassigned'}
+              {work.assigned_staff?.name || 'Unassigned'}
             </p>
             <button
               onClick={() => setShowAssignModal(true)}
@@ -1735,9 +1735,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 <Users size={24} />
                 {work.assigned_to ? 'Reassign Work' : 'Assign Work'}
               </h3>
-              {work.assigned_to && work.staff_members && (
+              {work.assigned_to && work.assigned_staff && (
                 <p className="text-orange-100 text-sm mt-1">
-                  Currently assigned to: {work.staff_members.name}
+                  Currently assigned to: {work.assigned_staff.name}
                 </p>
               )}
             </div>
