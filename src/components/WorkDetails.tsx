@@ -257,7 +257,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             *,
             customers(name),
             services(name),
-            assigned_staff:staff_members!works_assigned_to_fkey(name)
+            staff_members(name)
           `)
           .eq('id', workId)
           .single(),
@@ -267,7 +267,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .from('work_tasks')
           .select(`
             *,
-            staff_members!work_tasks_assigned_to_fkey(name)
+            staff_members(name)
           `)
           .eq('work_id', workId)
           .order('sort_order'),
@@ -284,8 +284,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .from('work_assignments')
           .select(`
             *,
-            staff_members!work_assignments_staff_member_id_fkey(name),
-            from_staff:staff_members!work_assignments_reassigned_from_fkey(name)
+            staff_members(name)
           `)
           .eq('work_id', workId)
           .order('assigned_at', { ascending: false }),
@@ -295,7 +294,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .from('work_recurring_instances')
           .select(`
             *,
-            staff_members!work_recurring_instances_completed_by_fkey(name)
+            staff_members(name)
           `)
           .eq('work_id', workId)
           .order('due_date', { ascending: false }),
@@ -304,7 +303,24 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       if (workRes.data) setWork(workRes.data);
       if (tasksRes.data) setTasks(tasksRes.data);
       if (timeLogsRes.data) setTimeLogs(timeLogsRes.data);
-      if (assignmentsRes.data) setAssignments(assignmentsRes.data);
+
+      if (assignmentsRes.data) {
+        const enrichedAssignments = await Promise.all(
+          assignmentsRes.data.map(async (assignment) => {
+            if (assignment.reassigned_from) {
+              const { data: fromStaff } = await supabase
+                .from('staff_members')
+                .select('name')
+                .eq('id', assignment.reassigned_from)
+                .maybeSingle();
+              return { ...assignment, from_staff: fromStaff };
+            }
+            return assignment;
+          })
+        );
+        setAssignments(enrichedAssignments);
+      }
+
       if (recurringRes.data) setRecurringInstances(recurringRes.data);
     } catch (error) {
       console.error('Error fetching work details:', error);
@@ -888,7 +904,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
               <p className="text-xs font-medium text-gray-600">Assigned To</p>
             </div>
             <p className="text-lg font-semibold text-blue-600 truncate">
-              {work.assigned_staff?.name || 'Unassigned'}
+              {work.staff_members?.name || 'Unassigned'}
             </p>
             <button
               onClick={() => setShowAssignModal(true)}
@@ -1735,9 +1751,9 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                 <Users size={24} />
                 {work.assigned_to ? 'Reassign Work' : 'Assign Work'}
               </h3>
-              {work.assigned_to && work.assigned_staff && (
+              {work.assigned_to && work.staff_members && (
                 <p className="text-orange-100 text-sm mt-1">
-                  Currently assigned to: {work.assigned_staff.name}
+                  Currently assigned to: {work.staff_members.name}
                 </p>
               )}
             </div>
