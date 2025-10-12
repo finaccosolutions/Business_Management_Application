@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
-import WorkDetails from '../components/work/WorkDetails';
+import WorkDetails from '../components/works/WorkDetailsMain';
+import WorkTile from '../components/works/WorkTile';
 
 interface Work {
   id: string;
@@ -165,9 +166,8 @@ export default function Works() {
   };
 
   const handleServiceChange = (serviceId: string) => {
-    setFormData({ ...formData, service_id: serviceId });
-
     const selectedService = services.find(s => s.id === serviceId);
+
     if (selectedService && !editingWork) {
       const updates: any = {
         service_id: serviceId,
@@ -181,9 +181,28 @@ export default function Works() {
         updates.is_recurring = true;
         updates.recurrence_pattern = selectedService.recurrence_type || 'monthly';
         updates.recurrence_day = selectedService.recurrence_day?.toString() || '';
+
+        // Auto-fill due date from recurring service data
+        if (selectedService.recurrence_day && !formData.due_date) {
+          const today = new Date();
+          const currentMonth = today.getMonth();
+          const currentYear = today.getFullYear();
+          const dueDay = selectedService.recurrence_day;
+
+          let dueDate = new Date(currentYear, currentMonth, dueDay);
+
+          // If the due date has passed this month, set it for next month
+          if (dueDate < today) {
+            dueDate = new Date(currentYear, currentMonth + 1, dueDay);
+          }
+
+          updates.due_date = dueDate.toISOString().split('T')[0];
+        }
       }
 
       setFormData({ ...formData, ...updates });
+    } else {
+      setFormData({ ...formData, service_id: serviceId });
     }
   };
 
@@ -723,129 +742,37 @@ const filteredWorks = works.filter((work) => {
         </div>
       )}
 
-      {/* Works Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredWorks.map((work) => {
-          const StatusIcon = statusConfig[work.status as keyof typeof statusConfig]?.icon || Clock;
-          const isOverdue =
-            work.status !== 'completed' && work.due_date && new Date(work.due_date) < new Date();
-
-          return (
-            <div
-              key={work.id}
-              onClick={() => setSelectedWork(work.id)}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all cursor-pointer flex flex-col"
+      {/* Works List - Full Width Rows */}
+      {filteredWorks.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No works found</h3>
+          <p className="text-gray-600 mb-6">
+            {activeView === 'all' ? 'Get started by adding your first work' : 'No works match this filter'}
+          </p>
+          {activeView === 'all' && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
             >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 text-lg mb-1">{work.title}</h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users size={14} />
-                    <span>{work.customers.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                    <Briefcase size={14} />
-                    <span>{work.services.name}</span>
-                  </div>
-                </div>
-                {work.is_recurring_instance && (
-                  <div className="p-2 bg-emerald-50 rounded-lg">
-                    <Repeat className="w-4 h-4 text-emerald-600" />
-                  </div>
-                )}
-              </div>
-
-              {/* Description */}
-              {work.description && (
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{work.description}</p>
-              )}
-
-              {/* Status & Priority Badges */}
-              <div className="flex flex-wrap gap-2 mb-4 flex-grow">
-                <span
-                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${
-                    isOverdue
-                      ? statusConfig.overdue.color
-                      : statusConfig[work.status as keyof typeof statusConfig]?.color ||
-                        'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  <StatusIcon size={12} />
-                  {isOverdue ? 'Overdue' : work.status.replace('_', ' ')}
-                </span>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    priorityColors[work.priority as keyof typeof priorityColors] || priorityColors.medium
-                  }`}
-                >
-                  {work.priority}
-                </span>
-                {work.billing_status && (
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      billingStatusColors[work.billing_status as keyof typeof billingStatusColors]
-                    }`}
-                  >
-                    {work.billing_status.replace('_', ' ')}
-                  </span>
-                )}
-              </div>
-
-              {/* Footer Info */}
-              <div className="space-y-2 text-sm text-gray-600">
-                {work.due_date && (
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} />
-                    <span>Due: {new Date(work.due_date).toLocaleDateString()}</span>
-                  </div>
-                )}
-                {work.billing_amount && (
-                  <div className="flex items-center gap-2 text-teal-600 font-semibold">
-                    <DollarSign size={14} />
-                    <span>₹{work.billing_amount.toLocaleString('en-IN')}</span>
-                  </div>
-                )}
-                {work.staff_members && (
-                  <div className="flex items-center gap-2">
-                    <Users size={14} />
-                    <span>{work.staff_members.name}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-4 border-t border-gray-100 mt-4">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedWork(work.id);
-                  }}
-                  className="flex-1 px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors font-medium"
-                >
-                  View Details
-                </button>
-                <button
-                  onClick={(e) => handleDelete(work.id, e)}
-                  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-
-        {filteredWorks.length === 0 && (
-          <div className="col-span-full text-center py-12">
-            <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No works found</h3>
-            <p className="text-gray-600 mb-4">
-              {activeView === 'all' ? 'Get started by adding your first work' : 'No works match this filter'}
-            </p>
-          </div>
-        )}
-      </div>
+              <Plus size={20} />
+              Add Your First Work
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredWorks.map((work) => (
+            <WorkTile
+              key={work.id}
+              work={work}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onClick={() => setSelectedWork(work.id)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Add/Edit Work Modal */}
       {showModal && (
@@ -960,13 +887,24 @@ const filteredWorks = works.filter((work) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Due Date
+                    {formData.is_recurring && (
+                      <span className="text-xs text-gray-500 ml-2">(Auto-filled from service)</span>
+                    )}
+                  </label>
                   <input
                     type="date"
                     value={formData.due_date}
                     onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    disabled={formData.is_recurring && !editingWork}
                   />
+                  {formData.is_recurring && formData.recurrence_day && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Due day: {formData.recurrence_day} of each {formData.recurrence_pattern || 'period'}
+                    </p>
+                  )}
                 </div>
               </div>
 
