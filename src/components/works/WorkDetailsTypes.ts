@@ -66,6 +66,25 @@ export interface Activity {
   metadata?: any;
 }
 
+export interface WorkDocument {
+  id: string;
+  work_id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  is_required: boolean;
+  is_collected: boolean;
+  file_url: string | null;
+  file_type: string | null;
+  file_size: number | null;
+  collected_at: string | null;
+  uploaded_at: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TaskForm {
   title: string;
   description: string;

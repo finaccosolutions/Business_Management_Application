@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { X, Users, Clock, CheckSquare, FileText, DollarSign, Calendar, Briefcase, CheckCircle, Repeat, Edit2, Activity as ActivityIcon } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
-import { WorkDetailsProps, Task, TimeLog, Assignment, RecurringInstance, Activity, TaskForm, TimeForm, RecurringForm, statusColors, priorityColors } from './WorkDetailsTypes';
-import { OverviewTab, TasksTab, TimeLogsTab, AssignmentsTab, RecurringTab, ActivityTab } from './WorkDetailsTabs';
+import { WorkDetailsProps, Task, TimeLog, Assignment, RecurringInstance, Activity, WorkDocument, TaskForm, TimeForm, RecurringForm, statusColors, priorityColors } from './WorkDetailsTypes';
+import { OverviewTab, TasksTab, TimeLogsTab, AssignmentsTab, RecurringTab, ActivityTab, DocumentsTab } from './WorkDetailsTabs';
 import { ConfirmationModal, TaskModal, TimeLogModal, RecurringPeriodModal, AssignStaffModal, ReassignReasonModal } from './WorkDetailsModals';
 
 export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkDetailsProps) {
@@ -13,6 +13,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [recurringInstances, setRecurringInstances] = useState<RecurringInstance[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [documents, setDocuments] = useState<WorkDocument[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -26,6 +27,10 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showReassignReason, setShowReassignReason] = useState(false);
   const [showEditTimeLogModal, setShowEditTimeLogModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showEditDocumentModal, setShowEditDocumentModal] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<WorkDocument | null>(null);
+  const [uploadingDocumentId, setUploadingDocumentId] = useState<string | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<{type: string, id: string} | null>(null);
   const [reassignReason, setReassignReason] = useState('');
@@ -76,7 +81,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
   const fetchWorkDetails = async () => {
     try {
-      const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes] = await Promise.all([
+      const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes, documentsRes] = await Promise.all([
         supabase
           .from('works')
           .select(`
@@ -111,11 +116,18 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .select('*, staff_members(name)')
           .eq('work_id', workId)
           .order('due_date', { ascending: false }),
+
+        supabase
+          .from('work_documents')
+          .select('*')
+          .eq('work_id', workId)
+          .order('sort_order'),
       ]);
 
       if (workRes.data) setWork(workRes.data);
       if (tasksRes.data) setTasks(tasksRes.data);
       if (timeLogsRes.data) setTimeLogs(timeLogsRes.data);
+      if (documentsRes.data) setDocuments(documentsRes.data);
 
       if (assignmentsRes.data) {
         const enrichedAssignments = await Promise.all(
@@ -762,6 +774,41 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     }
   };
 
+  // Document Management
+  const handleToggleDocumentCollected = async (documentId: string, isCollected: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('work_documents')
+        .update({
+          is_collected: isCollected,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
+      fetchWorkDetails();
+      toast.success(`Document marked as ${isCollected ? 'collected' : 'not collected'}!`);
+    } catch (error) {
+      console.error('Error updating document:', error);
+      toast.error('Failed to update document');
+    }
+  };
+
+  const handleUploadDocument = (documentId: string) => {
+    setUploadingDocumentId(documentId);
+    toast.info('File upload functionality will be implemented with storage integration');
+  };
+
+  const handleEditDocument = (document: WorkDocument) => {
+    setEditingDocument(document);
+    setShowEditDocumentModal(true);
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    confirmDelete('document', documentId);
+  };
+
   // Delete operations
   const confirmDelete = (type: string, id: string) => {
     setDeleteTarget({ type, id });
@@ -781,6 +828,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         ({ error } = await supabase.from('work_recurring_instances').delete().eq('id', id));
       } else if (type === 'timelog') {
         ({ error } = await supabase.from('time_logs').delete().eq('id', id));
+      } else if (type === 'document') {
+        ({ error } = await supabase.from('work_documents').delete().eq('id', id));
       }
 
       if (error) throw error;
@@ -805,9 +854,10 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   }
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: FileText },
+    { id: 'overview', label: 'Overview', icon: Briefcase },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: tasks.length },
     { id: 'time', label: 'Time Logs', icon: Clock, count: timeLogs.length },
+    { id: 'documents', label: 'Documents', icon: FileText, count: documents.length },
   ];
 
   if (work.is_recurring) {
@@ -979,6 +1029,17 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
               onAddTimeLog={() => setShowTimeModal(true)}
               onEditTimeLog={openEditTimeLogModal}
               onDeleteTimeLog={(id) => confirmDelete('timelog', id)}
+            />
+          )}
+
+          {activeTab === 'documents' && (
+            <DocumentsTab
+              documents={documents}
+              onAddDocument={() => setShowDocumentModal(true)}
+              onEditDocument={handleEditDocument}
+              onDeleteDocument={handleDeleteDocument}
+              onToggleCollected={handleToggleDocumentCollected}
+              onUploadFile={handleUploadDocument}
             />
           )}
 

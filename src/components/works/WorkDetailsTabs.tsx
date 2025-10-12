@@ -1,5 +1,5 @@
-import { CheckSquare, Clock, Users, Briefcase, Calendar, Repeat, DollarSign, CheckCircle, Edit2, Trash2, Plus, ArrowRightLeft, Activity, PlayCircle, StopCircle, AlertTriangle } from 'lucide-react';
-import { Task, TimeLog, Assignment, RecurringInstance, Activity as ActivityType, priorityColors } from './WorkDetailsTypes';
+import { CheckSquare, Clock, Users, Briefcase, Calendar, Repeat, DollarSign, CheckCircle, Edit2, Trash2, Plus, ArrowRightLeft, Activity, PlayCircle, StopCircle, AlertTriangle, FileText, Upload, Download } from 'lucide-react';
+import { Task, TimeLog, Assignment, RecurringInstance, Activity as ActivityType, WorkDocument, priorityColors } from './WorkDetailsTypes';
 import { ActivityTimeline } from './ActivityTimeline';
 
 interface OverviewTabProps {
@@ -574,4 +574,244 @@ interface ActivityTabProps {
 
 export function ActivityTab({ activities }: ActivityTabProps) {
   return <ActivityTimeline activities={activities} />;
+}
+
+interface DocumentsTabProps {
+  documents: WorkDocument[];
+  onAddDocument: () => void;
+  onEditDocument: (document: WorkDocument) => void;
+  onDeleteDocument: (documentId: string) => void;
+  onToggleCollected: (documentId: string, isCollected: boolean) => void;
+  onUploadFile: (documentId: string) => void;
+}
+
+export function DocumentsTab({
+  documents,
+  onAddDocument,
+  onEditDocument,
+  onDeleteDocument,
+  onToggleCollected,
+  onUploadFile
+}: DocumentsTabProps) {
+  const sortedDocuments = [...documents].sort((a, b) => a.sort_order - b.sort_order);
+
+  const requiredDocs = sortedDocuments.filter(d => d.is_required);
+  const optionalDocs = sortedDocuments.filter(d => !d.is_required);
+  const collectedCount = documents.filter(d => d.is_collected).length;
+  const requiredCollectedCount = requiredDocs.filter(d => d.is_collected).length;
+  const uploadedCount = documents.filter(d => d.file_url).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="font-semibold text-gray-900 text-lg">Documents Management</h3>
+        <button
+          onClick={onAddDocument}
+          className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Document</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <FileText size={16} className="text-blue-600" />
+            <p className="text-xs font-medium text-blue-900">Total Documents</p>
+          </div>
+          <p className="text-2xl font-bold text-blue-700">{documents.length}</p>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <CheckCircle size={16} className="text-green-600" />
+            <p className="text-xs font-medium text-green-900">Collected</p>
+          </div>
+          <p className="text-2xl font-bold text-green-700">
+            {collectedCount}/{documents.length}
+            {requiredDocs.length > 0 && (
+              <span className="text-sm ml-2">({requiredCollectedCount}/{requiredDocs.length} req.)</span>
+            )}
+          </p>
+        </div>
+        <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Upload size={16} className="text-teal-600" />
+            <p className="text-xs font-medium text-teal-900">Uploaded</p>
+          </div>
+          <p className="text-2xl font-bold text-teal-700">{uploadedCount}/{documents.length}</p>
+        </div>
+      </div>
+
+      {requiredDocs.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <AlertTriangle size={18} className="text-red-600" />
+            Required Documents
+          </h4>
+          <div className="space-y-3">
+            {requiredDocs.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                onEdit={onEditDocument}
+                onDelete={onDeleteDocument}
+                onToggleCollected={onToggleCollected}
+                onUploadFile={onUploadFile}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {optionalDocs.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <FileText size={18} className="text-gray-600" />
+            Optional Documents
+          </h4>
+          <div className="space-y-3">
+            {optionalDocs.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                onEdit={onEditDocument}
+                onDelete={onDeleteDocument}
+                onToggleCollected={onToggleCollected}
+                onUploadFile={onUploadFile}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {documents.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+          <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+          <p className="text-gray-600 font-medium">No documents yet</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Documents from the service template will appear here automatically when work is created.
+          </p>
+          <button
+            onClick={onAddDocument}
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            <Plus size={16} />
+            <span>Add First Document</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface DocumentCardProps {
+  document: WorkDocument;
+  onEdit: (document: WorkDocument) => void;
+  onDelete: (documentId: string) => void;
+  onToggleCollected: (documentId: string, isCollected: boolean) => void;
+  onUploadFile: (documentId: string) => void;
+}
+
+function DocumentCard({ document, onEdit, onDelete, onToggleCollected, onUploadFile }: DocumentCardProps) {
+  return (
+    <div
+      className={`bg-white border-2 rounded-xl p-4 transition-all ${
+        document.is_required && !document.is_collected
+          ? 'border-red-300 bg-red-50'
+          : document.is_collected
+          ? 'border-green-300 bg-green-50'
+          : 'border-gray-200'
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="font-semibold text-gray-900">{document.name}</h4>
+            {document.is_required && (
+              <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
+                Required
+              </span>
+            )}
+            {document.is_collected && (
+              <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium flex items-center gap-1">
+                <CheckCircle size={12} />
+                Collected
+              </span>
+            )}
+            {document.file_url && (
+              <span className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded text-xs font-medium flex items-center gap-1">
+                <Upload size={12} />
+                Uploaded
+              </span>
+            )}
+          </div>
+          {document.description && (
+            <p className="text-sm text-gray-600 mt-1">{document.description}</p>
+          )}
+          {document.category && (
+            <p className="text-xs text-gray-500 mt-1">
+              Category: <span className="font-medium">{document.category}</span>
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-gray-500">
+            {document.collected_at && (
+              <span>Collected: {new Date(document.collected_at).toLocaleDateString()}</span>
+            )}
+            {document.uploaded_at && (
+              <span>Uploaded: {new Date(document.uploaded_at).toLocaleDateString()}</span>
+            )}
+            {document.file_size && (
+              <span>Size: {(document.file_size / 1024).toFixed(2)} KB</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 ml-4">
+          <button
+            onClick={() => onToggleCollected(document.id, !document.is_collected)}
+            className={`p-2 rounded-lg transition-colors ${
+              document.is_collected
+                ? 'text-green-600 hover:bg-green-100'
+                : 'text-gray-400 hover:bg-gray-100'
+            }`}
+            title={document.is_collected ? 'Mark as not collected' : 'Mark as collected'}
+          >
+            <CheckCircle size={18} />
+          </button>
+          <button
+            onClick={() => onUploadFile(document.id)}
+            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+            title="Upload file"
+          >
+            <Upload size={18} />
+          </button>
+          {document.file_url && (
+            <a
+              href={document.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Download file"
+            >
+              <Download size={18} />
+            </a>
+          )}
+          <button
+            onClick={() => onEdit(document)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Edit document"
+          >
+            <Edit2 size={16} />
+          </button>
+          <button
+            onClick={() => onDelete(document.id)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Delete document"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
