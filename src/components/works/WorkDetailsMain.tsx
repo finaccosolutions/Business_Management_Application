@@ -1058,12 +1058,12 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
           {activeTab === 'recurring' && work.is_recurring && (
             <RecurringTab
-              recurringInstances={recurringInstances}
+              workId={workId}
               work={work}
-              onAddPeriod={() => setShowRecurringModal(true)}
-              onEditPeriod={openEditRecurringModal}
-              onUpdatePeriodStatus={handleUpdateRecurringInstanceStatus}
-              onDeletePeriod={(id) => confirmDelete('recurring', id)}
+              onUpdate={() => {
+                fetchWorkDetails();
+                onUpdate();
+              }}
             />
           )}
 
