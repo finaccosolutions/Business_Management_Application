@@ -291,11 +291,11 @@ export function TimeLogsTab({ timeLogs, onAddTimeLog, onEditTimeLog, onDeleteTim
 
 interface AssignmentsTabProps {
   assignments: Assignment[];
-  work: any;
   onAssign: () => void;
+  currentlyAssigned?: string | null;
 }
 
-export function AssignmentsTab({ assignments, work, onAssign }: AssignmentsTabProps) {
+export function AssignmentsTab({ assignments, onAssign, currentlyAssigned }: AssignmentsTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -305,7 +305,7 @@ export function AssignmentsTab({ assignments, work, onAssign }: AssignmentsTabPr
           className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
         >
           <ArrowRightLeft className="w-4 h-4" />
-          <span>{work.assigned_to ? 'Reassign' : 'Assign'}</span>
+          <span>{currentlyAssigned ? 'Reassign' : 'Assign'}</span>
         </button>
       </div>
 

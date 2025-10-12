@@ -273,6 +273,10 @@ export default function Works() {
         if (newWork) {
           await copyServiceTasksToWork(formData.service_id, newWork.id);
 
+          if (formData.is_recurring && formData.due_date) {
+            await createFirstRecurringPeriod(newWork.id, formData);
+          }
+
           if (formData.status === 'completed') {
             shouldCreateInvoice = true;
             workId = newWork.id;
@@ -291,6 +295,52 @@ export default function Works() {
     } catch (error) {
       console.error('Error saving work:', error);
       alert('Failed to save work. Please try again.');
+    }
+  };
+
+  const createFirstRecurringPeriod = async (workId: string, formData: any) => {
+    try {
+      const dueDate = new Date(formData.due_date);
+      let periodStart: Date;
+      let periodEnd: Date;
+      let periodName: string;
+
+      const pattern = formData.recurrence_pattern;
+
+      if (pattern === 'monthly') {
+        periodStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), 1);
+        periodEnd = new Date(dueDate.getFullYear(), dueDate.getMonth() + 1, 0);
+        periodName = `${periodStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+      } else if (pattern === 'quarterly') {
+        const quarter = Math.floor(dueDate.getMonth() / 3);
+        periodStart = new Date(dueDate.getFullYear(), quarter * 3, 1);
+        periodEnd = new Date(dueDate.getFullYear(), quarter * 3 + 3, 0);
+        periodName = `Q${quarter + 1} ${dueDate.getFullYear()}`;
+      } else if (pattern === 'half_yearly') {
+        const half = Math.floor(dueDate.getMonth() / 6);
+        periodStart = new Date(dueDate.getFullYear(), half * 6, 1);
+        periodEnd = new Date(dueDate.getFullYear(), half * 6 + 6, 0);
+        periodName = `H${half + 1} ${dueDate.getFullYear()}`;
+      } else {
+        periodStart = new Date(dueDate.getFullYear(), 0, 1);
+        periodEnd = new Date(dueDate.getFullYear(), 11, 31);
+        periodName = `Year ${dueDate.getFullYear()}`;
+      }
+
+      const { error } = await supabase.from('work_recurring_instances').insert({
+        work_id: workId,
+        period_name: periodName,
+        period_start_date: periodStart.toISOString().split('T')[0],
+        period_end_date: periodEnd.toISOString().split('T')[0],
+        due_date: formData.due_date,
+        billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
+        status: 'pending',
+      });
+
+      if (error) throw error;
+      console.log(`First recurring period created: ${periodName}`);
+    } catch (error) {
+      console.error('Error creating first recurring period:', error);
     }
   };
 

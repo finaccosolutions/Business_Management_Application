@@ -68,6 +68,12 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     fetchActivities();
   }, [workId]);
 
+  useEffect(() => {
+    if (work && work.is_recurring && recurringInstances.length > 0) {
+      checkAndCreateNextPeriod();
+    }
+  }, [work, recurringInstances]);
+
   const fetchWorkDetails = async () => {
     try {
       const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes] = await Promise.all([
@@ -158,6 +164,105 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
   const fetchActivities = async () => {
     setActivities([]);
+  };
+
+  const checkAndCreateNextPeriod = async () => {
+    if (!work || !work.is_recurring) return;
+
+    try {
+      const sortedPeriods = [...recurringInstances].sort((a, b) =>
+        new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+      );
+
+      if (sortedPeriods.length === 0) return;
+
+      const latestPeriod = sortedPeriods[0];
+      const latestDueDate = new Date(latestPeriod.due_date);
+      const today = new Date();
+
+      if (latestDueDate < today || latestPeriod.status === 'completed') {
+        const nextDueDate = calculateNextDueDate(latestDueDate, work.recurrence_pattern, work.recurrence_day);
+
+        const existingNextPeriod = recurringInstances.find(p => {
+          const pDate = new Date(p.due_date);
+          return pDate.getTime() === nextDueDate.getTime();
+        });
+
+        if (!existingNextPeriod) {
+          await createNextRecurringPeriod(nextDueDate);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking/creating next period:', error);
+    }
+  };
+
+  const calculateNextDueDate = (currentDueDate: Date, pattern: string, recurrenceDay: number): Date => {
+    const nextDate = new Date(currentDueDate);
+
+    if (pattern === 'monthly') {
+      nextDate.setMonth(nextDate.getMonth() + 1);
+    } else if (pattern === 'quarterly') {
+      nextDate.setMonth(nextDate.getMonth() + 3);
+    } else if (pattern === 'half_yearly') {
+      nextDate.setMonth(nextDate.getMonth() + 6);
+    } else if (pattern === 'yearly') {
+      nextDate.setFullYear(nextDate.getFullYear() + 1);
+    }
+
+    if (recurrenceDay) {
+      nextDate.setDate(recurrenceDay);
+    }
+
+    return nextDate;
+  };
+
+  const createNextRecurringPeriod = async (dueDate: Date) => {
+    try {
+      let periodStart: Date;
+      let periodEnd: Date;
+      let periodName: string;
+
+      const pattern = work.recurrence_pattern;
+
+      if (pattern === 'monthly') {
+        periodStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), 1);
+        periodEnd = new Date(dueDate.getFullYear(), dueDate.getMonth() + 1, 0);
+        periodName = `${periodStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+      } else if (pattern === 'quarterly') {
+        const quarter = Math.floor(dueDate.getMonth() / 3);
+        periodStart = new Date(dueDate.getFullYear(), quarter * 3, 1);
+        periodEnd = new Date(dueDate.getFullYear(), quarter * 3 + 3, 0);
+        periodName = `Q${quarter + 1} ${dueDate.getFullYear()}`;
+      } else if (pattern === 'half_yearly') {
+        const half = Math.floor(dueDate.getMonth() / 6);
+        periodStart = new Date(dueDate.getFullYear(), half * 6, 1);
+        periodEnd = new Date(dueDate.getFullYear(), half * 6 + 6, 0);
+        periodName = `H${half + 1} ${dueDate.getFullYear()}`;
+      } else {
+        periodStart = new Date(dueDate.getFullYear(), 0, 1);
+        periodEnd = new Date(dueDate.getFullYear(), 11, 31);
+        periodName = `Year ${dueDate.getFullYear()}`;
+      }
+
+      const { error } = await supabase.from('work_recurring_instances').insert({
+        work_id: workId,
+        period_name: periodName,
+        period_start_date: periodStart.toISOString().split('T')[0],
+        period_end_date: periodEnd.toISOString().split('T')[0],
+        due_date: dueDate.toISOString().split('T')[0],
+        billing_amount: work.billing_amount,
+        status: 'pending',
+      });
+
+      if (error) throw error;
+
+      console.log(`Auto-created next recurring period: ${periodName}`);
+      fetchWorkDetails();
+      toast.success(`Next period created: ${periodName}`);
+    } catch (error) {
+      console.error('Error creating next recurring period:', error);
+    }
   };
 
   const handleUpdateWorkStatus = async (status: string) => {
@@ -570,12 +675,90 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         .eq('id', instanceId);
 
       if (error) throw error;
+
+      if (status === 'completed' && work.auto_bill) {
+        const instance = recurringInstances.find(i => i.id === instanceId);
+        if (instance && instance.billing_amount) {
+          await createInvoiceForPeriod(instanceId, instance);
+        }
+      }
+
       fetchWorkDetails();
       onUpdate();
       toast.success('Period status updated!');
     } catch (error) {
       console.error('Error updating recurring instance:', error);
       toast.error('Failed to update period status');
+    }
+  };
+
+  const createInvoiceForPeriod = async (instanceId: string, instance: RecurringInstance) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: invoiceCount } = await supabase
+        .from('invoices')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      const count = invoiceCount || 0;
+      const invoiceNumber = `INV-${String(count + 1).padStart(4, '0')}`;
+
+      const taxRate = 18;
+      const subtotal = instance.billing_amount || 0;
+      const taxAmount = (subtotal * taxRate) / 100;
+      const totalAmount = subtotal + taxAmount;
+
+      const today = new Date();
+      const dueDate = new Date(today);
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      const invoiceData = {
+        user_id: user.id,
+        customer_id: work.customer_id,
+        work_id: workId,
+        invoice_number: invoiceNumber,
+        invoice_date: today.toISOString().split('T')[0],
+        due_date: dueDate.toISOString().split('T')[0],
+        subtotal: subtotal,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        status: 'draft',
+        notes: `Auto-generated invoice for ${instance.period_name}`,
+      };
+
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert(invoiceData)
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      const invoiceItem = {
+        invoice_id: invoice.id,
+        description: `${work.services?.name || 'Service'} - ${instance.period_name}`,
+        quantity: 1,
+        unit_price: subtotal,
+        amount: totalAmount,
+      };
+
+      const { error: itemError } = await supabase
+        .from('invoice_items')
+        .insert(invoiceItem);
+
+      if (itemError) throw itemError;
+
+      await supabase
+        .from('work_recurring_instances')
+        .update({ is_billed: true, invoice_id: invoice.id })
+        .eq('id', instanceId);
+
+      toast.success(`Invoice ${invoiceNumber} created successfully!`);
+    } catch (error) {
+      console.error('Error creating invoice:', error);
+      toast.error('Failed to create invoice');
     }
   };
 
@@ -625,7 +808,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     { id: 'overview', label: 'Overview', icon: FileText },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: tasks.length },
     { id: 'time', label: 'Time Logs', icon: Clock, count: timeLogs.length },
-    { id: 'assignments', label: 'Assignments', icon: Users, count: assignments.length },
   ];
 
   if (work.is_recurring) {
@@ -797,14 +979,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
               onAddTimeLog={() => setShowTimeModal(true)}
               onEditTimeLog={openEditTimeLogModal}
               onDeleteTimeLog={(id) => confirmDelete('timelog', id)}
-            />
-          )}
-
-          {activeTab === 'assignments' && (
-            <AssignmentsTab
-              assignments={assignments}
-              onAssign={() => setShowAssignModal(true)}
-              currentlyAssigned={work.assigned_to}
             />
           )}
 
