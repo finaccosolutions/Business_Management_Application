@@ -77,13 +77,10 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
     try {
       const { data, error } = await supabase
         .from('work_recurring_instances')
-        .select(`
-          *,
-          staff_members(name)
-        `)
+        .select('*')
         .eq('work_id', workId)
         .order('due_date', { ascending: false });
-
+  
       if (error) throw error;
       setPeriods(data || []);
     } catch (error) {
