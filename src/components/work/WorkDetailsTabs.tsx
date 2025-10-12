@@ -4,11 +4,40 @@ import { ActivityTimeline } from './ActivityTimeline';
 
 interface OverviewTabProps {
   work: any;
+  onStatusChange?: (status: string) => void;
 }
 
-export function OverviewTab({ work }: OverviewTabProps) {
+export function OverviewTab({ work, onStatusChange }: OverviewTabProps) {
   return (
     <div className="space-y-6">
+      {/* Status Change Section */}
+      <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border-2 border-orange-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <CheckCircle size={20} className="text-orange-600" />
+          Work Status
+        </h3>
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-gray-700">Change Status:</label>
+          <select
+            value={work.status}
+            onChange={(e) => onStatusChange?.(e.target.value)}
+            className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-medium text-gray-900 bg-white"
+          >
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+          <span className="text-sm text-gray-600">
+            {work.status === 'completed' && work.completion_date
+              ? `Completed on ${new Date(work.completion_date).toLocaleString()}`
+              : work.status === 'in_progress'
+              ? 'Currently in progress'
+              : 'Not yet started'}
+          </span>
+        </div>
+      </div>
+
+      {/* Work Information */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Briefcase size={20} className="text-orange-600" />
@@ -36,13 +65,63 @@ export function OverviewTab({ work }: OverviewTabProps) {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500">Priority</label>
-              <p className="text-gray-900 mt-1 capitalize">{work.priority}</p>
+              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mt-1 ${
+                priorityColors[work.priority] || priorityColors.medium
+              }`}>
+                {work.priority.charAt(0).toUpperCase() + work.priority.slice(1)}
+              </span>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500">Status</label>
               <p className="text-gray-900 mt-1 capitalize">{work.status.replace('_', ' ')}</p>
             </div>
           </div>
+
+          {/* Additional Details */}
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+            {work.start_date && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Start Date</label>
+                <p className="text-gray-900 mt-1">{new Date(work.start_date).toLocaleDateString()}</p>
+              </div>
+            )}
+            {work.due_date && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Due Date</label>
+                <p className="text-gray-900 mt-1">{new Date(work.due_date).toLocaleDateString()}</p>
+              </div>
+            )}
+            {work.work_location && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Work Location</label>
+                <p className="text-gray-900 mt-1">{work.work_location}</p>
+              </div>
+            )}
+            {work.department && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Department</label>
+                <p className="text-gray-900 mt-1">{work.department}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Requirements & Deliverables */}
+          {(work.requirements || work.deliverables) && (
+            <div className="pt-4 border-t border-gray-200 space-y-4">
+              {work.requirements && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Requirements & Instructions</label>
+                  <p className="text-gray-700 mt-1 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg">{work.requirements}</p>
+                </div>
+              )}
+              {work.deliverables && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Expected Deliverables</label>
+                  <p className="text-gray-700 mt-1 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg">{work.deliverables}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -726,6 +726,29 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     }
   };
 
+  const updateWorkStatus = async (status: string) => {
+    try {
+      const updateData: any = { status, updated_at: new Date().toISOString() };
+      if (status === 'completed' && work.status !== 'completed') {
+        updateData.completion_date = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('works')
+        .update(updateData)
+        .eq('id', workId);
+
+      if (error) throw error;
+      fetchWorkDetails();
+      fetchActivities();
+      onUpdate();
+      toast.success('Work status updated!');
+    } catch (error) {
+      console.error('Error updating work status:', error);
+      toast.error('Failed to update work status');
+    }
+  };
+
   const confirmDelete = (type: string, id: string) => {
     setDeleteTarget({ type, id });
     setShowDeleteConfirm(true);
@@ -787,14 +810,21 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
       <div className="fixed top-16 left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600 flex-shrink-0">
-          <div>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              <Briefcase size={28} />
-              Work Details
+          <div className="flex-1 min-w-0">
+            <h2 className="text-3xl font-bold text-white mb-2 truncate">
+              {work.title}
             </h2>
-            <p className="text-orange-100 text-sm mt-1">
-              {work.customers?.name} • {work.services?.name}
-            </p>
+            <div className="flex items-center gap-3 text-orange-100 text-sm">
+              <span className="flex items-center gap-1">
+                <Users size={14} />
+                {work.customers?.name}
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <Briefcase size={14} />
+                {work.services?.name}
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {work.is_recurring && (
@@ -921,7 +951,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'overview' && <OverviewTab work={work} />}
+          {activeTab === 'overview' && <OverviewTab work={work} onStatusChange={updateWorkStatus} />}
 
           {activeTab === 'tasks' && (
             <TasksTab

@@ -207,6 +207,11 @@ export default function Works() {
         is_recurring: formData.is_recurring,
         recurrence_pattern: formData.is_recurring ? formData.recurrence_pattern : null,
         recurrence_day: formData.is_recurring && formData.recurrence_day ? parseInt(formData.recurrence_day) : null,
+        work_location: formData.work_location || null,
+        department: formData.department || null,
+        requirements: formData.requirements || null,
+        deliverables: formData.deliverables || null,
+        auto_bill: formData.auto_bill,
         updated_at: new Date().toISOString(),
       };
 
@@ -348,31 +353,43 @@ export default function Works() {
 
   const handleEdit = (work: Work) => {
     setEditingWork(work);
-    setFormData({
-      customer_id: work.customer_id,
-      service_id: work.service_id,
-      assigned_to: work.assigned_to || '',
-      title: work.title,
-      description: work.description || '',
-      status: work.status,
-      priority: work.priority,
-      due_date: work.due_date || '',
-      billing_status: work.billing_status,
-      billing_amount: work.billing_amount?.toString() || '',
-      estimated_hours: work.estimated_hours?.toString() || '',
-      is_recurring: false,
-      recurrence_pattern: '',
-      recurrence_day: '',
-      auto_bill: true,
-      is_active: true,
-      work_type: 'regular',
-      start_date: '',
-      completion_deadline: '',
-      department: '',
-      work_location: '',
-      requirements: '',
-      deliverables: '',
-    });
+
+    // Fetch full work data with all fields
+    supabase
+      .from('works')
+      .select('*')
+      .eq('id', work.id)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setFormData({
+            customer_id: data.customer_id,
+            service_id: data.service_id,
+            assigned_to: data.assigned_to || '',
+            title: data.title,
+            description: data.description || '',
+            status: data.status,
+            priority: data.priority,
+            due_date: data.due_date || '',
+            billing_status: data.billing_status,
+            billing_amount: data.billing_amount?.toString() || '',
+            estimated_hours: data.estimated_hours?.toString() || '',
+            is_recurring: data.is_recurring || false,
+            recurrence_pattern: data.recurrence_pattern || '',
+            recurrence_day: data.recurrence_day?.toString() || '',
+            auto_bill: data.auto_bill !== undefined ? data.auto_bill : true,
+            is_active: true,
+            work_type: 'regular',
+            start_date: data.start_date || '',
+            completion_deadline: '',
+            department: data.department || '',
+            work_location: data.work_location || '',
+            requirements: data.requirements || '',
+            deliverables: data.deliverables || '',
+          });
+        }
+      });
+
     setShowModal(true);
   };
 
