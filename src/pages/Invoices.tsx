@@ -6,6 +6,8 @@ import { generateInvoiceHTML, printInvoice, previewInvoice, downloadPDF } from '
 import { generateEnhancedInvoiceHTML, previewEnhancedInvoice, printEnhancedInvoice, downloadEnhancedPDF } from '../lib/enhancedInvoicePDF';
 import { useToast } from '../contexts/ToastContext';
 import EditInvoiceModal from '../components/EditInvoiceModal';
+import { useConfirmation } from '../contexts/ConfirmationContext';
+
 
 interface Invoice {
   id: string;
@@ -88,6 +90,7 @@ export default function Invoices() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingInvoice, setEditingInvoice] = useState<{ invoice: Invoice; items: InvoiceItem[] } | null>(null);
+  const { showConfirmation } = useConfirmation();
   const [stats, setStats] = useState<InvoiceStats>({
     totalAmount: 0,
     paidAmount: 0,
@@ -523,15 +526,24 @@ const saveAsDraft = async () => {
   };
 
   const handleDeleteInvoice = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this invoice?')) return;
-
-    try {
-      const { error } = await supabase.from('invoices').delete().eq('id', id);
-      if (error) throw error;
-      fetchData();
-    } catch (error) {
-      console.error('Error deleting invoice:', error);
-    }
+    showConfirmation({
+      title: 'Delete Invoice',
+      message: 'Are you sure you want to delete this invoice? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      confirmColor: 'red',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase.from('invoices').delete().eq('id', id);
+          if (error) throw error;
+          fetchData();
+          toast.success('Invoice deleted successfully');
+        } catch (error) {
+          console.error('Error deleting invoice:', error);
+          toast.error('Failed to delete invoice');
+        }
+      }
+    });
   };
 
   const getFilterCount = (status: string) => {

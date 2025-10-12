@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 import WorkDetails from '../components/works/WorkDetailsMain';
 import WorkTile from '../components/works/WorkTile';
+import { useConfirmation } from '../contexts/ConfirmationContext';
+import { useToast } from '../contexts/ToastContext';
+
 
 interface Work {
   id: string;
@@ -104,6 +107,9 @@ export default function Works() {
   const [filterService, setFilterService] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterBillingStatus, setFilterBillingStatus] = useState('');
+  const { showConfirmation } = useConfirmation();
+  const toast = useToast();
+
 
   const [formData, setFormData] = useState({
     customer_id: '',
@@ -294,7 +300,7 @@ export default function Works() {
       fetchData();
     } catch (error) {
       console.error('Error saving work:', error);
-      alert('Failed to save work. Please try again.');
+      toast.error('Failed to save work. Please try again.');
     }
   };
 
@@ -409,15 +415,25 @@ export default function Works() {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this work?')) return;
-
-    try {
-      const { error } = await supabase.from('works').delete().eq('id', id);
-      if (error) throw error;
-      fetchData();
-    } catch (error) {
-      console.error('Error deleting work:', error);
-    }
+    
+    showConfirmation({
+      title: 'Delete Work',
+      message: 'Are you sure you want to delete this work? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      confirmColor: 'red',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase.from('works').delete().eq('id', id);
+          if (error) throw error;
+          fetchData();
+          toast.success('Work deleted successfully');
+        } catch (error) {
+          console.error('Error deleting work:', error);
+          toast.error('Failed to delete work');
+        }
+      }
+    });
   };
 
   const handleEdit = (work: Work) => {

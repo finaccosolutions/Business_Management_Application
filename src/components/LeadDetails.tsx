@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { X, Mail, Phone, Building2, Calendar, Tag, FileText, CreditCard as Edit, User, MessageSquare, Clock, CheckCircle2, Plus, Phone as PhoneCall, MessageCircle, Users, Activity, Trash2 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirmation } from '../contexts/ConfirmationContext';
 import CommunicationModal from './CommunicationModal';
 import NoteModal from './NoteModal';
 
@@ -70,6 +71,7 @@ interface ActivityItem {
 export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProps) {
   const { user } = useAuth();
   const toast = useToast();
+  const { showConfirmation } = useConfirmation();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -149,32 +151,48 @@ export default function LeadDetails({ leadId, onClose, onEdit }: LeadDetailsProp
       toast.error('Failed to update follow-up');
     }
   };
+ 
+    const deleteNote = async (noteId: string) => {
+      showConfirmation({
+        title: 'Delete Note',
+        message: 'Are you sure you want to delete this note?',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        confirmColor: 'red',
+        onConfirm: async () => {
+          try {
+            const { error } = await supabase.from('customer_notes').delete().eq('id', noteId);
+            // ... rest of code
+            if (!error) {
+              toast.success('Note deleted successfully');
+            }
+          } catch (error) {
+            toast.error('Failed to delete note');
+          }
+        }
+      });
+    };
 
-  const deleteNote = async (noteId: string) => {
-    if (!confirm('Delete this note?')) return;
-    try {
-      const { error } = await supabase.from('customer_notes').delete().eq('id', noteId);
-      if (error) throw error;
-      toast.success('Note deleted');
-      fetchLeadDetails();
-    } catch (error: any) {
-      console.error('Error deleting note:', error.message);
-      toast.error('Failed to delete note');
-    }
-  };
-
-  const deleteCommunication = async (commId: string) => {
-    if (!confirm('Delete this communication record?')) return;
-    try {
-      const { error } = await supabase.from('communications').delete().eq('id', commId);
-      if (error) throw error;
-      toast.success('Communication deleted');
-      fetchLeadDetails();
-    } catch (error: any) {
-      console.error('Error deleting communication:', error.message);
-      toast.error('Failed to delete communication');
-    }
-  };
+    const deleteCommunication = async (commId: string) => {
+      showConfirmation({
+        title: 'Delete Communication',
+        message: 'Are you sure you want to delete this communication record?',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        confirmColor: 'red',
+        onConfirm: async () => {
+          try {
+            const { error } = await supabase.from('communications').delete().eq('id', commId);
+            // ... rest of code
+            if (!error) {
+              toast.success('Communication deleted successfully');
+            }
+          } catch (error) {
+            toast.error('Failed to delete communication');
+          }
+        }
+      });
+    };
 
   const generateActivityTimeline = (): ActivityItem[] => {
     if (!lead) return [];

@@ -19,6 +19,9 @@ import {
 import ServiceDetails from '../components/ServiceDetails';
 import AddServiceModal from '../components/AddServiceModal';
 import ServiceFilters from '../components/ServiceFilters';
+import { useConfirmation } from '../contexts/ConfirmationContext';
+import { useToast } from '../contexts/ToastContext';
+
 
 interface Service {
   id: string;
@@ -44,6 +47,9 @@ export default function Services() {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const { showConfirmation } = useConfirmation();
+  const toast = useToast();
+
   const [filters, setFilters] = useState({
     category: '',
     status: '',
@@ -103,17 +109,26 @@ export default function Services() {
     setFilteredServices(filtered);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this service?')) return;
-
-    try {
-      const { error } = await supabase.from('services').delete().eq('id', id);
-      if (error) throw error;
-      fetchServices();
-    } catch (error) {
-      console.error('Error deleting service:', error);
-    }
-  };
+    const handleDelete = async (id: string) => {
+      showConfirmation({
+        title: 'Delete Service',
+        message: 'Are you sure you want to delete this service? This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        confirmColor: 'red',
+        onConfirm: async () => {
+          try {
+            const { error } = await supabase.from('services').delete().eq('id', id);
+            if (error) throw error;
+            fetchServices();
+            toast.success('Service deleted successfully');
+          } catch (error) {
+            console.error('Error deleting service:', error);
+            toast.error('Failed to delete service');
+          }
+        }
+      });
+    };
 
   const stats = {
     total: services.length,

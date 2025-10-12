@@ -97,7 +97,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }
   };
 
-
   return (
     <ToastContext.Provider value={{ showToast, success, error, warning, info }}>
       {children}
@@ -125,7 +124,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         })}
       </div>
       
-      <style jsx>{`
+      <style>{`
         @keyframes slide-in {
           from {
             opacity: 0;

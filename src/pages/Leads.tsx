@@ -30,6 +30,9 @@ import ConvertLeadModal from '../components/ConvertLeadModal';
 import LeadDetails from '../components/LeadDetails';
 import EditLeadModal from '../components/EditLeadModal';
 import LeadFilters, { FilterState } from '../components/LeadFilters';
+import { useConfirmation } from '../contexts/ConfirmationContext';
+import { useToast } from '../contexts/ToastContext';
+
 
 interface Lead {
   id: string;
@@ -139,6 +142,9 @@ export default function Leads() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const { showConfirmation } = useConfirmation();
+  const toast = useToast();
+
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
@@ -284,23 +290,31 @@ export default function Leads() {
       );
     } catch (error: any) {
       console.error('Error updating lead status:', error.message);
-      alert('Failed to update lead status');
+      toast.error('Failed to update lead status');
     }
   };
 
   const deleteLead = async (leadId: string) => {
-    if (!confirm('Are you sure you want to delete this lead?')) return;
-
-    try {
-      const { error } = await supabase.from('leads').delete().eq('id', leadId);
-
-      if (error) throw error;
-
-      setLeads(leads.filter((lead) => lead.id !== leadId));
-    } catch (error: any) {
-      console.error('Error deleting lead:', error.message);
-      alert('Failed to delete lead');
-    }
+    showConfirmation({
+      title: 'Delete Lead',
+      message: 'Are you sure you want to delete this lead? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      confirmColor: 'red',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase.from('leads').delete().eq('id', leadId);
+  
+          if (error) throw error;
+  
+          setLeads(leads.filter((lead) => lead.id !== leadId));
+          toast.success('Lead deleted successfully');
+        } catch (error: any) {
+          console.error('Error deleting lead:', error.message);
+          toast.error('Failed to delete lead');
+        }
+      }
+    });
   };
 
   const getStatusBadgeColor = (status: string, isConverted: boolean) => {

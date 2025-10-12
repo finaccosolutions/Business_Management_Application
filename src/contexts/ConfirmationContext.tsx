@@ -95,7 +95,7 @@ export function ConfirmationProvider({ children }: { children: ReactNode }) {
         </div>
       )}
       
-      <style jsx>{`
+      <style>{`
         @keyframes scale-in {
           from {
             opacity: 0;

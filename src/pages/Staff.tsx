@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 import StaffDetails from '../components/StaffDetails';
 import StaffFormModal from '../components/StaffFormModal';
+import { useConfirmation } from '../contexts/ConfirmationContext';
+import { useToast } from '../contexts/ToastContext';
+
 
 interface StaffMember {
   id: string;
@@ -55,6 +58,9 @@ export default function Staff() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+  const { showConfirmation } = useConfirmation();
+  const toast = useToast();
+
   
   // Search and Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,15 +97,24 @@ export default function Staff() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this staff member?')) return;
-
-    try {
-      const { error } = await supabase.from('staff_members').delete().eq('id', id);
-      if (error) throw error;
-      fetchData();
-    } catch (error) {
-      console.error('Error deleting staff member:', error);
-    }
+    showConfirmation({
+      title: 'Delete Staff Member',
+      message: 'Are you sure you want to delete this staff member? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      confirmColor: 'red',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase.from('staff_members').delete().eq('id', id);
+          if (error) throw error;
+          fetchData();
+          toast.success('Staff member deleted successfully');
+        } catch (error) {
+          console.error('Error deleting staff member:', error);
+          toast.error('Failed to delete staff member');
+        }
+      }
+    });
   };
 
   const handleEdit = (staffMember: StaffMember) => {
