@@ -313,89 +313,95 @@ export default function Works() {
   };
 
     const createRecurringPeriodsFromStart = async (
-      workId: string, 
+      workId: string,
       formData: any
     ) => {
       try {
         const startDate = new Date(formData.start_date || formData.due_date);
+        startDate.setHours(0, 0, 0, 0);
         const currentDate = new Date();
         currentDate.setHours(0, 0, 0, 0);
-        
-        const pattern = formData.recurrence_pattern;
-        const recurrenceDay = parseInt(formData.recurrence_day) || startDate.getDate();
-        
-        // Calculate all periods from start date to current date
+
+        const pattern = formData.recurrence_pattern || 'monthly';
+        const recurrenceDay = parseInt(formData.recurrence_day) || 10;
+
         const periods = [];
-        let periodDate = new Date(startDate.getFullYear(), startDate.getMonth(), recurrenceDay);
-        
-        // If the period date is before start date, move to next period
-        if (periodDate < startDate) {
-          periodDate = getNextPeriodDate(periodDate, pattern, recurrenceDay);
+
+        // Start from the month/period of the start date
+        let currentPeriodDate = new Date(startDate);
+
+        // Generate all periods from start date up to and including one future period
+        let generatedFuturePeriod = false;
+        let iterationCount = 0;
+        const maxIterations = 100;
+
+        while (iterationCount < maxIterations) {
+          iterationCount++;
+
+          // Calculate the due date for this period
+          let dueDate = new Date(currentPeriodDate.getFullYear(), currentPeriodDate.getMonth(), recurrenceDay);
+
+          // Adjust if the day doesn't exist in this month (e.g., 31st in Feb)
+          if (dueDate.getMonth() !== currentPeriodDate.getMonth()) {
+            dueDate = new Date(currentPeriodDate.getFullYear(), currentPeriodDate.getMonth() + 1, 0);
+          }
+
+          // Only create periods where due date is >= start date
+          if (dueDate >= startDate) {
+            // Calculate period boundaries based on pattern
+            const { periodStart, periodEnd } = getPeriodBoundaries(currentPeriodDate, pattern);
+            const periodName = getPeriodName(periodStart, pattern);
+
+            // Determine status based on due date
+            let status = 'pending';
+            if (dueDate < currentDate) {
+              status = 'overdue';
+            }
+
+            periods.push({
+              work_id: workId,
+              period_name: periodName,
+              period_start_date: periodStart.toISOString().split('T')[0],
+              period_end_date: periodEnd.toISOString().split('T')[0],
+              due_date: dueDate.toISOString().split('T')[0],
+              billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
+              status: status,
+              is_billed: false,
+            });
+
+            // Check if we've generated at least one future period
+            if (dueDate > currentDate) {
+              generatedFuturePeriod = true;
+              break;
+            }
+          }
+
+          // Move to next period
+          currentPeriodDate = getNextPeriod(currentPeriodDate, pattern);
         }
-        
-        // Generate all periods up to current date plus one future period
-        while (periodDate <= currentDate || periods.length === 0) {
-          const periodStart = getPeriodStart(periodDate, pattern);
-          const periodEnd = getPeriodEnd(periodDate, pattern);
-          const periodName = getPeriodName(periodStart, periodEnd, pattern);
-          const dueDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), recurrenceDay);
-          
-          // Determine status based on due date
-          const isOverdue = dueDate < currentDate;
-          const status = isOverdue ? 'overdue' : 'pending';
-          
-          periods.push({
-            work_id: workId,
-            period_name: periodName,
-            period_start_date: periodStart.toISOString().split('T')[0],
-            period_end_date: periodEnd.toISOString().split('T')[0],
-            due_date: dueDate.toISOString().split('T')[0],
-            billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
-            status: status,
-            is_billed: false,
-          });
-          
-          periodDate = getNextPeriodDate(periodDate, pattern, recurrenceDay);
-          
-          // Safety limit
-          if (periods.length > 100) break;
+
+        if (periods.length === 0) {
+          throw new Error('No periods were generated. Please check your start date and recurrence settings.');
         }
-        
-        // Add one future period
-        const futureStart = getPeriodStart(periodDate, pattern);
-        const futureEnd = getPeriodEnd(periodDate, pattern);
-        const futureName = getPeriodName(futureStart, futureEnd, pattern);
-        const futureDue = new Date(periodDate.getFullYear(), periodDate.getMonth(), recurrenceDay);
-        
-        periods.push({
-          work_id: workId,
-          period_name: futureName,
-          period_start_date: futureStart.toISOString().split('T')[0],
-          period_end_date: futureEnd.toISOString().split('T')[0],
-          due_date: futureDue.toISOString().split('T')[0],
-          billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
-          status: 'pending',
-          is_billed: false,
-        });
-        
+
         // Insert all periods
-        const { error } = await Supabase
+        const { error } = await supabase
           .from('work_recurring_instances')
           .insert(periods);
-        
+
         if (error) throw error;
-        
+
         console.log(`Created ${periods.length} recurring periods for work ${workId}`);
       } catch (error) {
         console.error('Error creating recurring periods:', error);
         throw error;
       }
     };
-    
-    // Helper functions
-    function getNextPeriodDate(currentDate: Date, pattern: string, day: number): Date {
-      const next = new Date(currentDate);
-      
+
+    // Helper function to get next period date
+    function getNextPeriod(date: Date, pattern: string): Date {
+      const next = new Date(date);
+
       switch (pattern) {
         case 'monthly':
           next.setMonth(next.getMonth() + 1);
@@ -412,89 +418,78 @@ export default function Works() {
         default:
           next.setMonth(next.getMonth() + 1);
       }
-      
-      // Set to the correct day
-      const maxDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-      next.setDate(Math.min(day, maxDay));
-      
+
       return next;
     }
-    
-    function getPeriodStart(dueDate: Date, pattern: string): Date {
-      const start = new Date(dueDate);
-      
+
+    // Helper function to get period boundaries
+    function getPeriodBoundaries(date: Date, pattern: string): { periodStart: Date, periodEnd: Date } {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+
+      let periodStart: Date;
+      let periodEnd: Date;
+
       switch (pattern) {
         case 'monthly':
-          start.setDate(1);
+          // Period is the entire month
+          periodStart = new Date(year, month, 1);
+          periodEnd = new Date(year, month + 1, 0); // Last day of month
           break;
+
         case 'quarterly':
-          const quarter = Math.floor(dueDate.getMonth() / 3);
-          start.setMonth(quarter * 3);
-          start.setDate(1);
+          // Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec
+          const quarterStartMonth = Math.floor(month / 3) * 3;
+          periodStart = new Date(year, quarterStartMonth, 1);
+          periodEnd = new Date(year, quarterStartMonth + 3, 0);
           break;
+
         case 'half_yearly':
-          const half = Math.floor(dueDate.getMonth() / 6);
-          start.setMonth(half * 6);
-          start.setDate(1);
+          // H1: Jan-Jun, H2: Jul-Dec
+          const halfStartMonth = Math.floor(month / 6) * 6;
+          periodStart = new Date(year, halfStartMonth, 1);
+          periodEnd = new Date(year, halfStartMonth + 6, 0);
           break;
+
         case 'yearly':
-          start.setMonth(0);
-          start.setDate(1);
+          // Financial year: Apr-Mar
+          periodStart = new Date(year, 0, 1);
+          periodEnd = new Date(year, 12, 0);
           break;
+
         default:
-          start.setDate(1);
+          periodStart = new Date(year, month, 1);
+          periodEnd = new Date(year, month + 1, 0);
       }
-      
-      return start;
+
+      return { periodStart, periodEnd };
     }
-    
-    function getPeriodEnd(dueDate: Date, pattern: string): Date {
-      const end = new Date(dueDate);
-      
-      switch (pattern) {
-        case 'monthly':
-          end.setMonth(end.getMonth() + 1);
-          end.setDate(0);
-          break;
-        case 'quarterly':
-          const quarter = Math.floor(dueDate.getMonth() / 3);
-          end.setMonth(quarter * 3 + 3);
-          end.setDate(0);
-          break;
-        case 'half_yearly':
-          const half = Math.floor(dueDate.getMonth() / 6);
-          end.setMonth(half * 6 + 6);
-          end.setDate(0);
-          break;
-        case 'yearly':
-          end.setMonth(12);
-          end.setDate(0);
-          break;
-        default:
-          end.setMonth(end.getMonth() + 1);
-          end.setDate(0);
-      }
-      
-      return end;
-    }
-    
-    function getPeriodName(start: Date, end: Date, pattern: string): string {
+
+    // Helper function to get period name
+    function getPeriodName(periodStart: Date, pattern: string): string {
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
-      
+
+      const year = periodStart.getFullYear();
+      const month = periodStart.getMonth();
+
       switch (pattern) {
         case 'monthly':
-          return `${monthNames[start.getMonth()]} ${start.getFullYear()}`;
+          return `${monthNames[month]} ${year}`;
+
         case 'quarterly':
-          const quarter = Math.floor(start.getMonth() / 3) + 1;
-          return `Q${quarter} ${start.getFullYear()}`;
+          const quarter = Math.floor(month / 3) + 1;
+          return `Q${quarter} ${year}`;
+
         case 'half_yearly':
-          const half = Math.floor(start.getMonth() / 6) + 1;
-          return `H${half} ${start.getFullYear()}`;
+          const half = Math.floor(month / 6) + 1;
+          return `H${half} ${year}`;
+
         case 'yearly':
-          return `FY ${start.getFullYear()}`;
+          return `FY ${year}`;
+
         default:
-          return `${monthNames[start.getMonth()]} ${start.getFullYear()}`;
+          return `${monthNames[month]} ${year}`;
       }
     }
 
