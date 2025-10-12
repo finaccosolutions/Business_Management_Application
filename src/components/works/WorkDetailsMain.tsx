@@ -4,7 +4,7 @@ import { X, Users, Clock, CheckSquare, FileText, DollarSign, Calendar, Briefcase
 import { useToast } from '../../contexts/ToastContext';
 import { WorkDetailsProps, Task, TimeLog, Assignment, RecurringInstance, Activity, WorkDocument, TaskForm, TimeForm, RecurringForm, statusColors, priorityColors } from './WorkDetailsTypes';
 import { OverviewTab, TasksTab, TimeLogsTab, AssignmentsTab, RecurringTab, ActivityTab, DocumentsTab } from './WorkDetailsTabs';
-import { ConfirmationModal, TaskModal, TimeLogModal, RecurringPeriodModal, AssignStaffModal, ReassignReasonModal } from './WorkDetailsModals';
+import { ConfirmationModal, TaskModal, TimeLogModal, RecurringPeriodModal, AssignStaffModal, ReassignReasonModal, WorkDocumentModal } from './WorkDetailsModals';
 
 export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkDetailsProps) {
   const [work, setWork] = useState<any>(null);
@@ -65,6 +65,14 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     due_date: '',
     billing_amount: '',
     notes: '',
+  });
+
+  const [documentForm, setDocumentForm] = useState({
+    name: '',
+    description: '',
+    category: 'general',
+    is_required: false,
+    sort_order: 0,
   });
 
   useEffect(() => {
@@ -175,7 +183,34 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   };
 
   const fetchActivities = async () => {
-    setActivities([]);
+    try {
+      const { data, error } = await supabase
+        .from('work_activities')
+        .select('*, staff_members:created_by_staff_id(name)')
+        .eq('work_id', workId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching activities:', error);
+        setActivities([]);
+        return;
+      }
+
+      const formattedActivities: Activity[] = (data || []).map((activity: any) => ({
+        id: activity.id,
+        type: activity.activity_type,
+        title: activity.title,
+        description: activity.description,
+        timestamp: activity.created_at,
+        user: activity.staff_members?.name || 'System',
+        metadata: activity.metadata
+      }));
+
+      setActivities(formattedActivities);
+    } catch (error) {
+      console.error('Error in fetchActivities:', error);
+      setActivities([]);
+    }
   };
 
   const checkAndCreateNextPeriod = async () => {
@@ -802,11 +837,87 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
   const handleEditDocument = (document: WorkDocument) => {
     setEditingDocument(document);
+    setDocumentForm({
+      name: document.name,
+      description: document.description || '',
+      category: document.category || 'general',
+      is_required: document.is_required || false,
+      sort_order: document.sort_order || 0,
+    });
     setShowEditDocumentModal(true);
   };
 
   const handleDeleteDocument = async (documentId: string) => {
     confirmDelete('document', documentId);
+  };
+
+  const handleAddDocument = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase.from('work_documents').insert({
+        work_id: workId,
+        user_id: user.id,
+        name: documentForm.name,
+        description: documentForm.description || null,
+        category: documentForm.category,
+        is_required: documentForm.is_required,
+        sort_order: documents.length,
+      });
+
+      if (error) throw error;
+
+      setShowDocumentModal(false);
+      setDocumentForm({
+        name: '',
+        description: '',
+        category: 'general',
+        is_required: false,
+        sort_order: 0,
+      });
+      fetchWorkDetails();
+      onUpdate();
+      toast.success('Document added successfully!');
+    } catch (error) {
+      console.error('Error adding document:', error);
+      toast.error('Failed to add document');
+    }
+  };
+
+  const handleUpdateDocument = async () => {
+    if (!editingDocument) return;
+
+    try {
+      const { error } = await supabase
+        .from('work_documents')
+        .update({
+          name: documentForm.name,
+          description: documentForm.description || null,
+          category: documentForm.category,
+          is_required: documentForm.is_required,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingDocument.id);
+
+      if (error) throw error;
+
+      setShowEditDocumentModal(false);
+      setEditingDocument(null);
+      setDocumentForm({
+        name: '',
+        description: '',
+        category: 'general',
+        is_required: false,
+        sort_order: 0,
+      });
+      fetchWorkDetails();
+      onUpdate();
+      toast.success('Document updated successfully!');
+    } catch (error) {
+      console.error('Error updating document:', error);
+      toast.error('Failed to update document');
+    }
   };
 
   // Delete operations
@@ -869,7 +980,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     });
   }
 
-  tabs.push({ id: 'activity', label: 'Activity', icon: ActivityIcon, count: activities.length });
+  tabs.push({ id: 'activity', label: 'Activity Timeline', icon: ActivityIcon, count: activities.length });
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
@@ -1138,6 +1249,26 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         reason={reassignReason}
         setReason={setReassignReason}
         onConfirm={handleReassignWithReason}
+      />
+
+      <WorkDocumentModal
+        isOpen={showDocumentModal || showEditDocumentModal}
+        onClose={() => {
+          setShowDocumentModal(false);
+          setShowEditDocumentModal(false);
+          setEditingDocument(null);
+          setDocumentForm({
+            name: '',
+            description: '',
+            category: 'general',
+            is_required: false,
+            sort_order: 0,
+          });
+        }}
+        onSubmit={editingDocument ? handleUpdateDocument : handleAddDocument}
+        form={documentForm}
+        setForm={setDocumentForm}
+        isEditing={!!editingDocument}
       />
     </div>
   );

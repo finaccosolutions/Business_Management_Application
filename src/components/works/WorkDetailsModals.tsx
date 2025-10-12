@@ -594,3 +594,138 @@ export function ReassignReasonModal({ isOpen, onClose, onConfirm, reason, setRea
     </div>
   );
 }
+
+interface WorkDocumentForm {
+  name: string;
+  description: string;
+  category: string;
+  is_required: boolean;
+  sort_order: number;
+}
+
+interface WorkDocumentModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (form: WorkDocumentForm) => void;
+  form: WorkDocumentForm;
+  setForm: (form: WorkDocumentForm) => void;
+  isEditing?: boolean;
+}
+
+export function WorkDocumentModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  form,
+  setForm,
+  isEditing = false
+}: WorkDocumentModalProps) {
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(form);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-white">
+                {isEditing ? 'Edit Document' : 'Add Document'}
+              </h3>
+              <p className="text-orange-100 text-sm mt-1">
+                {isEditing ? 'Update document details' : 'Add a new document requirement'}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Document Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="e.g., GST Certificate, Bank Statement"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              rows={3}
+              placeholder="Brief description of this document..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Category
+            </label>
+            <select
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            >
+              <option value="general">General</option>
+              <option value="tax">Tax Documents</option>
+              <option value="financial">Financial</option>
+              <option value="legal">Legal</option>
+              <option value="compliance">Compliance</option>
+              <option value="identity">Identity</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="is_required"
+              checked={form.is_required}
+              onChange={(e) => setForm({ ...form, is_required: e.target.checked })}
+              className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+            />
+            <label htmlFor="is_required" className="text-sm font-medium text-gray-700 cursor-pointer">
+              Mark as required document
+            </label>
+          </div>
+
+          <div className="pt-4 border-t border-gray-200 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              {isEditing ? 'Update Document' : 'Add Document'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
