@@ -173,44 +173,51 @@ export default function Works() {
 
   const handleServiceChange = (serviceId: string) => {
     const selectedService = services.find(s => s.id === serviceId);
-
+  
     if (selectedService && !editingWork) {
       const updates: any = {
         service_id: serviceId,
       };
-
+  
       if (selectedService.default_price && !formData.billing_amount) {
         updates.billing_amount = selectedService.default_price.toString();
       }
-
+  
       if (selectedService.is_recurring) {
         updates.is_recurring = true;
         updates.recurrence_pattern = selectedService.recurrence_type || 'monthly';
         updates.recurrence_day = selectedService.recurrence_day?.toString() || '';
-
-        // Auto-fill due date from recurring service data
-        if (selectedService.recurrence_day && !formData.due_date) {
-          const today = new Date();
-          const currentMonth = today.getMonth();
-          const currentYear = today.getFullYear();
-          const dueDay = selectedService.recurrence_day;
-
-          let dueDate = new Date(currentYear, currentMonth, dueDay);
-
-          // If the due date has passed this month, set it for next month
-          if (dueDate < today) {
-            dueDate = new Date(currentYear, currentMonth + 1, dueDay);
-          }
-
-          updates.due_date = dueDate.toISOString().split('T')[0];
-        }
       }
-
+  
       setFormData({ ...formData, ...updates });
+      
+      // Auto-fill title
+      handleCustomerOrServiceChange(formData.customer_id, serviceId);
     } else {
       setFormData({ ...formData, service_id: serviceId });
     }
   };
+
+
+  const handleCustomerOrServiceChange = (customerId?: string, serviceId?: string) => {
+    const cId = customerId || formData.customer_id;
+    const sId = serviceId || formData.service_id;
+    
+    if (cId && sId) {
+      const customer = customers.find(c => c.id === cId);
+      const service = services.find(s => s.id === sId);
+      
+      if (customer && service && !editingWork) {
+        setFormData(prev => ({
+          ...prev,
+          title: `${service.name} - ${customer.name}`,
+          customer_id: cId,
+          service_id: sId
+        }));
+      }
+    }
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,9 +286,10 @@ export default function Works() {
         if (newWork) {
           await copyServiceTasksToWork(formData.service_id, newWork.id);
 
-          if (formData.is_recurring && formData.due_date) {
-            await createFirstRecurringPeriod(newWork.id, formData);
-          }
+        if (formData.is_recurring && (formData.start_date || formData.due_date)) {
+          await createRecurringPeriodsFromStart(newWork.id, formData);
+        }
+
 
           if (formData.status === 'completed') {
             shouldCreateInvoice = true;
@@ -304,51 +312,192 @@ export default function Works() {
     }
   };
 
-  const createFirstRecurringPeriod = async (workId: string, formData: any) => {
-    try {
-      const dueDate = new Date(formData.due_date);
-      let periodStart: Date;
-      let periodEnd: Date;
-      let periodName: string;
-
-      const pattern = formData.recurrence_pattern;
-
-      if (pattern === 'monthly') {
-        periodStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), 1);
-        periodEnd = new Date(dueDate.getFullYear(), dueDate.getMonth() + 1, 0);
-        periodName = `${periodStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
-      } else if (pattern === 'quarterly') {
-        const quarter = Math.floor(dueDate.getMonth() / 3);
-        periodStart = new Date(dueDate.getFullYear(), quarter * 3, 1);
-        periodEnd = new Date(dueDate.getFullYear(), quarter * 3 + 3, 0);
-        periodName = `Q${quarter + 1} ${dueDate.getFullYear()}`;
-      } else if (pattern === 'half_yearly') {
-        const half = Math.floor(dueDate.getMonth() / 6);
-        periodStart = new Date(dueDate.getFullYear(), half * 6, 1);
-        periodEnd = new Date(dueDate.getFullYear(), half * 6 + 6, 0);
-        periodName = `H${half + 1} ${dueDate.getFullYear()}`;
-      } else {
-        periodStart = new Date(dueDate.getFullYear(), 0, 1);
-        periodEnd = new Date(dueDate.getFullYear(), 11, 31);
-        periodName = `Year ${dueDate.getFullYear()}`;
+    const createRecurringPeriodsFromStart = async (
+      workId: string, 
+      formData: any
+    ) => {
+      try {
+        const startDate = new Date(formData.start_date || formData.due_date);
+        const currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+        
+        const pattern = formData.recurrence_pattern;
+        const recurrenceDay = parseInt(formData.recurrence_day) || startDate.getDate();
+        
+        // Calculate all periods from start date to current date
+        const periods = [];
+        let periodDate = new Date(startDate.getFullYear(), startDate.getMonth(), recurrenceDay);
+        
+        // If the period date is before start date, move to next period
+        if (periodDate < startDate) {
+          periodDate = getNextPeriodDate(periodDate, pattern, recurrenceDay);
+        }
+        
+        // Generate all periods up to current date plus one future period
+        while (periodDate <= currentDate || periods.length === 0) {
+          const periodStart = getPeriodStart(periodDate, pattern);
+          const periodEnd = getPeriodEnd(periodDate, pattern);
+          const periodName = getPeriodName(periodStart, periodEnd, pattern);
+          const dueDate = new Date(periodDate.getFullYear(), periodDate.getMonth(), recurrenceDay);
+          
+          // Determine status based on due date
+          const isOverdue = dueDate < currentDate;
+          const status = isOverdue ? 'overdue' : 'pending';
+          
+          periods.push({
+            work_id: workId,
+            period_name: periodName,
+            period_start_date: periodStart.toISOString().split('T')[0],
+            period_end_date: periodEnd.toISOString().split('T')[0],
+            due_date: dueDate.toISOString().split('T')[0],
+            billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
+            status: status,
+            is_billed: false,
+          });
+          
+          periodDate = getNextPeriodDate(periodDate, pattern, recurrenceDay);
+          
+          // Safety limit
+          if (periods.length > 100) break;
+        }
+        
+        // Add one future period
+        const futureStart = getPeriodStart(periodDate, pattern);
+        const futureEnd = getPeriodEnd(periodDate, pattern);
+        const futureName = getPeriodName(futureStart, futureEnd, pattern);
+        const futureDue = new Date(periodDate.getFullYear(), periodDate.getMonth(), recurrenceDay);
+        
+        periods.push({
+          work_id: workId,
+          period_name: futureName,
+          period_start_date: futureStart.toISOString().split('T')[0],
+          period_end_date: futureEnd.toISOString().split('T')[0],
+          due_date: futureDue.toISOString().split('T')[0],
+          billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
+          status: 'pending',
+          is_billed: false,
+        });
+        
+        // Insert all periods
+        const { error } = await Supabase
+          .from('work_recurring_instances')
+          .insert(periods);
+        
+        if (error) throw error;
+        
+        console.log(`Created ${periods.length} recurring periods for work ${workId}`);
+      } catch (error) {
+        console.error('Error creating recurring periods:', error);
+        throw error;
       }
-
-      const { error } = await supabase.from('work_recurring_instances').insert({
-        work_id: workId,
-        period_name: periodName,
-        period_start_date: periodStart.toISOString().split('T')[0],
-        period_end_date: periodEnd.toISOString().split('T')[0],
-        due_date: formData.due_date,
-        billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
-        status: 'pending',
-      });
-
-      if (error) throw error;
-      console.log(`First recurring period created: ${periodName}`);
-    } catch (error) {
-      console.error('Error creating first recurring period:', error);
+    };
+    
+    // Helper functions
+    function getNextPeriodDate(currentDate: Date, pattern: string, day: number): Date {
+      const next = new Date(currentDate);
+      
+      switch (pattern) {
+        case 'monthly':
+          next.setMonth(next.getMonth() + 1);
+          break;
+        case 'quarterly':
+          next.setMonth(next.getMonth() + 3);
+          break;
+        case 'half_yearly':
+          next.setMonth(next.getMonth() + 6);
+          break;
+        case 'yearly':
+          next.setFullYear(next.getFullYear() + 1);
+          break;
+        default:
+          next.setMonth(next.getMonth() + 1);
+      }
+      
+      // Set to the correct day
+      const maxDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+      next.setDate(Math.min(day, maxDay));
+      
+      return next;
     }
-  };
+    
+    function getPeriodStart(dueDate: Date, pattern: string): Date {
+      const start = new Date(dueDate);
+      
+      switch (pattern) {
+        case 'monthly':
+          start.setDate(1);
+          break;
+        case 'quarterly':
+          const quarter = Math.floor(dueDate.getMonth() / 3);
+          start.setMonth(quarter * 3);
+          start.setDate(1);
+          break;
+        case 'half_yearly':
+          const half = Math.floor(dueDate.getMonth() / 6);
+          start.setMonth(half * 6);
+          start.setDate(1);
+          break;
+        case 'yearly':
+          start.setMonth(0);
+          start.setDate(1);
+          break;
+        default:
+          start.setDate(1);
+      }
+      
+      return start;
+    }
+    
+    function getPeriodEnd(dueDate: Date, pattern: string): Date {
+      const end = new Date(dueDate);
+      
+      switch (pattern) {
+        case 'monthly':
+          end.setMonth(end.getMonth() + 1);
+          end.setDate(0);
+          break;
+        case 'quarterly':
+          const quarter = Math.floor(dueDate.getMonth() / 3);
+          end.setMonth(quarter * 3 + 3);
+          end.setDate(0);
+          break;
+        case 'half_yearly':
+          const half = Math.floor(dueDate.getMonth() / 6);
+          end.setMonth(half * 6 + 6);
+          end.setDate(0);
+          break;
+        case 'yearly':
+          end.setMonth(12);
+          end.setDate(0);
+          break;
+        default:
+          end.setMonth(end.getMonth() + 1);
+          end.setDate(0);
+      }
+      
+      return end;
+    }
+    
+    function getPeriodName(start: Date, end: Date, pattern: string): string {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      
+      switch (pattern) {
+        case 'monthly':
+          return `${monthNames[start.getMonth()]} ${start.getFullYear()}`;
+        case 'quarterly':
+          const quarter = Math.floor(start.getMonth() / 3) + 1;
+          return `Q${quarter} ${start.getFullYear()}`;
+        case 'half_yearly':
+          const half = Math.floor(start.getMonth() / 6) + 1;
+          return `H${half} ${start.getFullYear()}`;
+        case 'yearly':
+          return `FY ${start.getFullYear()}`;
+        default:
+          return `${monthNames[start.getMonth()]} ${start.getFullYear()}`;
+      }
+    }
+
 
   const createInvoiceForWork = async (workId: string, customerId: string, serviceId: string) => {
     try {
@@ -954,24 +1103,17 @@ const filteredWorks = works.filter((work) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Due Date
-                    {formData.is_recurring && (
-                      <span className="text-xs text-gray-500 ml-2">(Auto-filled from service)</span>
-                    )}
+                    Due Date (Optional)
                   </label>
                   <input
                     type="date"
                     value={formData.due_date}
                     onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    disabled={formData.is_recurring && !editingWork}
+                    placeholder="DD/MM/YYYY"
                   />
-                  {formData.is_recurring && formData.recurrence_day && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Due day: {formData.recurrence_day} of each {formData.recurrence_pattern || 'period'}
-                    </p>
-                  )}
                 </div>
+
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
