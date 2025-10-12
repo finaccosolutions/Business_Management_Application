@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { X, Users, Clock, CheckSquare, Plus, FileText, DollarSign, Calendar, AlertCircle, CreditCard as Edit2, Briefcase, CheckCircle, Repeat, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { X, Users, Clock, CheckSquare, Plus, FileText, DollarSign, Calendar, AlertCircle, CreditCard as Edit2, Briefcase, CheckCircle, Repeat, ArrowRightLeft, Trash2, Upload, History, Check, Download } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 interface WorkDetailsProps {
@@ -57,6 +57,22 @@ interface RecurringInstance {
   billing_amount: number | null;
   is_billed: boolean;
   invoice_id: string | null;
+}
+
+interface WorkDocument {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  is_required: boolean;
+  is_collected: boolean;
+  file_url: string | null;
+  file_type: string | null;
+  file_size: number | null;
+  collected_at: string | null;
+  uploaded_at: string | null;
+  sort_order: number;
+  created_at: string;
 }
 
 interface ConfirmationModalProps {
@@ -195,6 +211,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [recurringInstances, setRecurringInstances] = useState<RecurringInstance[]>([]);
+  const [workDocuments, setWorkDocuments] = useState<WorkDocument[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -249,7 +266,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
   const fetchWorkDetails = async () => {
     try {
-      const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes] = await Promise.all([
+      const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes, documentsRes] = await Promise.all([
         // 1. Works query
         supabase
           .from('works')
@@ -298,11 +315,19 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           `)
           .eq('work_id', workId)
           .order('due_date', { ascending: false }),
+
+        // 6. Work documents query
+        supabase
+          .from('work_documents')
+          .select('*')
+          .eq('work_id', workId)
+          .order('sort_order'),
       ]);
 
       if (workRes.data) setWork(workRes.data);
       if (tasksRes.data) setTasks(tasksRes.data);
       if (timeLogsRes.data) setTimeLogs(timeLogsRes.data);
+      if (documentsRes.data) setWorkDocuments(documentsRes.data);
 
       if (assignmentsRes.data) {
         const enrichedAssignments = await Promise.all(
@@ -801,6 +826,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const tabs = [
     { id: 'overview', label: 'Overview', icon: FileText },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: tasks.length },
+    { id: 'documents', label: 'Documents', icon: FileText, count: workDocuments.length },
     { id: 'time', label: 'Time Logs', icon: Clock, count: timeLogs.length },
     { id: 'assignments', label: 'Assignments', icon: Users, count: assignments.length },
   ];
@@ -813,6 +839,12 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       count: recurringInstances.length
     });
   }
+
+  tabs.push({
+    id: 'activity',
+    label: 'Activity Timeline',
+    icon: History
+  });
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
@@ -1219,6 +1251,181 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             </div>
           )}
 
+          {activeTab === 'documents' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-gray-900 text-lg">Documents Checklist</h3>
+                <div className="text-sm text-gray-600">
+                  {workDocuments.filter(d => d.is_collected).length} of {workDocuments.length} collected
+                </div>
+              </div>
+
+              {workDocuments.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                  <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600">No documents required for this work</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Documents will appear here if they are defined in the service
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {workDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className={`bg-white border-2 rounded-xl p-4 transition-colors ${
+                        doc.is_collected ? 'border-green-200 bg-green-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const { error } = await supabase
+                                    .from('work_documents')
+                                    .update({ is_collected: !doc.is_collected })
+                                    .eq('id', doc.id);
+                                  if (error) throw error;
+                                  fetchWorkDetails();
+                                  onUpdate();
+                                  toast.success(doc.is_collected ? 'Marked as not collected' : 'Marked as collected');
+                                } catch (error) {
+                                  console.error('Error updating document:', error);
+                                  toast.error('Failed to update document');
+                                }
+                              }}
+                              className={`flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
+                                doc.is_collected
+                                  ? 'bg-green-600 border-green-600'
+                                  : 'border-gray-300 hover:border-green-500'
+                              }`}
+                            >
+                              {doc.is_collected && <Check size={14} className="text-white" />}
+                            </button>
+                            <h4 className={`font-medium ${doc.is_collected ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                              {doc.name}
+                            </h4>
+                            {doc.is_required && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                Required
+                              </span>
+                            )}
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                              {doc.category}
+                            </span>
+                          </div>
+                          {doc.description && (
+                            <p className="text-sm text-gray-600 ml-9">{doc.description}</p>
+                          )}
+                          {doc.collected_at && (
+                            <p className="text-xs text-green-600 ml-9 mt-1">
+                              Collected: {new Date(doc.collected_at).toLocaleString('en-IN')}
+                            </p>
+                          )}
+                          {doc.file_url && (
+                            <div className="flex items-center gap-2 ml-9 mt-2">
+                              <a
+                                href={doc.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                              >
+                                <Download size={14} />
+                                View Uploaded File
+                              </a>
+                              {doc.uploaded_at && (
+                                <span className="text-xs text-gray-500">
+                                  Uploaded: {new Date(doc.uploaded_at).toLocaleDateString('en-IN')}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label
+                            htmlFor={`file-${doc.id}`}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            title="Upload document"
+                          >
+                            <Upload size={16} />
+                            <input
+                              id={`file-${doc.id}`}
+                              type="file"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+
+                                try {
+                                  const fileExt = file.name.split('.').pop();
+                                  const fileName = `${doc.id}-${Date.now()}.${fileExt}`;
+                                  const filePath = `work-documents/${work.user_id}/${fileName}`;
+
+                                  const { error: uploadError } = await supabase.storage
+                                    .from('documents')
+                                    .upload(filePath, file);
+
+                                  if (uploadError) throw uploadError;
+
+                                  const { data: { publicUrl } } = supabase.storage
+                                    .from('documents')
+                                    .getPublicUrl(filePath);
+
+                                  const { error: updateError } = await supabase
+                                    .from('work_documents')
+                                    .update({
+                                      file_url: publicUrl,
+                                      file_type: file.type,
+                                      file_size: file.size,
+                                      is_collected: true,
+                                    })
+                                    .eq('id', doc.id);
+
+                                  if (updateError) throw updateError;
+
+                                  fetchWorkDetails();
+                                  onUpdate();
+                                  toast.success('Document uploaded successfully');
+                                } catch (error) {
+                                  console.error('Error uploading document:', error);
+                                  toast.error('Failed to upload document');
+                                }
+                              }}
+                            />
+                          </label>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Are you sure you want to delete this document?')) return;
+                              try {
+                                const { error } = await supabase
+                                  .from('work_documents')
+                                  .delete()
+                                  .eq('id', doc.id);
+                                if (error) throw error;
+                                fetchWorkDetails();
+                                onUpdate();
+                                toast.success('Document deleted successfully');
+                              } catch (error) {
+                                console.error('Error deleting document:', error);
+                                toast.error('Failed to delete document');
+                              }
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete document"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'recurring' && work.is_recurring && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
@@ -1323,6 +1530,95 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                     <p className="text-gray-600">No recurring periods yet. Add periods to track them.</p>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'activity' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900 text-lg">Activity Timeline</h3>
+                <p className="text-sm text-gray-600">Complete history of work activities</p>
+              </div>
+              <div className="relative">
+                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                <div className="space-y-6">
+                  <div className="relative flex gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center z-10">
+                      <CheckCircle size={20} />
+                    </div>
+                    <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
+                      <h4 className="font-semibold text-gray-900">Work Created</h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {new Date(work.created_at).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {work.assigned_to && (
+                    <div className="relative flex gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-100 text-green-700 flex items-center justify-center z-10">
+                        <Users size={20} />
+                      </div>
+                      <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
+                        <h4 className="font-semibold text-gray-900">Work Assigned</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Assigned to {work.staff_members?.name}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {tasks.length > 0 && (
+                    <div className="relative flex gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center z-10">
+                        <CheckSquare size={20} />
+                      </div>
+                      <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
+                        <h4 className="font-semibold text-gray-900">Tasks Progress</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {tasks.filter(t => t.status === 'completed').length} of {tasks.length} tasks completed
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {timeLogs.length > 0 && (
+                    <div className="relative flex gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center z-10">
+                        <Clock size={20} />
+                      </div>
+                      <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
+                        <h4 className="font-semibold text-gray-900">Time Tracked</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Total {work.actual_duration_hours || 0} hours logged across {timeLogs.length} entries
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {work.status === 'completed' && (
+                    <div className="relative flex gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center z-10">
+                        <CheckCircle size={20} />
+                      </div>
+                      <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
+                        <h4 className="font-semibold text-gray-900">Work Completed</h4>
+                        {work.completion_date && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            Completed on {new Date(work.completion_date).toLocaleDateString('en-IN')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

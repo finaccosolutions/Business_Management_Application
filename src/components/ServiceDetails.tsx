@@ -15,11 +15,15 @@ import {
   CheckSquare,
   Plus,
   Trash2,
+  FileText,
+  History,
+  Upload,
 } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 interface ServiceDetailsProps {
   serviceId: string;
-  onClose: () => vfvoid;
+  onClose: () => void;
   onEdit: () => void;
 }
 
@@ -63,18 +67,32 @@ interface ServiceTask {
   notes: string | null;
 }
 
-type TabType = 'overview' | 'customers' | 'works' | 'revenue' | 'history' | 'tasks';
+interface ServiceDocument {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  is_required: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+type TabType = 'overview' | 'customers' | 'works' | 'revenue' | 'activity' | 'tasks' | 'documents';
 
 export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDetailsProps) {
   const { user } = useAuth();
+  const toast = useToast();
   const [service, setService] = useState<Service | null>(null);
   const [customerServices, setCustomerServices] = useState<CustomerService[]>([]);
   const [works, setWorks] = useState<Work[]>([]);
   const [serviceTasks, setServiceTasks] = useState<ServiceTask[]>([]);
+  const [serviceDocuments, setServiceDocuments] = useState<ServiceDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [editingTask, setEditingTask] = useState<ServiceTask | null>(null);
+  const [editingDocument, setEditingDocument] = useState<ServiceDocument | null>(null);
   const [statistics, setStatistics] = useState({
     totalCustomers: 0,
     activeCustomers: 0,
@@ -92,7 +110,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
 
   const fetchServiceDetails = async () => {
     try {
-      const [serviceRes, customerServicesRes, worksRes, tasksRes] = await Promise.all([
+      const [serviceRes, customerServicesRes, worksRes, tasksRes, documentsRes] = await Promise.all([
         supabase
           .from('services')
           .select('*')
@@ -113,17 +131,24 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
           .select('*')
           .eq('service_id', serviceId)
           .order('sort_order'),
+        supabase
+          .from('service_documents')
+          .select('*')
+          .eq('service_id', serviceId)
+          .order('sort_order'),
       ]);
 
       if (serviceRes.error) throw serviceRes.error;
       if (customerServicesRes.error) throw customerServicesRes.error;
       if (worksRes.error) throw worksRes.error;
       if (tasksRes.error) throw tasksRes.error;
+      if (documentsRes.error) throw documentsRes.error;
 
       setService(serviceRes.data);
       setCustomerServices(customerServicesRes.data || []);
       setWorks(worksRes.data || []);
       setServiceTasks(tasksRes.data || []);
+      setServiceDocuments(documentsRes.data || []);
 
       const allCustomerServices = customerServicesRes.data || [];
       const activeCS = allCustomerServices.filter((cs) => cs.status === 'active');
@@ -159,10 +184,11 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
   const tabs: Array<{ id: TabType; label: string; icon: any; count?: number }> = [
     { id: 'overview', label: 'Overview', icon: Briefcase },
     { id: 'tasks', label: 'Task Templates', icon: CheckSquare, count: serviceTasks.length },
+    { id: 'documents', label: 'Documents', icon: FileText, count: serviceDocuments.length },
     { id: 'customers', label: 'Customers', icon: Users, count: statistics.totalCustomers },
     { id: 'works', label: 'Works', icon: Clock, count: statistics.totalWorks },
     { id: 'revenue', label: 'Revenue', icon: DollarSign },
-    { id: 'history', label: 'History', icon: Calendar },
+    { id: 'activity', label: 'Activity Timeline', icon: History },
   ];
 
   const statusColors: Record<string, string> = {
@@ -674,41 +700,181 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
             </div>
           )}
 
-          {activeTab === 'history' && (
+          {activeTab === 'documents' && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Service History</h3>
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Service Created</p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(service.created_at).toLocaleString()}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Required Documents</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Define documents required when creating work for this service
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingDocument(null);
+                    setShowDocumentModal(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus size={18} />
+                  Add Document
+                </button>
+              </div>
+
+              {serviceDocuments.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                  <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600">No documents defined yet</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Add documents that will be required when creating work
+                  </p>
+                  <button
+                    onClick={() => {
+                      setEditingDocument(null);
+                      setShowDocumentModal(true);
+                    }}
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus size={18} />
+                    Add First Document
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {serviceDocuments.map((doc, index) => (
+                    <div
+                      key={doc.id}
+                      className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                              {index + 1}
+                            </span>
+                            <h4 className="font-medium text-gray-900">{doc.name}</h4>
+                            {doc.is_required && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                Required
+                              </span>
+                            )}
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                              {doc.category}
+                            </span>
+                          </div>
+                          {doc.description && (
+                            <p className="text-sm text-gray-600 ml-11">{doc.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingDocument(doc);
+                              setShowDocumentModal(true);
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit document"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (
+                                !confirm('Are you sure you want to delete this document requirement?')
+                              )
+                                return;
+                              try {
+                                const { error } = await supabase
+                                  .from('service_documents')
+                                  .delete()
+                                  .eq('id', doc.id);
+                                if (error) throw error;
+                                fetchServiceDetails();
+                                toast.success('Document deleted successfully');
+                              } catch (error) {
+                                console.error('Error deleting document:', error);
+                                toast.error('Failed to delete document');
+                              }
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete document"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'activity' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Activity Timeline</h3>
+                <p className="text-sm text-gray-600">Complete history of service activities</p>
+              </div>
+              <div className="relative">
+                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                <div className="space-y-6">
+                  <div className="relative flex gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center z-10">
+                      <CheckCircle size={20} />
+                    </div>
+                    <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
+                      <h4 className="font-semibold text-gray-900">Service Created</h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {new Date(service.created_at).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </p>
                     </div>
                   </div>
+
                   {customerServices.length > 0 && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-green-600 rounded-full mt-2"></div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          First Customer Added
-                        </p>
-                        <p className="text-xs text-gray-500">
+                    <div className="relative flex gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-100 text-green-700 flex items-center justify-center z-10">
+                        <Users size={20} />
+                      </div>
+                      <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
+                        <h4 className="font-semibold text-gray-900">First Customer Added</h4>
+                        <p className="text-sm text-gray-600 mt-1">
                           {customerServices[customerServices.length - 1]?.customers?.name}
                         </p>
                       </div>
                     </div>
                   )}
-                  {statistics.totalCustomers > 0 && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-teal-600 rounded-full mt-2"></div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          Total Customers Served
+
+                  {statistics.totalWorks > 0 && (
+                    <div className="relative flex gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center z-10">
+                        <Clock size={20} />
+                      </div>
+                      <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
+                        <h4 className="font-semibold text-gray-900">Works Generated</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Total {statistics.totalWorks} works, {statistics.completedWorks} completed
                         </p>
-                        <p className="text-xs text-gray-500">{statistics.totalCustomers} customers</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {statistics.totalRevenue > 0 && (
+                    <div className="relative flex gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center z-10">
+                        <DollarSign size={20} />
+                      </div>
+                      <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
+                        <h4 className="font-semibold text-gray-900">Revenue Milestone</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Total revenue: ₹{statistics.totalRevenue.toLocaleString('en-IN')}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -848,6 +1014,129 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   {editingTask ? 'Update Task' : 'Add Task'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Document Modal */}
+      {showDocumentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
+              <h3 className="text-xl font-bold text-white">
+                {editingDocument ? 'Edit Document' : 'Add Document'}
+              </h3>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const docData = {
+                  service_id: serviceId,
+                  user_id: user?.id,
+                  name: formData.get('name') as string,
+                  description: (formData.get('description') as string) || null,
+                  category: formData.get('category') as string,
+                  is_required: formData.get('is_required') === 'on',
+                  sort_order: serviceDocuments.length,
+                };
+
+                try {
+                  if (editingDocument) {
+                    const { error } = await supabase
+                      .from('service_documents')
+                      .update(docData)
+                      .eq('id', editingDocument.id);
+                    if (error) throw error;
+                    toast.success('Document updated successfully');
+                  } else {
+                    const { error } = await supabase.from('service_documents').insert(docData);
+                    if (error) throw error;
+                    toast.success('Document added successfully');
+                  }
+                  setShowDocumentModal(false);
+                  setEditingDocument(null);
+                  fetchServiceDetails();
+                } catch (error) {
+                  console.error('Error saving document:', error);
+                  toast.error('Failed to save document');
+                }
+              }}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Document Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  defaultValue={editingDocument?.name || ''}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., GST Certificate"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  name="description"
+                  defaultValue={editingDocument?.description || ''}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  rows={2}
+                  placeholder="Brief description of this document..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select
+                  name="category"
+                  defaultValue={editingDocument?.category || 'general'}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="general">General</option>
+                  <option value="tax">Tax Documents</option>
+                  <option value="financial">Financial</option>
+                  <option value="legal">Legal</option>
+                  <option value="compliance">Compliance</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="is_required"
+                  id="is_required"
+                  defaultChecked={editingDocument?.is_required || false}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="is_required" className="text-sm font-medium text-gray-700">
+                  Mark as required document
+                </label>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDocumentModal(false);
+                    setEditingDocument(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  {editingDocument ? 'Update Document' : 'Add Document'}
                 </button>
               </div>
             </form>
