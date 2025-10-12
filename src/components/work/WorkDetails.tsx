@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { X, Users, Clock, CheckSquare, FileText, DollarSign, Calendar, Briefcase, CheckCircle, Repeat, Edit2 } from 'lucide-react';
+import { X, Users, Clock, CheckSquare, FileText, DollarSign, Calendar, Briefcase, CheckCircle, Repeat, Edit2, Activity as ActivityIcon } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
-import { WorkDetailsProps, Task, TimeLog, Assignment, RecurringInstance, TaskForm, TimeForm, RecurringForm, statusColors, priorityColors } from './WorkDetailsTypes';
-import { OverviewTab, TasksTab, TimeLogsTab, AssignmentsTab, RecurringTab } from './WorkDetailsTabs';
+import { WorkDetailsProps, Task, TimeLog, Assignment, RecurringInstance, Activity, TaskForm, TimeForm, RecurringForm, statusColors, priorityColors } from './WorkDetailsTypes';
+import { OverviewTab, TasksTab, TimeLogsTab, AssignmentsTab, RecurringTab, ActivityTab } from './WorkDetailsTabs';
 import { ConfirmationModal, TaskModal, TimeLogModal, RecurringPeriodModal, AssignStaffModal, ReassignReasonModal } from './WorkDetailsModals';
 
 export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkDetailsProps) {
@@ -12,6 +12,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [recurringInstances, setRecurringInstances] = useState<RecurringInstance[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -58,11 +59,13 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     period_end_date: '',
     due_date: '',
     billing_amount: '',
+    notes: '',
   });
 
   useEffect(() => {
     fetchWorkDetails();
     fetchStaff();
+    fetchActivities();
   }, [workId]);
 
   const fetchWorkDetails = async () => {
@@ -198,6 +201,127 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     }
   };
 
+  const fetchActivities = async () => {
+    try {
+      const activityList: Activity[] = [];
+
+      const [tasksRes, assignmentsRes, timeLogsRes, recurringRes] = await Promise.all([
+        supabase.from('work_tasks').select('*').eq('work_id', workId).order('created_at', { ascending: false }),
+        supabase.from('work_assignments').select('*').eq('work_id', workId).order('assigned_at', { ascending: false }),
+        supabase.from('time_logs').select('*').eq('work_id', workId).order('start_time', { ascending: false }),
+        supabase.from('work_recurring_instances').select('*').eq('work_id', workId).order('created_at', { ascending: false }),
+      ]);
+
+      if (tasksRes.data) {
+        for (const task of tasksRes.data) {
+          activityList.push({
+            id: `task-${task.id}`,
+            type: 'task_created',
+            title: 'Task Created',
+            description: `Task "${task.title}" was created`,
+            timestamp: task.created_at,
+          });
+
+          if (task.status === 'completed' && task.updated_at !== task.created_at) {
+            activityList.push({
+              id: `task-complete-${task.id}`,
+              type: 'task_completed',
+              title: 'Task Completed',
+              description: `Task "${task.title}" was marked as completed`,
+              timestamp: task.updated_at,
+            });
+          }
+        }
+      }
+
+      if (assignmentsRes.data) {
+        for (const assignment of assignmentsRes.data) {
+          const staffRes = await supabase.from('staff_members').select('name').eq('id', assignment.staff_member_id).maybeSingle();
+          const staffName = staffRes.data?.name || 'Unknown';
+
+          if (assignment.reassigned_from) {
+            activityList.push({
+              id: `assignment-${assignment.id}`,
+              type: 'reassignment',
+              title: 'Work Reassigned',
+              description: `Work was reassigned to ${staffName}`,
+              timestamp: assignment.assigned_at,
+              user: staffName,
+              metadata: assignment.reassignment_reason ? { reason: assignment.reassignment_reason } : undefined,
+            });
+          } else {
+            activityList.push({
+              id: `assignment-${assignment.id}`,
+              type: 'assignment',
+              title: 'Work Assigned',
+              description: `Work was assigned to ${staffName}`,
+              timestamp: assignment.assigned_at,
+              user: staffName,
+            });
+          }
+        }
+      }
+
+      if (timeLogsRes.data) {
+        for (const log of timeLogsRes.data) {
+          const staffRes = await supabase.from('staff_members').select('name').eq('id', log.staff_member_id).maybeSingle();
+          const staffName = staffRes.data?.name || 'Unknown';
+          const duration = log.duration_hours ? `${log.duration_hours.toFixed(2)} hours` : 'In progress';
+
+          activityList.push({
+            id: `timelog-${log.id}`,
+            type: 'time_logged',
+            title: 'Time Logged',
+            description: `${staffName} logged ${duration}`,
+            timestamp: log.start_time,
+            user: staffName,
+          });
+        }
+      }
+
+      if (recurringRes.data) {
+        for (const instance of recurringRes.data) {
+          activityList.push({
+            id: `recurring-created-${instance.id}`,
+            type: 'recurring_period_created',
+            title: 'Recurring Period Created',
+            description: `Period "${instance.period_name}" was created`,
+            timestamp: instance.created_at || instance.period_start_date,
+          });
+
+          if (instance.status === 'completed' && instance.completed_at) {
+            const staffRes = instance.completed_by ? await supabase.from('staff_members').select('name').eq('id', instance.completed_by).maybeSingle() : null;
+            const staffName = staffRes?.data?.name;
+
+            activityList.push({
+              id: `recurring-completed-${instance.id}`,
+              type: 'recurring_period_completed',
+              title: 'Recurring Period Completed',
+              description: `Period "${instance.period_name}" was completed${staffName ? ` by ${staffName}` : ''}`,
+              timestamp: instance.completed_at,
+              user: staffName,
+            });
+
+            if (instance.is_billed) {
+              activityList.push({
+                id: `invoice-${instance.id}`,
+                type: 'invoice_generated',
+                title: 'Invoice Generated',
+                description: `Invoice generated for period "${instance.period_name}"`,
+                timestamp: instance.completed_at,
+              });
+            }
+          }
+        }
+      }
+
+      activityList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setActivities(activityList);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+    }
+  };
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -218,6 +342,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       setShowTaskModal(false);
       resetTaskForm();
       fetchWorkDetails();
+      fetchActivities();
       onUpdate();
       toast.success('Task created successfully!');
     } catch (error) {
@@ -480,6 +605,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       }
 
       fetchWorkDetails();
+      fetchActivities();
       onUpdate();
       toast.success('Task status updated!');
     } catch (error) {
@@ -498,6 +624,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         period_end_date: recurringForm.period_end_date,
         due_date: recurringForm.due_date,
         billing_amount: recurringForm.billing_amount ? parseFloat(recurringForm.billing_amount) : null,
+        notes: recurringForm.notes || null,
         status: 'pending',
       });
 
@@ -510,8 +637,10 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         period_end_date: '',
         due_date: '',
         billing_amount: '',
+        notes: '',
       });
       fetchWorkDetails();
+      fetchActivities();
       onUpdate();
       toast.success('Recurring period created successfully!');
     } catch (error) {
@@ -533,6 +662,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           period_end_date: recurringForm.period_end_date,
           due_date: recurringForm.due_date,
           billing_amount: recurringForm.billing_amount ? parseFloat(recurringForm.billing_amount) : null,
+          notes: recurringForm.notes || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingRecurring.id);
@@ -547,8 +677,10 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         period_end_date: '',
         due_date: '',
         billing_amount: '',
+        notes: '',
       });
       fetchWorkDetails();
+      fetchActivities();
       onUpdate();
       toast.success('Recurring period updated successfully!');
     } catch (error) {
@@ -565,6 +697,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       period_end_date: instance.period_end_date,
       due_date: instance.due_date,
       billing_amount: instance.billing_amount?.toString() || '',
+      notes: instance.notes || '',
     });
     setShowEditRecurringModal(true);
   };
@@ -584,6 +717,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
       if (error) throw error;
       fetchWorkDetails();
+      fetchActivities();
       onUpdate();
       toast.success('Period status updated!');
     } catch (error) {
@@ -637,11 +771,11 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     { id: 'overview', label: 'Overview', icon: FileText },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: tasks.length },
     { id: 'time', label: 'Time Logs', icon: Clock, count: timeLogs.length },
-    { id: 'assignments', label: 'Assignments', icon: Users, count: assignments.length },
+    { id: 'activity', label: 'Activity', icon: ActivityIcon, count: activities.length },
   ];
 
   if (work.is_recurring) {
-    tabs.push({
+    tabs.splice(3, 0, {
       id: 'recurring',
       label: 'Recurring Periods',
       icon: Repeat,
@@ -808,12 +942,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             />
           )}
 
-          {activeTab === 'assignments' && (
-            <AssignmentsTab
-              assignments={assignments}
-              work={work}
-              onAssign={() => setShowAssignModal(true)}
-            />
+          {activeTab === 'activity' && (
+            <ActivityTab activities={activities} />
           )}
 
           {activeTab === 'recurring' && work.is_recurring && (

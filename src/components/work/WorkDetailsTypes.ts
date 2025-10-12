@@ -52,6 +52,18 @@ export interface RecurringInstance {
   billing_amount: number | null;
   is_billed: boolean;
   invoice_id: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Activity {
+  id: string;
+  type: 'work_created' | 'status_change' | 'assignment' | 'reassignment' | 'task_created' | 'task_completed' | 'time_logged' | 'recurring_period_created' | 'recurring_period_completed' | 'invoice_generated' | 'note_added';
+  title: string;
+  description: string;
+  timestamp: string;
+  user?: string;
+  metadata?: any;
 }
 
 export interface TaskForm {
@@ -77,6 +89,7 @@ export interface RecurringForm {
   period_end_date: string;
   due_date: string;
   billing_amount: string;
+  notes?: string;
 }
 
 export const statusColors: Record<string, string> = {

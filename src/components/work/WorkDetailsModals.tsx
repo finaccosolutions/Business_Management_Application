@@ -430,6 +430,19 @@ export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm,
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notes
+            </label>
+            <textarea
+              value={form.notes || ''}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+              rows={2}
+              placeholder="Any notes or special instructions for this period"
+            />
+          </div>
+
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-gray-700">
               <strong>Note:</strong> If billing amount is not specified, it will use the work's default billing amount when generating invoice.
