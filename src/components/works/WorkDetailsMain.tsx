@@ -4,7 +4,7 @@ import { X, Users, Clock, CheckSquare, FileText, DollarSign, Calendar, Briefcase
 import { useToast } from '../../contexts/ToastContext';
 import { WorkDetailsProps, Task, TimeLog, Assignment, RecurringInstance, Activity, WorkDocument, TaskForm, TimeForm, RecurringForm, statusColors, priorityColors } from './WorkDetailsTypes';
 import { OverviewTab, TasksTab, TimeLogsTab, AssignmentsTab, RecurringTab, ActivityTab, DocumentsTab } from './WorkDetailsTabs';
-import { ConfirmationModal, TaskModal, TimeLogModal, RecurringPeriodModal, AssignStaffModal, ReassignReasonModal, WorkDocumentModal } from './WorkDetailsModals';
+import { ConfirmationModal, TaskModal, TimeLogModal, RecurringPeriodModal, AssignStaffModal, ReassignReasonModal } from './WorkDetailsModals';
 
 export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkDetailsProps) {
   const [work, setWork] = useState<any>(null);
@@ -65,14 +65,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     due_date: '',
     billing_amount: '',
     notes: '',
-  });
-
-  const [documentForm, setDocumentForm] = useState({
-    name: '',
-    description: '',
-    category: 'general',
-    is_required: false,
-    sort_order: 0,
   });
 
   useEffect(() => {
@@ -183,34 +175,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   };
 
   const fetchActivities = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('work_activities')
-        .select('*, staff_members:created_by_staff_id(name)')
-        .eq('work_id', workId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching activities:', error);
-        setActivities([]);
-        return;
-      }
-
-      const formattedActivities: Activity[] = (data || []).map((activity: any) => ({
-        id: activity.id,
-        type: activity.activity_type,
-        title: activity.title,
-        description: activity.description,
-        timestamp: activity.created_at,
-        user: activity.staff_members?.name || 'System',
-        metadata: activity.metadata
-      }));
-
-      setActivities(formattedActivities);
-    } catch (error) {
-      console.error('Error in fetchActivities:', error);
-      setActivities([]);
-    }
+    setActivities([]);
   };
 
   const checkAndCreateNextPeriod = async () => {
@@ -335,7 +300,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   };
 
   // Task operations
-  const handleCreateTask = async () => {
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       const { error } = await supabase.from('work_tasks').insert({
         work_id: workId,
@@ -362,7 +328,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     }
   };
 
-  const handleUpdateTask = async () => {
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!editingTask) return;
 
     try {
@@ -449,7 +416,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   };
 
   // Time log operations
-  const handleLogTime = async () => {
+  const handleLogTime = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       const start = new Date(timeForm.start_time);
       const end = timeForm.end_time ? new Date(timeForm.end_time) : null;
@@ -492,7 +460,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     }
   };
 
-  const handleUpdateTimeLog = async () => {
+  const handleUpdateTimeLog = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!editingTimeLog) return;
 
     try {
@@ -624,7 +593,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   };
 
   // Recurring instance operations
-  const handleCreateRecurringInstance = async () => {
+  const handleCreateRecurringInstance = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       const { error } = await supabase.from('work_recurring_instances').insert({
         work_id: workId,
@@ -657,7 +627,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     }
   };
 
-  const handleUpdateRecurringInstance = async () => {
+  const handleUpdateRecurringInstance = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!editingRecurring) return;
 
     try {
@@ -837,87 +808,11 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
   const handleEditDocument = (document: WorkDocument) => {
     setEditingDocument(document);
-    setDocumentForm({
-      name: document.name,
-      description: document.description || '',
-      category: document.category || 'general',
-      is_required: document.is_required || false,
-      sort_order: document.sort_order || 0,
-    });
     setShowEditDocumentModal(true);
   };
 
   const handleDeleteDocument = async (documentId: string) => {
     confirmDelete('document', documentId);
-  };
-
-  const handleAddDocument = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase.from('work_documents').insert({
-        work_id: workId,
-        user_id: user.id,
-        name: documentForm.name,
-        description: documentForm.description || null,
-        category: documentForm.category,
-        is_required: documentForm.is_required,
-        sort_order: documents.length,
-      });
-
-      if (error) throw error;
-
-      setShowDocumentModal(false);
-      setDocumentForm({
-        name: '',
-        description: '',
-        category: 'general',
-        is_required: false,
-        sort_order: 0,
-      });
-      fetchWorkDetails();
-      onUpdate();
-      toast.success('Document added successfully!');
-    } catch (error) {
-      console.error('Error adding document:', error);
-      toast.error('Failed to add document');
-    }
-  };
-
-  const handleUpdateDocument = async () => {
-    if (!editingDocument) return;
-
-    try {
-      const { error } = await supabase
-        .from('work_documents')
-        .update({
-          name: documentForm.name,
-          description: documentForm.description || null,
-          category: documentForm.category,
-          is_required: documentForm.is_required,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editingDocument.id);
-
-      if (error) throw error;
-
-      setShowEditDocumentModal(false);
-      setEditingDocument(null);
-      setDocumentForm({
-        name: '',
-        description: '',
-        category: 'general',
-        is_required: false,
-        sort_order: 0,
-      });
-      fetchWorkDetails();
-      onUpdate();
-      toast.success('Document updated successfully!');
-    } catch (error) {
-      console.error('Error updating document:', error);
-      toast.error('Failed to update document');
-    }
   };
 
   // Delete operations
@@ -987,12 +882,19 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       <div className="fixed top-16 left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600 flex-shrink-0">
           <div>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              <Briefcase size={28} />
-              Work Details
+            <h2 className="text-3xl font-bold text-white">
+              {work.title}
             </h2>
-            <p className="text-orange-100 text-sm mt-1">
-              {work.customers?.name} • {work.services?.name}
+            <p className="text-orange-100 text-base mt-2 flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <Users size={16} />
+                {work.customers?.name}
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <Briefcase size={16} />
+                {work.services?.name}
+              </span>
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -1249,26 +1151,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         reason={reassignReason}
         setReason={setReassignReason}
         onConfirm={handleReassignWithReason}
-      />
-
-      <WorkDocumentModal
-        isOpen={showDocumentModal || showEditDocumentModal}
-        onClose={() => {
-          setShowDocumentModal(false);
-          setShowEditDocumentModal(false);
-          setEditingDocument(null);
-          setDocumentForm({
-            name: '',
-            description: '',
-            category: 'general',
-            is_required: false,
-            sort_order: 0,
-          });
-        }}
-        onSubmit={editingDocument ? handleUpdateDocument : handleAddDocument}
-        form={documentForm}
-        setForm={setDocumentForm}
-        isEditing={!!editingDocument}
       />
     </div>
   );

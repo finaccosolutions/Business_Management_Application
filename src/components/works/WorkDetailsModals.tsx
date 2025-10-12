@@ -111,19 +111,19 @@ interface TaskModalProps {
   form: TaskForm;
   setForm: (form: TaskForm) => void;
   staff: any[];
-  isEditMode?: boolean;
+  isEditing?: boolean;
 }
 
-export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isEditMode = false }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isEditing = false }: TaskModalProps) {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className={`p-6 border-b border-gray-200 ${isEditMode ? 'bg-gradient-to-r from-blue-600 to-cyan-600' : 'bg-gradient-to-r from-orange-600 to-amber-600'}`}>
+        <div className={`p-6 border-b border-gray-200 ${isEditing ? 'bg-gradient-to-r from-blue-600 to-cyan-600' : 'bg-gradient-to-r from-orange-600 to-amber-600'}`}>
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            {isEditMode && <Edit2 size={24} />}
-            {isEditMode ? 'Edit Task' : 'Add New Task'}
+            {isEditing && <Edit2 size={24} />}
+            {isEditing ? 'Edit Task' : 'Add New Task'}
           </h3>
         </div>
         <form onSubmit={onSubmit} className="p-6 space-y-4">
@@ -136,7 +136,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isE
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               placeholder="Task title"
             />
           </div>
@@ -146,7 +146,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isE
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               rows={3}
               placeholder="Task description"
             />
@@ -158,7 +158,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isE
               <select
                 value={form.assigned_to}
                 onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               >
                 <option value="">Unassigned</option>
                 {staff.map((s) => (
@@ -174,7 +174,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isE
               <select
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -190,7 +190,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isE
                 step="0.5"
                 value={form.estimated_hours}
                 onChange={(e) => setForm({ ...form, estimated_hours: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
                 placeholder="0"
               />
             </div>
@@ -201,7 +201,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isE
                 type="date"
                 value={form.due_date}
                 onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               />
             </div>
           </div>
@@ -211,7 +211,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isE
             <textarea
               value={form.remarks}
               onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               rows={2}
               placeholder="Any additional notes or instructions"
             />
@@ -227,9 +227,9 @@ export function TaskModal({ isOpen, onClose, onSubmit, form, setForm, staff, isE
             </button>
             <button
               type="submit"
-              className={`flex-1 px-4 py-2 ${isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'} text-white font-medium rounded-lg transition-colors`}
+              className={`flex-1 px-4 py-2 ${isEditing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'} text-white font-medium rounded-lg transition-colors`}
             >
-              {isEditMode ? 'Update Task' : 'Add Task'}
+              {isEditing ? 'Update Task' : 'Add Task'}
             </button>
           </div>
         </form>
@@ -245,19 +245,19 @@ interface TimeLogModalProps {
   form: TimeForm;
   setForm: (form: TimeForm) => void;
   staff: any[];
-  isEditMode?: boolean;
+  isEditing?: boolean;
 }
 
-export function TimeLogModal({ isOpen, onClose, onSubmit, form, setForm, staff, isEditMode = false }: TimeLogModalProps) {
+export function TimeLogModal({ isOpen, onClose, onSubmit, form, setForm, staff, isEditing = false }: TimeLogModalProps) {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
-        <div className={`p-6 border-b border-gray-200 ${isEditMode ? 'bg-gradient-to-r from-blue-600 to-cyan-600' : 'bg-gradient-to-r from-orange-600 to-amber-600'}`}>
+        <div className={`p-6 border-b border-gray-200 ${isEditing ? 'bg-gradient-to-r from-blue-600 to-cyan-600' : 'bg-gradient-to-r from-orange-600 to-amber-600'}`}>
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            {isEditMode && <Edit2 size={24} />}
-            {isEditMode ? 'Edit Time Log' : 'Log Time'}
+            {isEditing && <Edit2 size={24} />}
+            {isEditing ? 'Edit Time Log' : 'Log Time'}
           </h3>
         </div>
         <form onSubmit={onSubmit} className="p-6 space-y-4">
@@ -269,7 +269,7 @@ export function TimeLogModal({ isOpen, onClose, onSubmit, form, setForm, staff, 
               required
               value={form.staff_member_id}
               onChange={(e) => setForm({ ...form, staff_member_id: e.target.value })}
-              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'}`}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'}`}
             >
               <option value="">Select staff member</option>
               {staff.map((s) => (
@@ -290,7 +290,7 @@ export function TimeLogModal({ isOpen, onClose, onSubmit, form, setForm, staff, 
                 required
                 value={form.start_time}
                 onChange={(e) => setForm({ ...form, start_time: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'}`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'}`}
               />
             </div>
 
@@ -300,7 +300,7 @@ export function TimeLogModal({ isOpen, onClose, onSubmit, form, setForm, staff, 
                 type="datetime-local"
                 value={form.end_time}
                 onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'}`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'}`}
               />
             </div>
           </div>
@@ -310,7 +310,7 @@ export function TimeLogModal({ isOpen, onClose, onSubmit, form, setForm, staff, 
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'}`}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'}`}
               rows={2}
               placeholder="What did you work on?"
             />
@@ -326,9 +326,9 @@ export function TimeLogModal({ isOpen, onClose, onSubmit, form, setForm, staff, 
             </button>
             <button
               type="submit"
-              className={`flex-1 px-4 py-2 ${isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'} text-white font-medium rounded-lg transition-colors`}
+              className={`flex-1 px-4 py-2 ${isEditing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'} text-white font-medium rounded-lg transition-colors`}
             >
-              {isEditMode ? 'Update Time Log' : 'Log Time'}
+              {isEditing ? 'Update Time Log' : 'Log Time'}
             </button>
           </div>
         </form>
@@ -343,19 +343,19 @@ interface RecurringPeriodModalProps {
   onSubmit: (e: React.FormEvent) => void;
   form: RecurringForm;
   setForm: (form: RecurringForm) => void;
-  isEditMode?: boolean;
+  isEditing?: boolean;
 }
 
-export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm, isEditMode = false }: RecurringPeriodModalProps) {
+export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm, isEditing = false }: RecurringPeriodModalProps) {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
-        <div className={`p-6 border-b border-gray-200 ${isEditMode ? 'bg-gradient-to-r from-blue-600 to-cyan-600' : 'bg-gradient-to-r from-orange-600 to-amber-600'}`}>
+        <div className={`p-6 border-b border-gray-200 ${isEditing ? 'bg-gradient-to-r from-blue-600 to-cyan-600' : 'bg-gradient-to-r from-orange-600 to-amber-600'}`}>
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            {isEditMode && <Edit2 size={24} />}
-            {isEditMode ? 'Edit Recurring Period' : 'Add Recurring Period'}
+            {isEditing && <Edit2 size={24} />}
+            {isEditing ? 'Edit Recurring Period' : 'Add Recurring Period'}
           </h3>
         </div>
         <form onSubmit={onSubmit} className="p-6 space-y-4">
@@ -368,7 +368,7 @@ export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm,
               required
               value={form.period_name}
               onChange={(e) => setForm({ ...form, period_name: e.target.value })}
-              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               placeholder="e.g., January 2024, Q1 2024"
             />
           </div>
@@ -383,7 +383,7 @@ export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm,
                 required
                 value={form.period_start_date}
                 onChange={(e) => setForm({ ...form, period_start_date: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               />
             </div>
 
@@ -396,7 +396,7 @@ export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm,
                 required
                 value={form.period_end_date}
                 onChange={(e) => setForm({ ...form, period_end_date: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               />
             </div>
           </div>
@@ -411,7 +411,7 @@ export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm,
                 required
                 value={form.due_date}
                 onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               />
             </div>
 
@@ -424,7 +424,7 @@ export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm,
                 step="0.01"
                 value={form.billing_amount}
                 onChange={(e) => setForm({ ...form, billing_amount: e.target.value })}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
                 placeholder="0.00"
               />
             </div>
@@ -437,7 +437,7 @@ export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm,
             <textarea
               value={form.notes || ''}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditMode ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 ${isEditing ? 'focus:ring-blue-500' : 'focus:ring-orange-500'} focus:border-transparent`}
               rows={2}
               placeholder="Any notes or special instructions for this period"
             />
@@ -459,9 +459,9 @@ export function RecurringPeriodModal({ isOpen, onClose, onSubmit, form, setForm,
             </button>
             <button
               type="submit"
-              className={`flex-1 px-4 py-2 ${isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'} text-white font-medium rounded-lg transition-colors`}
+              className={`flex-1 px-4 py-2 ${isEditing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'} text-white font-medium rounded-lg transition-colors`}
             >
-              {isEditMode ? 'Update Period' : 'Add Period'}
+              {isEditing ? 'Update Period' : 'Add Period'}
             </button>
           </div>
         </form>
@@ -476,10 +476,10 @@ interface AssignStaffModalProps {
   onAssign: (staffId: string) => void;
   work: any;
   staff: any[];
-  onReassign: (staffId: string) => void;
+  onRequestReassign: (staffId: string) => void;
 }
 
-export function AssignStaffModal({ isOpen, onClose, onAssign, work, staff, onReassign }: AssignStaffModalProps) {
+export function AssignStaffModal({ isOpen, onClose, onAssign, work, staff, onRequestReassign }: AssignStaffModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -509,7 +509,7 @@ export function AssignStaffModal({ isOpen, onClose, onAssign, work, staff, onRea
                 key={s.id}
                 onClick={() => {
                   if (work.assigned_to && s.id !== work.assigned_to) {
-                    onReassign(s.id);
+                    onRequestReassign(s.id);
                   } else if (!work.assigned_to) {
                     onAssign(s.id);
                   }
@@ -590,141 +590,6 @@ export function ReassignReasonModal({ isOpen, onClose, onConfirm, reason, setRea
             Confirm Reassignment
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-interface WorkDocumentForm {
-  name: string;
-  description: string;
-  category: string;
-  is_required: boolean;
-  sort_order: number;
-}
-
-interface WorkDocumentModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (form: WorkDocumentForm) => void;
-  form: WorkDocumentForm;
-  setForm: (form: WorkDocumentForm) => void;
-  isEditing?: boolean;
-}
-
-export function WorkDocumentModal({
-  isOpen,
-  onClose,
-  onSubmit,
-  form,
-  setForm,
-  isEditing = false
-}: WorkDocumentModalProps) {
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(form);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-white">
-                {isEditing ? 'Edit Document' : 'Add Document'}
-              </h3>
-              <p className="text-orange-100 text-sm mt-1">
-                {isEditing ? 'Update document details' : 'Add a new document requirement'}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-            >
-              <X size={20} />
-            </button>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Document Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              placeholder="e.g., GST Certificate, Bank Statement"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              rows={3}
-              placeholder="Brief description of this document..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category
-            </label>
-            <select
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            >
-              <option value="general">General</option>
-              <option value="tax">Tax Documents</option>
-              <option value="financial">Financial</option>
-              <option value="legal">Legal</option>
-              <option value="compliance">Compliance</option>
-              <option value="identity">Identity</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-            <input
-              type="checkbox"
-              id="is_required"
-              checked={form.is_required}
-              onChange={(e) => setForm({ ...form, is_required: e.target.checked })}
-              className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-            />
-            <label htmlFor="is_required" className="text-sm font-medium text-gray-700 cursor-pointer">
-              Mark as required document
-            </label>
-          </div>
-
-          <div className="pt-4 border-t border-gray-200 flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 transition-colors"
-            >
-              {isEditing ? 'Update Document' : 'Add Document'}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );
