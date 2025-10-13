@@ -286,15 +286,31 @@ export default function Works() {
           .insert(workData)
           .select()
           .single();
-        if (error) throw error;
 
-        if (newWork) {
-          await copyServiceTasksToWork(formData.service_id, newWork.id);
-
-        if (formData.is_recurring && formData.start_date) {
-          await createRecurringPeriodsFromStart(newWork.id, formData);
+        if (error) {
+          console.error('Error creating work:', error);
+          throw error;
         }
 
+        if (newWork) {
+          console.log('Work created successfully, ID:', newWork.id);
+
+          try {
+            await copyServiceTasksToWork(formData.service_id, newWork.id);
+            console.log('Service tasks copied');
+          } catch (taskError) {
+            console.error('Error copying tasks:', taskError);
+          }
+
+          if (formData.is_recurring && formData.start_date) {
+            try {
+              await createRecurringPeriodsFromStart(newWork.id, formData);
+              console.log('Recurring periods created');
+            } catch (periodError) {
+              console.error('Error creating periods:', periodError);
+              toast.error('Work created but failed to create recurring periods');
+            }
+          }
 
           if (formData.status === 'completed') {
             shouldCreateInvoice = true;
@@ -389,12 +405,32 @@ export default function Works() {
           throw new Error('No periods were generated. Please check your start date and recurrence settings.');
         }
 
+        // Check for existing periods first to avoid duplicates
+        const existingPeriodsResult = await supabase
+          .from('work_recurring_instances')
+          .select('period_name, due_date')
+          .eq('work_id', workId);
+
+        const existingPeriods = new Set(
+          (existingPeriodsResult.data || []).map(p => `${p.period_name}-${p.due_date}`)
+        );
+
+        // Filter out periods that already exist
+        const newPeriods = periods.filter(
+          period => !existingPeriods.has(`${period.period_name}-${period.due_date}`)
+        );
+
+        if (newPeriods.length === 0) {
+          console.log('All periods already exist, skipping creation');
+          return;
+        }
+
         // Insert periods one at a time to avoid trigger race conditions
         // The database trigger will automatically copy work documents to each period
         let successCount = 0;
         const insertedPeriodIds: string[] = [];
 
-        for (const period of periods) {
+        for (const period of newPeriods) {
           try {
             const { data, error } = await supabase
               .from('work_recurring_instances')
