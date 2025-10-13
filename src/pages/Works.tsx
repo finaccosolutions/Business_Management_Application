@@ -1003,245 +1003,321 @@ const filteredWorks = works.filter((work) => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Customer *
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Manual Recurring Toggle - Show at top for new works */}
+              {!editingWork && (
+                <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200">
+                  <input
+                    type="checkbox"
+                    id="is_recurring"
+                    checked={formData.is_recurring}
+                    onChange={(e) => {
+                      const isRecurring = e.target.checked;
+                      setFormData({
+                        ...formData,
+                        is_recurring: isRecurring,
+                        due_date: isRecurring ? '' : formData.due_date,
+                        start_date: isRecurring ? formData.start_date : '',
+                      });
+                    }}
+                    className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                  />
+                  <label htmlFor="is_recurring" className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    <Repeat className="w-4 h-4 text-orange-600" />
+                    This is a recurring work (e.g., monthly GST filing, quarterly returns)
                   </label>
-                  <select
-                    required
-                    value={formData.customer_id}
-                    onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Select Customer</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Service *
-                  </label>
-                  <select
-                    required
-                    value={formData.service_id}
-                    onChange={(e) => handleServiceChange(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Select Service</option>
-                    {services.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name}
-                        {service.is_recurring && ' (Recurring)'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              {/* Basic Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
+                  Basic Information
+                </h3>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Work title"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Work description"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                  <select
-                    value={formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-
-                {!formData.is_recurring && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Due Date (Optional)
+                      Customer *
+                    </label>
+                    <select
+                      required
+                      value={formData.customer_id}
+                      onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    >
+                      <option value="">Select Customer</option>
+                      {customers.map((customer) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Service *
+                    </label>
+                    <select
+                      required
+                      value={formData.service_id}
+                      onChange={(e) => handleServiceChange(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    >
+                      <option value="">Select Service</option>
+                      {services.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name}
+                          {service.is_recurring && ' (Recurring)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Work title"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Work description"
+                  />
+                </div>
+              </div>
+
+              {/* Work Details Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
+                  Work Details
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                    <select
+                      value={formData.priority}
+                      onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Assign to Staff
+                    </label>
+                    <select
+                      value={formData.assigned_to}
+                      onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    >
+                      <option value="">Unassigned</option>
+                      {staffMembers.map((staff) => (
+                        <option key={staff.id} value={staff.id}>
+                          {staff.name} ({staff.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Work Location
                     </label>
                     <input
-                      type="date"
-                      value={formData.due_date}
-                      onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                      type="text"
+                      value={formData.work_location}
+                      onChange={(e) => setFormData({ ...formData, work_location: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      placeholder="DD/MM/YYYY"
+                      placeholder="Office, Remote, Client site, etc."
                     />
                   </div>
-                )}
 
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Assign to Staff
-                  </label>
-                  <select
-                    value={formData.assigned_to}
-                    onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Unassigned</option>
-                    {staffMembers.map((staff) => (
-                      <option key={staff.id} value={staff.id}>
-                        {staff.name} ({staff.role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Billing Status
-                  </label>
-                  <select
-                    value={formData.billing_status}
-                    onChange={(e) => setFormData({ ...formData, billing_status: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="not_billed">Not Billed</option>
-                    <option value="billed">Billed</option>
-                    <option value="paid">Paid</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Billing Amount
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.billing_amount}
-                    onChange={(e) => setFormData({ ...formData, billing_amount: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="0.00"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Department
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.department}
+                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="Accounts, Tax, Legal, etc."
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estimated Hours
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formData.estimated_hours}
-                    onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
+              {/* Date & Schedule Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
+                  Schedule
+                </h3>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Work Location
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.work_location}
-                    onChange={(e) => setFormData({ ...formData, work_location: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Office, Remote, Client site, etc."
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {formData.is_recurring ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Start Date *
+                        <span className="text-xs text-gray-500 ml-2">(Required for recurring)</span>
+                      </label>
+                      <input
+                        type="date"
+                        required={formData.is_recurring}
+                        value={formData.start_date}
+                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Start Date
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.start_date}
+                          onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Due Date *
+                          <span className="text-xs text-gray-500 ml-2">(Required for non-recurring)</span>
+                        </label>
+                        <input
+                          type="date"
+                          required={!formData.is_recurring}
+                          value={formData.due_date}
+                          onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estimated Hours
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={formData.estimated_hours}
+                      onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Billing Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
+                  Billing Information
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Billing Status
+                    </label>
+                    <select
+                      value={formData.billing_status}
+                      onChange={(e) => setFormData({ ...formData, billing_status: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    >
+                      <option value="not_billed">Not Billed</option>
+                      <option value="billed">Billed</option>
+                      <option value="paid">Paid</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Billing Amount
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.billing_amount}
+                      onChange={(e) => setFormData({ ...formData, billing_amount: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Details Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
+                  Additional Details
+                </h3>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Date
+                    Requirements & Instructions
                   </label>
-                  <input
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                  <textarea
+                    value={formData.requirements}
+                    onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Specific requirements, documents needed, steps to follow..."
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department
+                    Expected Deliverables
                   </label>
-                  <input
-                    type="text"
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                  <textarea
+                    value={formData.deliverables}
+                    onChange={(e) => setFormData({ ...formData, deliverables: e.target.value })}
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Accounts, Tax, Legal, etc."
+                    placeholder="What should be delivered upon completion..."
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Requirements & Instructions
-                </label>
-                <textarea
-                  value={formData.requirements}
-                  onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-                  rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Specific requirements, documents needed, steps to follow..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Expected Deliverables
-                </label>
-                <textarea
-                  value={formData.deliverables}
-                  onChange={(e) => setFormData({ ...formData, deliverables: e.target.value })}
-                  rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="What should be delivered upon completion..."
-                />
               </div>
 
               {/* Auto-billing Settings */}
@@ -1274,9 +1350,10 @@ const filteredWorks = works.filter((work) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Recurrence Pattern
+                        Recurrence Pattern *
                       </label>
                       <select
+                        required={formData.is_recurring}
                         value={formData.recurrence_pattern}
                         onChange={(e) => setFormData({ ...formData, recurrence_pattern: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
@@ -1290,12 +1367,13 @@ const filteredWorks = works.filter((work) => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Due Day (Day of Month)
+                        Due Day (Day of Month) *
                       </label>
                       <input
                         type="number"
                         min="1"
                         max="31"
+                        required={formData.is_recurring}
                         value={formData.recurrence_day}
                         onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
@@ -1308,22 +1386,6 @@ const filteredWorks = works.filter((work) => {
                     <p className="font-medium mb-1">Note:</p>
                     <p>This creates ONE work that manages all recurring periods. You can track each period's completion inside the work details.</p>
                   </div>
-                </div>
-              )}
-
-              {/* Manual Recurring Toggle */}
-              {!editingWork && (
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                  <input
-                    type="checkbox"
-                    id="is_recurring"
-                    checked={formData.is_recurring}
-                    onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked, due_date: e.target.checked ? '' : formData.due_date })}
-                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                  />
-                  <label htmlFor="is_recurring" className="text-sm font-medium text-gray-700">
-                    This is a recurring work (e.g., monthly GST filing, quarterly returns)
-                  </label>
                 </div>
               )}
             </form>
