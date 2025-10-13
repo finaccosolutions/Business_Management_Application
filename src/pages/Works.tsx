@@ -173,24 +173,29 @@ export default function Works() {
 
   const handleServiceChange = (serviceId: string) => {
     const selectedService = services.find(s => s.id === serviceId);
-  
+
     if (selectedService && !editingWork) {
       const updates: any = {
         service_id: serviceId,
+        is_recurring: selectedService.is_recurring || false,
       };
-  
+
       if (selectedService.default_price && !formData.billing_amount) {
         updates.billing_amount = selectedService.default_price.toString();
       }
-  
+
       if (selectedService.is_recurring) {
-        updates.is_recurring = true;
         updates.recurrence_pattern = selectedService.recurrence_type || 'monthly';
         updates.recurrence_day = selectedService.recurrence_day?.toString() || '';
+        updates.due_date = '';
+      } else {
+        updates.recurrence_pattern = '';
+        updates.recurrence_day = '';
+        updates.start_date = '';
       }
-  
+
       setFormData({ ...formData, ...updates });
-      
+
       // Auto-fill title
       handleCustomerOrServiceChange(formData.customer_id, serviceId);
     } else {
@@ -384,14 +389,29 @@ export default function Works() {
           throw new Error('No periods were generated. Please check your start date and recurrence settings.');
         }
 
-        // Insert all periods
-        const { error } = await supabase
-          .from('work_recurring_instances')
-          .insert(periods);
+        // Insert periods one at a time to avoid trigger conflicts
+        // The database trigger creates period documents, which can conflict when batch inserting
+        let successCount = 0;
+        for (const period of periods) {
+          try {
+            const { error } = await supabase
+              .from('work_recurring_instances')
+              .insert([period]);
 
-        if (error) throw error;
+            if (error) {
+              // Log but don't fail if it's a duplicate
+              if (error.code !== '23505') {
+                console.error('Error inserting period:', error);
+              }
+            } else {
+              successCount++;
+            }
+          } catch (err) {
+            console.error('Error inserting period:', err);
+          }
+        }
 
-        console.log(`Created ${periods.length} recurring periods for work ${workId}`);
+        console.log(`Created ${successCount} recurring periods for work ${workId}`);
       } catch (error) {
         console.error('Error creating recurring periods:', error);
         throw error;
@@ -1004,28 +1024,27 @@ const filteredWorks = works.filter((work) => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Manual Recurring Toggle - Show at top for new works */}
-              {!editingWork && (
-                <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200">
-                  <input
-                    type="checkbox"
-                    id="is_recurring"
-                    checked={formData.is_recurring}
-                    onChange={(e) => {
-                      const isRecurring = e.target.checked;
-                      setFormData({
-                        ...formData,
-                        is_recurring: isRecurring,
-                        due_date: isRecurring ? '' : formData.due_date,
-                        start_date: isRecurring ? formData.start_date : '',
-                      });
-                    }}
-                    className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                  />
-                  <label htmlFor="is_recurring" className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                    <Repeat className="w-4 h-4 text-orange-600" />
-                    This is a recurring work (e.g., monthly GST filing, quarterly returns)
-                  </label>
+              {/* Service Type Indicator */}
+              {!editingWork && formData.service_id && (
+                <div className={`flex items-center gap-3 p-4 rounded-lg border ${
+                  formData.is_recurring
+                    ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200'
+                    : 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {formData.is_recurring ? (
+                      <Repeat className="w-5 h-5 text-orange-600" />
+                    ) : (
+                      <Briefcase className="w-5 h-5 text-blue-600" />
+                    )}
+                    <span className={`text-sm font-semibold ${
+                      formData.is_recurring ? 'text-orange-900' : 'text-blue-900'
+                    }`}>
+                      {formData.is_recurring
+                        ? 'Recurring Work (e.g., monthly GST filing, quarterly returns)'
+                        : 'One-time Work'}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -1190,62 +1209,64 @@ const filteredWorks = works.filter((work) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {formData.is_recurring ? (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Start Date *
-                        <span className="text-xs text-gray-500 ml-2">(Required for recurring)</span>
-                      </label>
-                      <input
-                        type="date"
-                        required={formData.is_recurring}
-                        value={formData.start_date}
-                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                    </div>
-                  ) : (
                     <>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Start Date
+                          Start Date *
+                          <span className="text-xs text-orange-600 ml-2">(Required for recurring work)</span>
                         </label>
                         <input
                           type="date"
+                          required={formData.is_recurring}
                           value={formData.start_date}
                           onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         />
                       </div>
-
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Estimated Hours
+                        </label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={formData.estimated_hours}
+                          onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          placeholder="0"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Due Date *
-                          <span className="text-xs text-gray-500 ml-2">(Required for non-recurring)</span>
+                          <span className="text-xs text-blue-600 ml-2">(Required for one-time work)</span>
                         </label>
                         <input
                           type="date"
                           required={!formData.is_recurring}
                           value={formData.due_date}
                           onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Estimated Hours
+                        </label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={formData.estimated_hours}
+                          onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0"
                         />
                       </div>
                     </>
                   )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estimated Hours
-                    </label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={formData.estimated_hours}
-                      onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      placeholder="0"
-                    />
-                  </div>
                 </div>
               </div>
 
