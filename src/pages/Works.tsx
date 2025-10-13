@@ -389,22 +389,27 @@ export default function Works() {
           throw new Error('No periods were generated. Please check your start date and recurrence settings.');
         }
 
-        // Insert periods one at a time to avoid trigger conflicts
-        // The database trigger creates period documents, which can conflict when batch inserting
+        // Insert periods one at a time to avoid trigger race conditions
+        // The database trigger will automatically copy work documents to each period
         let successCount = 0;
+        const insertedPeriodIds: string[] = [];
+
         for (const period of periods) {
           try {
-            const { error } = await supabase
+            const { data, error } = await supabase
               .from('work_recurring_instances')
-              .insert([period]);
+              .insert([period])
+              .select('id')
+              .single();
 
             if (error) {
-              // Log but don't fail if it's a duplicate
+              // Only log non-duplicate errors
               if (error.code !== '23505') {
                 console.error('Error inserting period:', error);
               }
-            } else {
+            } else if (data) {
               successCount++;
+              insertedPeriodIds.push(data.id);
             }
           } catch (err) {
             console.error('Error inserting period:', err);
