@@ -1,3 +1,5 @@
+import { formatDateDisplay } from './dateUtils';
+
 interface CompanySettings {
   company_name: string;
   company_logo_url?: string;
@@ -515,19 +517,11 @@ export function generateInvoiceHTML(
         <div class="party-details">
           <div class="detail-row">
             <span class="detail-label">Invoice Date:</span>
-            <strong>${new Date(invoice.invoice_date).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            })}</strong>
+            <strong>${formatDateDisplay(invoice.invoice_date)}</strong>
           </div>
           <div class="detail-row">
             <span class="detail-label">Due Date:</span>
-            <strong>${new Date(invoice.due_date).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            })}</strong>
+            <strong>${formatDateDisplay(invoice.due_date)}</strong>
           </div>
           <div class="detail-row">
             <span class="detail-label">Status:</span>

@@ -1,12 +1,13 @@
 // src/lib/recurringServiceJob.ts
 
-import { Bolt Database } from './Bolt Database';
+import { supabase } from './supabase';
 import { calculateNextDueDate, calculateWorkGenerationDate, shouldGenerateWork } from './recurringServiceUtils';
+import { formatMonthYear } from './dateUtils';
 
 export async function processRecurringServices(userId: string) {
   try {
     // Get all active recurring services
-    const { data: services, error: servicesError } = await Bolt Database
+    const { data: services, error: servicesError } = await supabase
       .from('services')
       .select('*')
       .eq('user_id', userId)
@@ -18,7 +19,7 @@ export async function processRecurringServices(userId: string) {
 
     for (const service of services || []) {
       // Get all customer services for this service
-      const { data: customerServices, error: csError } = await Bolt Database
+      const { data: customerServices, error: csError } = await supabase
         .from('customer_services')
         .select('*, customers(id, name)')
         .eq('service_id', service.id)
@@ -40,7 +41,7 @@ export async function processRecurringServices(userId: string) {
 async function generateRecurringWork(service: any, customerService: any) {
   try {
     // Get the last instance for this customer service
-    const { data: lastInstance, error: instanceError } = await Bolt Database
+    const { data: lastInstance, error: instanceError } = await supabase
       .from('recurring_service_instances')
       .select('*')
       .eq('service_id', service.id)
@@ -68,7 +69,7 @@ async function generateRecurringWork(service: any, customerService: any) {
       : new Date(config.recurrence_start_date);
 
     // Check if this instance already exists
-    const { data: existingInstance } = await Bolt Database
+    const { data: existingInstance } = await supabase
       .from('recurring_service_instances')
       .select('id')
       .eq('service_id', service.id)
@@ -81,14 +82,14 @@ async function generateRecurringWork(service: any, customerService: any) {
     }
 
     // Create work
-    const { data: work, error: workError } = await Bolt Database
+    const { data: work, error: workError } = await supabase
       .from('works')
       .insert({
         user_id: service.user_id,
         customer_id: customerService.customer_id,
         service_id: service.id,
         customer_service_id: customerService.id,
-        title: `${service.name} - ${new Date(nextDueDate).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`,
+        title: `${service.name} - ${formatMonthYear(nextDueDate)}`,
         description: `Recurring ${service.recurrence_type} service for ${service.name}`,
         status: 'pending',
         priority: 'medium',
@@ -123,7 +124,7 @@ export async function updateOverdueWorks(userId: string) {
   const today = new Date().toISOString().split('T')[0];
 
   try {
-    await Bolt Database
+    await supabase
       .from('works')
       .update({ is_overdue: true, status: 'overdue' })
       .eq('user_id', userId)

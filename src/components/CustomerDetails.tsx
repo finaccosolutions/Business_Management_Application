@@ -9,6 +9,7 @@ import DocumentUploadModal from './DocumentUploadModal';
 import NoteModal from './NoteModal';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../contexts/ConfirmationContext';
+import { formatDateDisplay, formatDateDisplayLong } from '../lib/dateUtils';
 
 interface CustomerDetailsProps {
   customerId: string;
@@ -654,11 +655,7 @@ function OverviewTab({ customer }: { customer: Customer }) {
 
       <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl border border-green-200 p-6">
         <p className="text-sm text-green-700">
-          Customer since {new Date(customer.created_at).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}
+          Customer since {formatDateDisplayLong(customer.created_at)}
         </p>
       </div>
     </div>
@@ -1322,7 +1319,7 @@ function DocumentsTab({
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-gray-900 truncate">{doc.name}</h4>
                     <p className="text-xs text-gray-500">
-                      {new Date(doc.uploaded_at).toLocaleDateString('en-IN')}
+                      {formatDateDisplay(doc.uploaded_at)}
                     </p>
                   </div>
                 </div>

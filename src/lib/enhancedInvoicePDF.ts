@@ -1,4 +1,5 @@
 import html2pdf from 'html2pdf.js';
+import { formatDateDisplay } from './dateUtils';
 
 interface InvoiceItem {
   description: string;
@@ -465,19 +466,11 @@ export function generateEnhancedInvoiceHTML(
             </div>
             <div class="date-item">
               <div class="date-label">Invoice Date</div>
-              <div class="date-value">${new Date(invoice.invoice_date).toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-              })}</div>
+              <div class="date-value">${formatDateDisplay(invoice.invoice_date)}</div>
             </div>
             <div class="date-item">
               <div class="date-label">Due Date</div>
-              <div class="date-value">${new Date(invoice.due_date).toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-              })}</div>
+              <div class="date-value">${formatDateDisplay(invoice.due_date)}</div>
             </div>
           </div>
 

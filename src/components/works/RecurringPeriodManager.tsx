@@ -5,6 +5,7 @@ import {
   DollarSign, FileText, CheckSquare, PlayCircle, Upload, Download, X
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+import { formatDateDisplay } from '../../lib/dateUtils';
 
 interface PeriodDocument {
   id: string;
@@ -394,11 +395,11 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                     <div className="space-y-1 text-sm text-gray-600">
                       <p className="flex items-center gap-1">
                         <Calendar size={14} />
-                        {new Date(period.period_start_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} - {new Date(period.period_end_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        {formatDateDisplay(period.period_start_date)} - {formatDateDisplay(period.period_end_date)}
                       </p>
                       <p className="flex items-center gap-1">
                         <Clock size={14} />
-                        Due: {new Date(period.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        Due: {formatDateDisplay(period.due_date)}
                         {period.status !== 'completed' && daysUntilDue >= 0 && (
                           <span className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${
                             daysUntilDue <= 3 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'

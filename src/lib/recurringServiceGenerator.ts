@@ -1,6 +1,7 @@
 // src/lib/recurringServiceGenerator.ts
-import { Bolt Database } from './Bolt Database';
+import { supabase } from './supabase';
 import { calculateNextDueDate, RecurringServiceConfig } from './recurringServiceUtils';
+import { formatMonthYear, formatDateDisplay } from './dateUtils';
 
 interface RecurringService {
   id: string;
@@ -20,7 +21,7 @@ interface RecurringService {
 export async function generateRecurringWorks(userId: string) {
   try {
     // Fetch all active recurring services
-    const { data: services, error: servicesError } = await Bolt Database
+    const { data: services, error: servicesError } = await supabase
       .from('services')
       .select('*')
       .eq('user_id', userId)
@@ -47,7 +48,7 @@ export async function generateRecurringWorks(userId: string) {
 async function generateWorksForService(service: RecurringService, today: Date) {
   try {
     // Get all customer services for this service
-    const { data: customerServices, error: csError } = await Bolt Database
+    const { data: customerServices, error: csError } = await supabase
       .from('customer_services')
       .select('*, customers(id, name)')
       .eq('service_id', service.id)
@@ -60,7 +61,7 @@ async function generateWorksForService(service: RecurringService, today: Date) {
     }
 
     // Update last instance generated date
-    await Bolt Database
+    await supabase
       .from('services')
       .update({ last_instance_generated_date: today.toISOString().split('T')[0] })
       .eq('id', service.id);
@@ -85,7 +86,7 @@ async function generateInstancesForCustomerService(
   };
 
   // Get the last generated instance for this customer service
-  const { data: lastInstance } = await Bolt Database
+  const { data: lastInstance } = await supabase
     .from('recurring_work_instances')
     .select('instance_date, due_date')
     .eq('service_id', service.id)
@@ -128,7 +129,7 @@ async function generateInstancesForCustomerService(
   }
 
   // Check if instance already exists for this date
-  const { data: existing } = await Bolt Database
+  const { data: existing } = await supabase
     .from('recurring_work_instances')
     .select('id')
     .eq('service_id', service.id)
@@ -153,7 +154,7 @@ async function generateInstancesForCustomerService(
     billing_amount: customerService.price
   };
 
-  const { data: instance, error: instanceError } = await Bolt Database
+  const { data: instance, error: instanceError } = await supabase
     .from('recurring_work_instances')
     .insert(instanceData)
     .select()
@@ -169,7 +170,7 @@ async function generateInstancesForCustomerService(
     user_id: service.user_id,
     customer_id: customerService.customer_id,
     service_id: service.id,
-    title: `${service.name} - ${nextDueDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`,
+    title: `${service.name} - ${formatMonthYear(nextDueDate.toISOString().split('T')[0])}`,
     description: `Recurring work for ${customerService.customers.name}`,
     status: 'pending',
     priority: 'medium',
@@ -181,7 +182,7 @@ async function generateInstancesForCustomerService(
     billing_amount: customerService.price
   };
 
-  const { data: work, error: workError } = await Bolt Database
+  const { data: work, error: workError } = await supabase
     .from('works')
     .insert(workData)
     .select()
@@ -193,12 +194,12 @@ async function generateInstancesForCustomerService(
   }
 
   // Link work to instance
-  await Bolt Database
+  await supabase
     .from('recurring_work_instances')
     .update({ work_id: work.id })
     .eq('id', instance.id);
 
-  console.log(`Generated work ${work.id} for service ${service.name}, due ${nextDueDate.toLocaleDateString()}`);
+  console.log(`Generated work ${work.id} for service ${service.name}, due ${formatDateDisplay(nextDueDate.toISOString().split('T')[0])}`);
 }
 
 // Function to check and update overdue works
@@ -207,7 +208,7 @@ export async function updateOverdueWorks(userId: string) {
     const today = new Date().toISOString().split('T')[0];
 
     // Update works table
-    await Bolt Database
+    await supabase
       .from('works')
       .update({ status: 'overdue' })
       .eq('user_id', userId)
@@ -216,7 +217,7 @@ export async function updateOverdueWorks(userId: string) {
       .neq('status', 'overdue');
 
     // Update recurring instances
-    await Bolt Database
+    await supabase
       .from('recurring_work_instances')
       .update({ status: 'overdue' })
       .eq('user_id', userId)

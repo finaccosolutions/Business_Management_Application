@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { X, Users, Clock, CheckSquare, Plus, FileText, DollarSign, Calendar, AlertCircle, CreditCard as Edit2, Briefcase, CheckCircle, Repeat, ArrowRightLeft, Trash2, Upload, History, Check, Download } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { formatDateDisplay } from '../lib/dateUtils';
 
 interface WorkDetailsProps {
   workId: string;
@@ -901,7 +902,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             {work.due_date && (
               <span className="text-sm text-gray-700 flex items-center gap-2">
                 <Calendar size={14} />
-                Due: {new Date(work.due_date).toLocaleDateString()}
+                Due: {formatDateDisplay(work.due_date)}
               </span>
             )}
           </div>
@@ -1069,7 +1070,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                           {task.due_date && (
                             <span className="flex items-center gap-1">
                               <Calendar size={14} />
-                              {new Date(task.due_date).toLocaleDateString()}
+                              {formatDateDisplay(task.due_date)}
                             </span>
                           )}
                           {task.estimated_hours && (
@@ -1337,7 +1338,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                               </a>
                               {doc.uploaded_at && (
                                 <span className="text-xs text-gray-500">
-                                  Uploaded: {new Date(doc.uploaded_at).toLocaleDateString('en-IN')}
+                                  Uploaded: {formatDateDisplay(doc.uploaded_at)}
                                 </span>
                               )}
                             </div>
@@ -1466,15 +1467,15 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                           )}
                         </div>
                         <div className="space-y-1 mt-2 text-sm text-gray-600">
-                          <p>Period: {new Date(instance.period_start_date).toLocaleDateString()} - {new Date(instance.period_end_date).toLocaleDateString()}</p>
+                          <p>Period: {formatDateDisplay(instance.period_start_date)} - {formatDateDisplay(instance.period_end_date)}</p>
                           <p className="flex items-center gap-1">
                             <Calendar size={14} />
-                            Due: {new Date(instance.due_date).toLocaleDateString()}
+                            Due: {formatDateDisplay(instance.due_date)}
                           </p>
                           {instance.completed_at && (
                             <p className="flex items-center gap-1 text-green-600">
                               <CheckCircle size={14} />
-                              Completed: {new Date(instance.completed_at).toLocaleDateString()}
+                              Completed: {formatDateDisplay(instance.completed_at)}
                               {instance.staff_members && ` by ${instance.staff_members.name}`}
                             </p>
                           )}
@@ -1612,7 +1613,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                         <h4 className="font-semibold text-gray-900">Work Completed</h4>
                         {work.completion_date && (
                           <p className="text-sm text-gray-600 mt-1">
-                            Completed on {new Date(work.completion_date).toLocaleDateString('en-IN')}
+                            Completed on {formatDateDisplay(work.completion_date)}
                           </p>
                         )}
                       </div>

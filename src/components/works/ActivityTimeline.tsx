@@ -1,5 +1,6 @@
 import { Activity as ActivityIcon, CheckCircle, Clock, User, FileText, DollarSign, AlertCircle, Users, Repeat, Calendar } from 'lucide-react';
 import { Activity } from './WorkDetailsTypes';
+import { formatDateDisplay } from '../../lib/dateUtils';
 
 interface ActivityTimelineProps {
   activities: Activity[];
@@ -75,13 +76,9 @@ export function ActivityTimeline({ activities }: ActivityTimelineProps) {
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 
-    return date.toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const dateStr = formatDateDisplay(timestamp);
+    const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    return `${dateStr} ${timeStr}`;
   };
 
   if (activities.length === 0) {

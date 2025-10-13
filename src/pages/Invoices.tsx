@@ -7,6 +7,7 @@ import { generateEnhancedInvoiceHTML, previewEnhancedInvoice, printEnhancedInvoi
 import { useToast } from '../contexts/ToastContext';
 import EditInvoiceModal from '../components/EditInvoiceModal';
 import { useConfirmation } from '../contexts/ConfirmationContext';
+import { formatDateDisplay } from '../lib/dateUtils';
 
 
 interface Invoice {
@@ -732,14 +733,14 @@ const saveAsDraft = async () => {
                       <p className="text-xs text-gray-500 mb-0.5">Invoice Date</p>
                       <p className="font-medium text-gray-900 flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                        {new Date(invoice.invoice_date).toLocaleDateString('en-IN')}
+                        {formatDateDisplay(invoice.invoice_date)}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 mb-0.5">Due Date</p>
                       <p className="font-medium text-gray-900 flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                        {new Date(invoice.due_date).toLocaleDateString('en-IN')}
+                        {formatDateDisplay(invoice.due_date)}
                       </p>
                     </div>
                     <div>
@@ -754,7 +755,7 @@ const saveAsDraft = async () => {
                   {invoice.status === 'paid' && invoice.paid_at && (
                     <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
                       <CheckCircle className="w-3.5 h-3.5" />
-                      Paid on {new Date(invoice.paid_at).toLocaleDateString('en-IN')}
+                      Paid on {formatDateDisplay(invoice.paid_at)}
                     </p>
                   )}
                 </div>
