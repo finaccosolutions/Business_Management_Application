@@ -231,7 +231,7 @@ export default function Works() {
         description: formData.description || null,
         status: formData.status,
         priority: formData.priority,
-        due_date: formData.due_date || null,
+        due_date: formData.is_recurring ? null : (formData.due_date || null),
         start_date: formData.start_date || null,
         billing_status: formData.billing_status,
         billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
@@ -286,7 +286,7 @@ export default function Works() {
         if (newWork) {
           await copyServiceTasksToWork(formData.service_id, newWork.id);
 
-        if (formData.is_recurring && (formData.start_date || formData.due_date)) {
+        if (formData.is_recurring && formData.start_date) {
           await createRecurringPeriodsFromStart(newWork.id, formData);
         }
 
@@ -317,7 +317,7 @@ export default function Works() {
       formData: any
     ) => {
       try {
-        const startDate = new Date(formData.start_date || formData.due_date);
+        const startDate = new Date(formData.start_date);
         startDate.setHours(0, 0, 0, 0);
         const currentDate = new Date();
         currentDate.setHours(0, 0, 0, 0);
@@ -1096,18 +1096,20 @@ const filteredWorks = works.filter((work) => {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Due Date (Optional)
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="DD/MM/YYYY"
-                  />
-                </div>
+                {!formData.is_recurring && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Due Date (Optional)
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.due_date}
+                      onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="DD/MM/YYYY"
+                    />
+                  </div>
+                )}
 
               </div>
 
@@ -1316,7 +1318,7 @@ const filteredWorks = works.filter((work) => {
                     type="checkbox"
                     id="is_recurring"
                     checked={formData.is_recurring}
-                    onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+                    onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked, due_date: e.target.checked ? '' : formData.due_date })}
                     className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                   />
                   <label htmlFor="is_recurring" className="text-sm font-medium text-gray-700">
