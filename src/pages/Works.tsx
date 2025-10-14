@@ -358,7 +358,7 @@ const createRecurringPeriodsFromStart = async (
     const recurrenceDay = parseInt(formData.recurrence_day) || 10;
 
     const periods = [];
-    let currentPeriodDate = new Date(startDate);
+    let currentDueDate = new Date(startDate);
     let iterationCount = 0;
     const maxIterations = 100;
 
@@ -366,17 +366,13 @@ const createRecurringPeriodsFromStart = async (
     while (iterationCount < maxIterations) {
       iterationCount++;
 
-      // Calculate the due date for this period
-      let dueDate = new Date(currentPeriodDate.getFullYear(), currentPeriodDate.getMonth(), recurrenceDay);
-
-      // Adjust if the day doesn't exist in this month
-      if (dueDate.getMonth() !== currentPeriodDate.getMonth()) {
-        dueDate = new Date(currentPeriodDate.getFullYear(), currentPeriodDate.getMonth() + 1, 0);
-      }
+      // Calculate the due date for this period based on pattern
+      let dueDate = calculateDueDateForPattern(currentDueDate, pattern, recurrenceDay);
 
       // Only create periods where due date is >= start date
       if (dueDate >= startDate) {
-        const { periodStart, periodEnd } = getPeriodBoundaries(currentPeriodDate, pattern);
+        // Get the period boundaries - this should be BEFORE the due date
+        const { periodStart, periodEnd } = getPeriodBoundariesForDueDate(dueDate, pattern);
         const periodName = getPeriodName(periodStart, pattern);
 
         let status = 'pending';
@@ -401,8 +397,8 @@ const createRecurringPeriodsFromStart = async (
         }
       }
 
-      // Move to next period
-      currentPeriodDate = getNextPeriod(currentPeriodDate, pattern);
+      // Move to next due date
+      currentDueDate = getNextDueDate(dueDate, pattern, recurrenceDay);
     }
 
     if (periods.length === 0) {
@@ -488,68 +484,152 @@ const createRecurringPeriodsFromStart = async (
   }
 };
 
-    // Helper function to get next period date
-    function getNextPeriod(date: Date, pattern: string): Date {
-      const next = new Date(date);
+    // Calculate due date for a given pattern and day
+    function calculateDueDateForPattern(baseDate: Date, pattern: string, day: number): Date {
+      const year = baseDate.getFullYear();
+      const month = baseDate.getMonth();
+
+      let dueDate: Date;
+
+      switch (pattern) {
+        case 'monthly':
+          // Due on the specified day of the current month
+          dueDate = new Date(year, month, day);
+          // Adjust if the day doesn't exist in this month
+          if (dueDate.getMonth() !== month) {
+            dueDate = new Date(year, month + 1, 0); // Last day of month
+          }
+          break;
+
+        case 'quarterly':
+          // Due on the specified day of the first month of the quarter
+          const quarterStartMonth = Math.floor(month / 3) * 3;
+          dueDate = new Date(year, quarterStartMonth, day);
+          if (dueDate.getMonth() !== quarterStartMonth) {
+            dueDate = new Date(year, quarterStartMonth + 1, 0);
+          }
+          break;
+
+        case 'half_yearly':
+          // Due on the specified day of Jan or Jul (start of half-year)
+          const halfStartMonth = Math.floor(month / 6) * 6;
+          dueDate = new Date(year, halfStartMonth, day);
+          if (dueDate.getMonth() !== halfStartMonth) {
+            dueDate = new Date(year, halfStartMonth + 1, 0);
+          }
+          break;
+
+        case 'yearly':
+          // Due on the specified day of April (financial year start)
+          dueDate = new Date(year, 3, day); // April = month 3
+          if (dueDate.getMonth() !== 3) {
+            dueDate = new Date(year, 4, 0); // Last day of April
+          }
+          break;
+
+        default:
+          dueDate = new Date(year, month, day);
+      }
+
+      return dueDate;
+    }
+
+    // Get next due date after the current one
+    function getNextDueDate(currentDue: Date, pattern: string, day: number): Date {
+      const next = new Date(currentDue);
 
       switch (pattern) {
         case 'monthly':
           next.setMonth(next.getMonth() + 1);
+          next.setDate(day);
           break;
         case 'quarterly':
           next.setMonth(next.getMonth() + 3);
+          next.setDate(day);
           break;
         case 'half_yearly':
           next.setMonth(next.getMonth() + 6);
+          next.setDate(day);
           break;
         case 'yearly':
           next.setFullYear(next.getFullYear() + 1);
+          next.setDate(day);
           break;
         default:
           next.setMonth(next.getMonth() + 1);
+          next.setDate(day);
       }
 
       return next;
     }
 
-    // Helper function to get period boundaries
-    function getPeriodBoundaries(date: Date, pattern: string): { periodStart: Date, periodEnd: Date } {
-      const year = date.getFullYear();
-      const month = date.getMonth();
+    // Get period boundaries BEFORE the due date (data collection period)
+    function getPeriodBoundariesForDueDate(dueDate: Date, pattern: string): { periodStart: Date, periodEnd: Date } {
+      const year = dueDate.getFullYear();
+      const month = dueDate.getMonth();
 
       let periodStart: Date;
       let periodEnd: Date;
 
       switch (pattern) {
         case 'monthly':
-          // Period is the entire month
-          periodStart = new Date(year, month, 1);
-          periodEnd = new Date(year, month + 1, 0); // Last day of month
+          // Period is the PREVIOUS month
+          // E.g., if due date is Feb 10, period is Jan 1 - Jan 31
+          periodStart = new Date(year, month - 1, 1);
+          periodEnd = new Date(year, month, 0); // Last day of previous month
           break;
 
         case 'quarterly':
-          // Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec
-          const quarterStartMonth = Math.floor(month / 3) * 3;
-          periodStart = new Date(year, quarterStartMonth, 1);
-          periodEnd = new Date(year, quarterStartMonth + 3, 0);
+          // Period is the PREVIOUS quarter
+          // E.g., if due date is Jan 10, period is Oct 1 - Dec 31 (Q4 of previous year)
+          const dueQuarterStartMonth = Math.floor(month / 3) * 3;
+          const prevQuarterStartMonth = dueQuarterStartMonth - 3;
+
+          if (prevQuarterStartMonth < 0) {
+            // Previous year's Q4
+            periodStart = new Date(year - 1, 9, 1); // October 1st
+            periodEnd = new Date(year - 1, 12, 0); // December 31st
+          } else {
+            periodStart = new Date(year, prevQuarterStartMonth, 1);
+            periodEnd = new Date(year, prevQuarterStartMonth + 3, 0);
+          }
           break;
 
         case 'half_yearly':
-          // H1: Jan-Jun, H2: Jul-Dec
-          const halfStartMonth = Math.floor(month / 6) * 6;
-          periodStart = new Date(year, halfStartMonth, 1);
-          periodEnd = new Date(year, halfStartMonth + 6, 0);
+          // Period is the PREVIOUS half-year
+          // E.g., if due date is Jul 10, period is Jan 1 - Jun 30 (H1)
+          // E.g., if due date is Jan 10, period is Jul 1 - Dec 31 (H2 of previous year)
+          const dueHalfStartMonth = Math.floor(month / 6) * 6;
+          const prevHalfStartMonth = dueHalfStartMonth - 6;
+
+          if (prevHalfStartMonth < 0) {
+            // Previous year's H2
+            periodStart = new Date(year - 1, 6, 1); // July 1st
+            periodEnd = new Date(year - 1, 12, 0); // December 31st
+          } else {
+            periodStart = new Date(year, prevHalfStartMonth, 1);
+            periodEnd = new Date(year, prevHalfStartMonth + 6, 0);
+          }
           break;
 
         case 'yearly':
-          // Financial year: Apr-Mar
-          periodStart = new Date(year, 0, 1);
-          periodEnd = new Date(year, 12, 0);
+          // Financial year: Apr-Mar (previous year)
+          // E.g., if due date is Apr 10 2024, period is Apr 1 2023 - Mar 31 2024
+          if (month >= 3) {
+            // Current financial year started in April of this year
+            periodStart = new Date(year - 1, 3, 1); // April 1st of previous year
+            periodEnd = new Date(year, 3, 0); // March 31st of current year
+          } else {
+            // We're before April, so FY is from previous year
+            periodStart = new Date(year - 2, 3, 1);
+            periodEnd = new Date(year - 1, 3, 0);
+          }
           break;
 
         default:
-          periodStart = new Date(year, month, 1);
-          periodEnd = new Date(year, month + 1, 0);
+          // Default to previous month
+          periodStart = new Date(year, month - 1, 1);
+          periodEnd = new Date(year, month, 0);
       }
 
       return { periodStart, periodEnd };
@@ -1438,10 +1518,12 @@ const filteredWorks = works.filter((work) => {
                     <h3 className="font-semibold text-orange-900">Recurring Work Settings</h3>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-900">Schedule Configuration</h4>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Recurrence Pattern *
+                        How Often? *
                       </label>
                       <select
                         required={formData.is_recurring}
@@ -1456,26 +1538,110 @@ const filteredWorks = works.filter((work) => {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Due Day (Day of Month) *
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="31"
-                        required={formData.is_recurring}
-                        value={formData.recurrence_day}
-                        onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        placeholder="e.g., 10 for 10th of each month"
-                      />
-                    </div>
+                    {formData.recurrence_pattern === 'monthly' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Due Day of Month *
+                        </label>
+                        <select
+                          required={formData.is_recurring}
+                          value={formData.recurrence_day}
+                          onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <option key={day} value={day}>
+                              Day {day}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-orange-600 mt-2">
+                          <span className="font-medium">Due every month on day {formData.recurrence_day}</span>
+                          <br />
+                          Period: Previous month 1st to last day (e.g., for due day 10th Feb: period is Jan 1 - Jan 31)
+                        </p>
+                      </div>
+                    )}
+
+                    {formData.recurrence_pattern === 'quarterly' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Due Day of First Month of Quarter *
+                        </label>
+                        <select
+                          required={formData.is_recurring}
+                          value={formData.recurrence_day}
+                          onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <option key={day} value={day}>
+                              Day {day}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-orange-600 mt-2">
+                          <span className="font-medium">Due on day {formData.recurrence_day} of Jan, Apr, Jul, Oct</span>
+                          <br />
+                          Period: Previous quarter (e.g., for Jan 10: period is Oct 1 - Dec 31)
+                        </p>
+                      </div>
+                    )}
+
+                    {formData.recurrence_pattern === 'half_yearly' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Due Day *
+                        </label>
+                        <select
+                          required={formData.is_recurring}
+                          value={formData.recurrence_day}
+                          onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <option key={day} value={day}>
+                              Day {day}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-orange-600 mt-2">
+                          <span className="font-medium">Due twice a year on day {formData.recurrence_day} (July and January)</span>
+                          <br />
+                          Period: Previous 6 months (e.g., for Jul 10: period is Jan 1 - Jun 30)
+                        </p>
+                      </div>
+                    )}
+
+                    {formData.recurrence_pattern === 'yearly' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Due Day *
+                        </label>
+                        <select
+                          required={formData.is_recurring}
+                          value={formData.recurrence_day}
+                          onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <option key={day} value={day}>
+                              Day {day}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-orange-600 mt-2">
+                          <span className="font-medium">Due annually in April on day {formData.recurrence_day}</span>
+                          <br />
+                          Period: Previous financial year (Apr 1 - Mar 31)
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="text-sm text-gray-600 bg-white p-3 rounded border border-gray-200">
                     <p className="font-medium mb-1">Note:</p>
-                    <p>This creates ONE work that manages all recurring periods. You can track each period's completion inside the work details.</p>
+                    <p>This creates ONE work that manages all recurring periods. Each period tracks work for a specific time range (month/quarter/half-year/year) with data collected for that period.</p>
                   </div>
                 </div>
               )}
