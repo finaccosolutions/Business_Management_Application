@@ -305,10 +305,12 @@ export default function Works() {
           if (formData.is_recurring && formData.start_date) {
             try {
               await createRecurringPeriodsFromStart(newWork.id, formData);
-              console.log('Recurring periods created');
+              console.log('Recurring periods created successfully');
+              toast.success('Work and recurring periods created successfully!');
             } catch (periodError) {
               console.error('Error creating periods:', periodError);
-              toast.error('Work created but failed to create recurring periods');
+              // Work was still created successfully, just couldn't create all periods
+              toast.error('Work created but some recurring periods may not have been generated. You can add them manually.');
             }
           }
 
@@ -439,16 +441,21 @@ export default function Works() {
               .single();
 
             if (error) {
-              // Only log non-duplicate errors
+              // Only log non-duplicate errors (23505 = unique_violation)
               if (error.code !== '23505') {
                 console.error('Error inserting period:', error);
               }
             } else if (data) {
               successCount++;
               insertedPeriodIds.push(data.id);
+              // Small delay to ensure trigger completes before next insert
+              await new Promise(resolve => setTimeout(resolve, 50));
             }
-          } catch (err) {
-            console.error('Error inserting period:', err);
+          } catch (err: any) {
+            // Ignore duplicate key errors but log others
+            if (err.code !== '23505') {
+              console.error('Error inserting period:', err);
+            }
           }
         }
 
