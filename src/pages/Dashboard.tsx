@@ -1,4 +1,3 @@
-// src/pages/Dashboard.tsx
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,21 +9,23 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle,
-  Clock,
-  CalendarClock,
   DollarSign,
   Briefcase,
   Activity,
   BarChart3,
-  PieChart as PieChartIcon,
   TrendingDown,
   Calendar,
   Filter,
   X,
   Receipt,
   Wallet,
-  CreditCard,
   Target,
+  Clock,
+  Package,
+  UserCheck,
+  AlertTriangle,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react';
 import BarChart from '../components/charts/BarChart';
 import PieChart from '../components/charts/PieChart';
@@ -32,21 +33,27 @@ import LineChart from '../components/charts/LineChart';
 
 interface Stats {
   totalLeads: number;
+  convertedLeads: number;
   totalCustomers: number;
   totalWorks: number;
   pendingWorks: number;
   overdueWorks: number;
   completedWorks: number;
+  inProgressWorks: number;
   totalInvoices: number;
   paidInvoices: number;
   unpaidInvoices: number;
+  partiallyPaidInvoices: number;
   totalRevenue: number;
   pendingRevenue: number;
   totalStaff: number;
   activeStaff: number;
   totalServices: number;
+  activeServices: number;
   avgInvoiceValue: number;
   avgRevenuePerCustomer: number;
+  monthOverMonthGrowth: number;
+  totalTasksCompleted: number;
 }
 
 interface OverdueWork {
@@ -76,6 +83,19 @@ interface TopCustomer {
 interface RevenueByService {
   service_name: string;
   revenue: number;
+  count: number;
+}
+
+interface StaffPerformance {
+  name: string;
+  completed: number;
+  pending: number;
+}
+
+interface CategoryData {
+  category: string;
+  count: number;
+  revenue: number;
 }
 
 type DateFilterPreset = 'today' | 'last7days' | 'last30days' | 'last3months' | 'last6months' | 'lastyear' | 'custom' | 'all';
@@ -84,30 +104,37 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState<Stats>({
     totalLeads: 0,
+    convertedLeads: 0,
     totalCustomers: 0,
     totalWorks: 0,
     pendingWorks: 0,
     overdueWorks: 0,
     completedWorks: 0,
+    inProgressWorks: 0,
     totalInvoices: 0,
     paidInvoices: 0,
     unpaidInvoices: 0,
+    partiallyPaidInvoices: 0,
     totalRevenue: 0,
     pendingRevenue: 0,
     totalStaff: 0,
     activeStaff: 0,
     totalServices: 0,
+    activeServices: 0,
     avgInvoiceValue: 0,
     avgRevenuePerCustomer: 0,
+    monthOverMonthGrowth: 0,
+    totalTasksCompleted: 0,
   });
   const [overdueWorks, setOverdueWorks] = useState<OverdueWork[]>([]);
   const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyRevenue[]>([]);
   const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([]);
   const [revenueByService, setRevenueByService] = useState<RevenueByService[]>([]);
+  const [staffPerformance, setStaffPerformance] = useState<StaffPerformance[]>([]);
+  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Date filter states
   const [dateFilterPreset, setDateFilterPreset] = useState<DateFilterPreset>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -179,6 +206,8 @@ export default function Dashboard() {
         fetchCompanySettings(),
         fetchTopCustomers(),
         fetchRevenueByService(),
+        fetchStaffPerformance(),
+        fetchCategoryData(),
       ]);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -205,12 +234,11 @@ export default function Dashboard() {
     try {
       const dateRange = getDateRange();
 
-      let leadsQuery = supabase.from('leads').select('id', { count: 'exact', head: true });
+      let leadsQuery = supabase.from('leads').select('id, status', { count: 'exact' });
       let customersQuery = supabase.from('customers').select('id', { count: 'exact', head: true });
       let worksQuery = supabase.from('works').select('id', { count: 'exact', head: true });
       let invoicesQuery = supabase.from('invoices').select('id', { count: 'exact', head: true });
 
-      // Apply date filters
       if (dateRange.start) {
         leadsQuery = leadsQuery.gte('created_at', dateRange.start);
         customersQuery = customersQuery.gte('created_at', dateRange.start);
@@ -231,12 +259,16 @@ export default function Dashboard() {
         pendingWorksResult,
         overdueWorksResult,
         completedWorksResult,
+        inProgressWorksResult,
         invoicesResult,
         paidInvoicesResult,
         unpaidInvoicesResult,
+        partiallyPaidInvoicesResult,
         staffResult,
         activeStaffResult,
         servicesResult,
+        activeServicesResult,
+        tasksCompletedResult,
       ] = await Promise.all([
         leadsQuery,
         customersQuery,
@@ -244,6 +276,7 @@ export default function Dashboard() {
         supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
         supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
+        supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
         invoicesQuery,
         (() => {
           let query = supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'paid');
@@ -252,7 +285,13 @@ export default function Dashboard() {
           return query;
         })(),
         (() => {
-          let query = supabase.from('invoices').select('id, total_amount', { count: 'exact' }).neq('status', 'paid');
+          let query = supabase.from('invoices').select('id, total_amount', { count: 'exact' }).eq('status', 'unpaid');
+          if (dateRange.start) query = query.gte('invoice_date', dateRange.start);
+          if (dateRange.end) query = query.lte('invoice_date', dateRange.end);
+          return query;
+        })(),
+        (() => {
+          let query = supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'partially_paid');
           if (dateRange.start) query = query.gte('invoice_date', dateRange.start);
           if (dateRange.end) query = query.lte('invoice_date', dateRange.end);
           return query;
@@ -260,6 +299,8 @@ export default function Dashboard() {
         supabase.from('staff_members').select('id', { count: 'exact', head: true }),
         supabase.from('staff_members').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('services').select('id', { count: 'exact', head: true }),
+        supabase.from('services').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('work_tasks').select('id', { count: 'exact', head: true }).eq('is_completed', true),
       ]);
 
       let paidInvoicesQuery = supabase
@@ -278,35 +319,78 @@ export default function Dashboard() {
       const pendingRevenue =
         unpaidInvoicesResult.data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
 
-      const avgInvoiceValue = paidInvoicesResult.count && paidInvoicesResult.count > 0 
-        ? totalRevenue / paidInvoicesResult.count 
+      const avgInvoiceValue = paidInvoicesResult.count && paidInvoicesResult.count > 0
+        ? totalRevenue / paidInvoicesResult.count
         : 0;
 
       const avgRevenuePerCustomer = customersResult.count && customersResult.count > 0
         ? totalRevenue / customersResult.count
         : 0;
 
+      const convertedLeads = leadsResult.data?.filter(lead => lead.status === 'converted').length || 0;
+
+      const lastMonthRevenue = await calculateLastMonthRevenue();
+      const currentMonthRevenue = await calculateCurrentMonthRevenue();
+      const monthOverMonthGrowth = lastMonthRevenue > 0
+        ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
+        : 0;
+
       setStats({
         totalLeads: leadsResult.count || 0,
+        convertedLeads,
         totalCustomers: customersResult.count || 0,
         totalWorks: worksResult.count || 0,
         pendingWorks: pendingWorksResult.count || 0,
         overdueWorks: overdueWorksResult.count || 0,
         completedWorks: completedWorksResult.count || 0,
+        inProgressWorks: inProgressWorksResult.count || 0,
         totalInvoices: invoicesResult.count || 0,
         paidInvoices: paidInvoicesResult.count || 0,
         unpaidInvoices: unpaidInvoicesResult.count || 0,
+        partiallyPaidInvoices: partiallyPaidInvoicesResult.count || 0,
         totalRevenue,
         pendingRevenue,
         totalStaff: staffResult.count || 0,
         activeStaff: activeStaffResult.count || 0,
         totalServices: servicesResult.count || 0,
+        activeServices: activeServicesResult.count || 0,
         avgInvoiceValue,
         avgRevenuePerCustomer,
+        monthOverMonthGrowth,
+        totalTasksCompleted: tasksCompletedResult.count || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
+  };
+
+  const calculateLastMonthRevenue = async () => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    const startOfLastMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+    const endOfLastMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
+
+    const { data } = await supabase
+      .from('invoices')
+      .select('total_amount')
+      .eq('status', 'paid')
+      .gte('invoice_date', startOfLastMonth.toISOString().split('T')[0])
+      .lte('invoice_date', endOfLastMonth.toISOString().split('T')[0]);
+
+    return data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
+  };
+
+  const calculateCurrentMonthRevenue = async () => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const { data } = await supabase
+      .from('invoices')
+      .select('total_amount')
+      .eq('status', 'paid')
+      .gte('invoice_date', startOfMonth.toISOString().split('T')[0]);
+
+    return data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
   };
 
   const fetchOverdueWorks = async () => {
@@ -428,8 +512,7 @@ export default function Dashboard() {
 
       let query = supabase
         .from('works')
-        .select('service_id, services!service_id(name), invoices(total_amount, status)')
-        .eq('invoices.status', 'paid');
+        .select('service_id, services(name), invoices(total_amount, status)');
 
       if (dateRange.start) query = query.gte('created_at', dateRange.start);
       if (dateRange.end) query = query.lte('created_at', dateRange.end);
@@ -437,23 +520,28 @@ export default function Dashboard() {
       const { data } = await query;
 
       if (data) {
-        const serviceRevenue: { [key: string]: number } = {};
+        const serviceRevenue: { [key: string]: { revenue: number; count: number } } = {};
 
         data.forEach((work: any) => {
           if (work.services && work.invoices) {
             const serviceName = work.services.name;
+            if (!serviceRevenue[serviceName]) {
+              serviceRevenue[serviceName] = { revenue: 0, count: 0 };
+            }
             work.invoices.forEach((invoice: any) => {
               if (invoice.status === 'paid') {
-                serviceRevenue[serviceName] = (serviceRevenue[serviceName] || 0) + Number(invoice.total_amount);
+                serviceRevenue[serviceName].revenue += Number(invoice.total_amount);
+                serviceRevenue[serviceName].count += 1;
               }
             });
           }
         });
 
         const sortedServices = Object.entries(serviceRevenue)
-          .map(([service_name, revenue]) => ({
+          .map(([service_name, data]) => ({
             service_name,
-            revenue,
+            revenue: data.revenue,
+            count: data.count,
           }))
           .sort((a, b) => b.revenue - a.revenue)
           .slice(0, 5);
@@ -462,6 +550,84 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Error fetching revenue by service:', error);
+    }
+  };
+
+  const fetchStaffPerformance = async () => {
+    try {
+      const { data } = await supabase
+        .from('work_assignments')
+        .select('staff_member_id, staff_members(name), works(status)');
+
+      if (data) {
+        const staffMap: { [key: string]: { name: string; completed: number; pending: number } } = {};
+
+        data.forEach((assignment: any) => {
+          if (assignment.staff_members) {
+            const staffId = assignment.staff_member_id;
+            if (!staffMap[staffId]) {
+              staffMap[staffId] = { name: assignment.staff_members.name, completed: 0, pending: 0 };
+            }
+            if (assignment.works?.status === 'completed') {
+              staffMap[staffId].completed += 1;
+            } else {
+              staffMap[staffId].pending += 1;
+            }
+          }
+        });
+
+        const performance = Object.values(staffMap)
+          .sort((a, b) => b.completed - a.completed)
+          .slice(0, 5);
+
+        setStaffPerformance(performance);
+      }
+    } catch (error) {
+      console.error('Error fetching staff performance:', error);
+    }
+  };
+
+  const fetchCategoryData = async () => {
+    try {
+      const { data } = await supabase
+        .from('services')
+        .select('category, id, works(id, invoices(total_amount, status))');
+
+      if (data) {
+        const categoryMap: { [key: string]: { count: number; revenue: number } } = {};
+
+        data.forEach((service: any) => {
+          const category = service.category || 'Uncategorized';
+          if (!categoryMap[category]) {
+            categoryMap[category] = { count: 0, revenue: 0 };
+          }
+          categoryMap[category].count += 1;
+
+          if (service.works) {
+            service.works.forEach((work: any) => {
+              if (work.invoices) {
+                work.invoices.forEach((invoice: any) => {
+                  if (invoice.status === 'paid') {
+                    categoryMap[category].revenue += Number(invoice.total_amount);
+                  }
+                });
+              }
+            });
+          }
+        });
+
+        const categories = Object.entries(categoryMap)
+          .map(([category, data]) => ({
+            category,
+            count: data.count,
+            revenue: data.revenue,
+          }))
+          .sort((a, b) => b.revenue - a.revenue);
+
+        setCategoryData(categories);
+      }
+    } catch (error) {
+      console.error('Error fetching category data:', error);
     }
   };
 
@@ -488,88 +654,6 @@ export default function Dashboard() {
     return diff;
   };
 
-  const statCards = [
-    {
-      title: 'Leads',
-      value: stats.totalLeads,
-      icon: Users,
-      borderColor: 'border-l-blue-500',
-    },
-    {
-      title: 'Customers',
-      value: stats.totalCustomers,
-      icon: UserCog,
-      borderColor: 'border-l-emerald-500',
-    },
-    {
-      title: 'Staff',
-      value: stats.activeStaff,
-      icon: Briefcase,
-      borderColor: 'border-l-amber-500',
-    },
-    {
-      title: 'Works',
-      value: stats.totalWorks,
-      icon: ClipboardList,
-      borderColor: 'border-l-orange-500',
-    },
-    {
-      title: 'Services',
-      value: stats.totalServices,
-      icon: Activity,
-      borderColor: 'border-l-rose-500',
-    },
-    {
-      title: 'Invoices',
-      value: stats.totalInvoices,
-      icon: FileText,
-      borderColor: 'border-l-cyan-500',
-    },
-    {
-      title: 'Paid',
-      value: stats.paidInvoices,
-      icon: CheckCircle,
-      borderColor: 'border-l-green-500',
-    },
-    {
-      title: 'Unpaid',
-      value: stats.unpaidInvoices,
-      icon: AlertCircle,
-      borderColor: 'border-l-red-500',
-    },
-  ];
-
-  const revenueCards = [
-    {
-      title: 'Total Revenue',
-      value: `₹${stats.totalRevenue.toLocaleString('en-IN')}`,
-      icon: DollarSign,
-      borderColor: 'border-l-green-600',
-      bgColor: 'bg-green-50',
-    },
-    {
-      title: 'Pending Revenue',
-      value: `₹${stats.pendingRevenue.toLocaleString('en-IN')}`,
-      icon: Wallet,
-      borderColor: 'border-l-yellow-600',
-      bgColor: 'bg-yellow-50',
-    },
-    {
-      title: 'Avg Invoice Value',
-      value: `₹${Math.round(stats.avgInvoiceValue).toLocaleString('en-IN')}`,
-      icon: Receipt,
-      borderColor: 'border-l-blue-600',
-      bgColor: 'bg-blue-50',
-    },
-    {
-      title: 'Avg Revenue/Customer',
-      value: `₹${Math.round(stats.avgRevenuePerCustomer).toLocaleString('en-IN')}`,
-      icon: Target,
-      borderColor: 'border-l-purple-600',
-      bgColor: 'bg-purple-50',
-    },
-  ];
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -580,110 +664,96 @@ export default function Dashboard() {
 
   const workStatusData = [
     { label: 'Pending', value: stats.pendingWorks, color: '#f59e0b' },
+    { label: 'In Progress', value: stats.inProgressWorks, color: '#3b82f6' },
     { label: 'Overdue', value: stats.overdueWorks, color: '#dc2626' },
     { label: 'Completed', value: stats.completedWorks, color: '#059669' },
   ];
 
   const invoiceStatusData = [
     { label: 'Paid', value: stats.paidInvoices, color: '#10b981' },
-    { label: 'Unpaid', value: stats.unpaidInvoices, color: '#f43f5e' },
+    { label: 'Partially Paid', value: stats.partiallyPaidInvoices, color: '#f59e0b' },
+    { label: 'Unpaid', value: stats.unpaidInvoices, color: '#ef4444' },
   ];
+
+  const leadConversionRate = stats.totalLeads > 0
+    ? ((stats.convertedLeads / stats.totalLeads) * 100).toFixed(1)
+    : '0';
+
+  const workCompletionRate = stats.totalWorks > 0
+    ? ((stats.completedWorks / stats.totalWorks) * 100).toFixed(1)
+    : '0';
+
+  const invoiceCollectionRate = stats.totalInvoices > 0
+    ? ((stats.paidInvoices / stats.totalInvoices) * 100).toFixed(1)
+    : '0';
 
   return (
     <div className="space-y-6">
-      {/* Compact Header - No Revenue */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-6 text-white border border-slate-600">
-        <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 rounded-xl shadow-xl p-8 text-white">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {companySettings?.company_name || 'Dashboard'}
+            <h1 className="text-4xl font-bold tracking-tight mb-2">
+              {companySettings?.company_name || 'Business Dashboard'}
             </h1>
-            <p className="text-slate-300 text-sm mt-1">
-              Business performance overview
+            <p className="text-blue-100 text-lg">
+              Comprehensive business analytics and performance metrics
             </p>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold">{stats.totalCustomers}</div>
+              <div className="text-blue-100 text-sm">Total Customers</div>
+            </div>
+            <div className="h-12 w-px bg-blue-400"></div>
+            <div className="text-center">
+              <div className="text-3xl font-bold">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
+              <div className="text-blue-100 text-sm">Total Revenue</div>
+            </div>
+            <div className="h-12 w-px bg-blue-400"></div>
+            <div className="text-center">
+              <div className="flex items-center gap-1 text-3xl font-bold">
+                {stats.monthOverMonthGrowth >= 0 ? (
+                  <ArrowUpRight className="w-6 h-6 text-green-300" />
+                ) : (
+                  <ArrowDownRight className="w-6 h-6 text-red-300" />
+                )}
+                {Math.abs(stats.monthOverMonthGrowth).toFixed(1)}%
+              </div>
+              <div className="text-blue-100 text-sm">Monthly Growth</div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Date Filter Section */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-gray-600" />
-            <span className="font-semibold text-gray-700">Filter by Date:</span>
+            <span className="font-semibold text-gray-700">Date Filter:</span>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => handlePresetChange('all')}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                dateFilterPreset === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All Time
-            </button>
-            <button
-              onClick={() => handlePresetChange('today')}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                dateFilterPreset === 'today'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => handlePresetChange('last7days')}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                dateFilterPreset === 'last7days'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Last 7 Days
-            </button>
-            <button
-              onClick={() => handlePresetChange('last30days')}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                dateFilterPreset === 'last30days'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Last 30 Days
-            </button>
-            <button
-              onClick={() => handlePresetChange('last3months')}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                dateFilterPreset === 'last3months'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Last 3 Months
-            </button>
-            <button
-              onClick={() => handlePresetChange('last6months')}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                dateFilterPreset === 'last6months'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Last 6 Months
-            </button>
-            <button
-              onClick={() => handlePresetChange('lastyear')}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                dateFilterPreset === 'lastyear'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Last Year
-            </button>
+            {[
+              { id: 'all', label: 'All Time' },
+              { id: 'today', label: 'Today' },
+              { id: 'last7days', label: 'Last 7 Days' },
+              { id: 'last30days', label: 'Last 30 Days' },
+              { id: 'last3months', label: 'Last 3 Months' },
+              { id: 'last6months', label: 'Last 6 Months' },
+              { id: 'lastyear', label: 'Last Year' },
+            ].map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => handlePresetChange(preset.id as DateFilterPreset)}
+                className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
+                  dateFilterPreset === preset.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
             <button
               onClick={() => handlePresetChange('custom')}
               className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors flex items-center gap-1 ${
@@ -695,7 +765,7 @@ export default function Dashboard() {
               <Calendar className="w-4 h-4" />
               Custom
             </button>
-            
+
             {dateFilterPreset !== 'all' && (
               <button
                 onClick={clearFilters}
@@ -732,51 +802,202 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Compact Statistics Grid - 4 per row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-        {statCards.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={index}
-              className={`bg-white rounded-lg shadow border-l-4 ${stat.borderColor} p-4 hover:shadow-lg transition-shadow`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <Icon className="w-5 h-5 text-gray-600" />
-              </div>
-              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">{stat.title}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="flex items-center justify-between mb-3">
+            <Users className="w-10 h-10 opacity-80" />
+            <div className="text-right">
+              <div className="text-3xl font-bold">{stats.totalLeads}</div>
+              <div className="text-emerald-100 text-sm">Total Leads</div>
             </div>
-          );
-        })}
-      </div>
+          </div>
+          <div className="flex items-center justify-between pt-3 border-t border-emerald-400">
+            <span className="text-sm">Conversion Rate</span>
+            <span className="font-bold">{leadConversionRate}%</span>
+          </div>
+        </div>
 
-      {/* Revenue Overview Section */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-          <DollarSign className="w-6 h-6 mr-2 text-green-600" />
-          Revenue Overview
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {revenueCards.map((card, index) => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={index}
-                className={`${card.bgColor} rounded-lg shadow border-l-4 ${card.borderColor} p-4 hover:shadow-lg transition-shadow`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <Icon className="w-6 h-6 text-gray-700" />
-                </div>
-                <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">{card.title}</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{card.value}</p>
-              </div>
-            );
-          })}
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="flex items-center justify-between mb-3">
+            <UserCog className="w-10 h-10 opacity-80" />
+            <div className="text-right">
+              <div className="text-3xl font-bold">{stats.totalCustomers}</div>
+              <div className="text-blue-100 text-sm">Active Customers</div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between pt-3 border-t border-blue-400">
+            <span className="text-sm">Avg Revenue</span>
+            <span className="font-bold">₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="flex items-center justify-between mb-3">
+            <ClipboardList className="w-10 h-10 opacity-80" />
+            <div className="text-right">
+              <div className="text-3xl font-bold">{stats.totalWorks}</div>
+              <div className="text-amber-100 text-sm">Total Works</div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between pt-3 border-t border-amber-400">
+            <span className="text-sm">Completion Rate</span>
+            <span className="font-bold">{workCompletionRate}%</span>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="flex items-center justify-between mb-3">
+            <DollarSign className="w-10 h-10 opacity-80" />
+            <div className="text-right">
+              <div className="text-3xl font-bold">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
+              <div className="text-rose-100 text-sm">Total Revenue</div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between pt-3 border-t border-rose-400">
+            <span className="text-sm">Collection Rate</span>
+            <span className="font-bold">{invoiceCollectionRate}%</span>
+          </div>
         </div>
       </div>
 
-      {/* Charts Section - Revenue Trend */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-yellow-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <Clock className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Pending Works</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.pendingWorks}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <Activity className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">In Progress</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.inProgressWorks}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <AlertTriangle className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Overdue Works</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.overdueWorks}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <CheckCircle className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Completed</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.completedWorks}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-cyan-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <FileText className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Total Invoices</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalInvoices}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-emerald-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <CheckCircle className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Paid Invoices</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.paidInvoices}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-orange-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <Wallet className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Partially Paid</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.partiallyPaidInvoices}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <AlertCircle className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Unpaid Invoices</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.unpaidInvoices}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <Briefcase className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Total Staff</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalStaff}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <UserCheck className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Active Staff</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeStaff}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-rose-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <Package className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Total Services</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalServices}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <CheckCircle className="w-5 h-5 text-gray-600" />
+          </div>
+          <p className="text-xs font-medium text-gray-600 uppercase">Active Services</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeServices}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow border-l-4 border-l-green-600 p-5">
+          <div className="flex items-center justify-between mb-2">
+            <Receipt className="w-7 h-7 text-green-700" />
+          </div>
+          <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Avg Invoice Value</p>
+          <p className="text-2xl font-bold text-green-900 mt-1">
+            ₹{Math.round(stats.avgInvoiceValue).toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow border-l-4 border-l-amber-600 p-5">
+          <div className="flex items-center justify-between mb-2">
+            <Wallet className="w-7 h-7 text-amber-700" />
+          </div>
+          <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Pending Revenue</p>
+          <p className="text-2xl font-bold text-amber-900 mt-1">
+            ₹{stats.pendingRevenue.toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow border-l-4 border-l-blue-600 p-5">
+          <div className="flex items-center justify-between mb-2">
+            <Target className="w-7 h-7 text-blue-700" />
+          </div>
+          <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Avg Revenue/Customer</p>
+          <p className="text-2xl font-bold text-blue-900 mt-1">
+            ₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg shadow border-l-4 border-l-cyan-600 p-5">
+          <div className="flex items-center justify-between mb-2">
+            <CheckCircle className="w-7 h-7 text-cyan-700" />
+          </div>
+          <p className="text-xs font-medium text-cyan-700 uppercase tracking-wide">Tasks Completed</p>
+          <p className="text-2xl font-bold text-cyan-900 mt-1">{stats.totalTasksCompleted}</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
@@ -785,33 +1006,42 @@ export default function Dashboard() {
           </h2>
           <LineChart
             data={monthlyRevenue.map(m => ({ label: m.month, value: m.revenue }))}
-            height={240}
+            height={260}
             color="#06b6d4"
           />
         </div>
 
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-            <PieChartIcon className="w-5 h-5 mr-2 text-orange-600" />
-            Invoice Status
+            <BarChart3 className="w-5 h-5 mr-2 text-emerald-600" />
+            Work Status Distribution
           </h2>
-          <PieChart data={invoiceStatusData} size={200} />
+          <PieChart data={workStatusData} size={220} />
         </div>
       </div>
 
-      {/* Top Customers & Revenue by Service */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <FileText className="w-5 h-5 mr-2 text-orange-600" />
+            Invoice Status
+          </h2>
+          <PieChart data={invoiceStatusData} size={220} />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
             <Users className="w-5 h-5 mr-2 text-blue-600" />
-            Top Customers by Revenue
+            Top 5 Customers by Revenue
           </h2>
           {topCustomers.length > 0 ? (
             <div className="space-y-3">
               {topCustomers.map((customer, index) => (
-                <div key={customer.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div key={customer.id} className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-100">
                   <div className="flex items-center gap-3">
-                    <span className="text-lg font-bold text-gray-400">#{index + 1}</span>
+                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-sm">
+                      {index + 1}
+                    </span>
                     <span className="font-medium text-gray-800">{customer.name}</span>
                   </div>
                   <span className="text-lg font-bold text-green-600">
@@ -821,42 +1051,100 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-sm">No customer data available for selected period</p>
+            <p className="text-gray-500 text-sm text-center py-8">No customer data available</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <Activity className="w-5 h-5 mr-2 text-rose-600" />
+            Top 5 Services by Revenue
+          </h2>
+          {revenueByService.length > 0 ? (
+            <div className="space-y-3">
+              {revenueByService.map((service, index) => (
+                <div key={index} className="p-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-lg border border-rose-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-gray-800">{service.service_name}</span>
+                    <span className="text-lg font-bold text-rose-600">
+                      ₹{service.revenue.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {service.count} orders completed
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm text-center py-8">No service revenue data available</p>
           )}
         </div>
 
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-            <Activity className="w-5 h-5 mr-2 text-purple-600" />
-            Revenue by Service
+            <UserCheck className="w-5 h-5 mr-2 text-emerald-600" />
+            Top 5 Staff Performance
           </h2>
-          {revenueByService.length > 0 ? (
+          {staffPerformance.length > 0 ? (
             <div className="space-y-3">
-              {revenueByService.map((service, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <span className="font-medium text-gray-800">{service.service_name}</span>
-                  <span className="text-lg font-bold text-purple-600">
-                    ₹{service.revenue.toLocaleString('en-IN')}
-                  </span>
+              {staffPerformance.map((staff, index) => (
+                <div key={index} className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg border border-emerald-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-gray-800">{staff.name}</span>
+                    <span className="text-lg font-bold text-emerald-600">
+                      {staff.completed} completed
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-gray-600">{staff.pending} pending</span>
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-emerald-600 h-2 rounded-full"
+                        style={{
+                          width: `${
+                            (staff.completed / (staff.completed + staff.pending)) * 100
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-sm">No service revenue data available for selected period</p>
+            <p className="text-gray-500 text-sm text-center py-8">No staff performance data available</p>
           )}
         </div>
       </div>
 
-      {/* Work Distribution */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-          <BarChart3 className="w-5 h-5 mr-2 text-emerald-600" />
-          Work Distribution
-        </h2>
-        <PieChart data={workStatusData} size={200} />
-      </div>
+      {categoryData.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <Package className="w-5 h-5 mr-2 text-violet-600" />
+            Service Categories Performance
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {categoryData.map((cat, index) => (
+              <div
+                key={index}
+                className="p-4 bg-gradient-to-br from-violet-50 to-purple-50 rounded-lg border border-violet-200"
+              >
+                <div className="font-semibold text-gray-900 mb-2">{cat.category}</div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">{cat.count} services</span>
+                  <span className="font-bold text-violet-600">
+                    ₹{cat.revenue.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Overdue Works Alert */}
       {stats.overdueWorks > 0 && (
         <div className="bg-white rounded-xl shadow-md border-2 border-red-200 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -864,7 +1152,7 @@ export default function Dashboard() {
               <AlertCircle className="w-5 h-5 mr-2 text-red-600" />
               Overdue Works - Action Required
             </h2>
-            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold">
+            <span className="px-4 py-2 bg-red-100 text-red-700 rounded-full text-sm font-bold">
               {stats.overdueWorks} Overdue
             </span>
           </div>
@@ -872,20 +1160,32 @@ export default function Dashboard() {
           {overdueWorks.length === 0 ? (
             <p className="text-gray-600 text-sm">Loading overdue works...</p>
           ) : (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {overdueWorks.map((work) => (
                 <div
                   key={work.id}
-                  className="p-3 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors"
+                  className="p-4 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 text-sm">{work.title}</h4>
-                      <p className="text-xs text-gray-600 mt-1">{work.customers.name}</p>
+                      <h4 className="font-semibold text-gray-900">{work.title}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{work.customers.name}</p>
+                      {work.staff_members && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Assigned to: {work.staff_members.name}
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="px-2 py-0.5 bg-red-600 text-white rounded-full text-xs font-bold">
+                      <span className="px-2 py-1 bg-red-600 text-white rounded-full text-xs font-bold">
                         {getDaysLate(work.due_date)} days late
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        work.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                        work.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {work.priority}
                       </span>
                     </div>
                   </div>
