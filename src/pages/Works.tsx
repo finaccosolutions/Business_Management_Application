@@ -304,13 +304,22 @@ export default function Works() {
 
           if (formData.is_recurring && formData.start_date) {
             try {
-              await createRecurringPeriodsFromStart(newWork.id, formData);
-              console.log('Recurring periods created successfully');
-              toast.success('Work and recurring periods created successfully!');
+              const result = await createRecurringPeriodsFromStart(newWork.id, formData);
+              console.log('Recurring periods creation result:', result);
+              
+              if (result.success) {
+                if (result.created > 0) {
+                  toast.success(`Work created with ${result.created} recurring periods`);
+                } else {
+                  toast.success('Work created (all periods already exist)');
+                }
+              } else {
+                toast.warning('Work created but no recurring periods were generated. You can add them manually.');
+              }
             } catch (periodError) {
-              console.error('Error creating periods:', periodError);
-              // Work was still created successfully, just couldn't create all periods
-              toast.error('Work created but some recurring periods may not have been generated. You can add them manually.');
+              console.error('Error creating recurring periods:', periodError);
+              // Don't throw the error - the work was created successfully
+              toast.warning('Work created, but there was an issue generating recurring periods. You can add them manually.');
             }
           }
 
@@ -335,136 +344,149 @@ export default function Works() {
     }
   };
 
-    const createRecurringPeriodsFromStart = async (
-      workId: string,
-      formData: any
-    ) => {
-      try {
-        const startDate = new Date(formData.start_date);
-        startDate.setHours(0, 0, 0, 0);
-        const currentDate = new Date();
-        currentDate.setHours(0, 0, 0, 0);
+const createRecurringPeriodsFromStart = async (
+  workId: string,
+  formData: any
+) => {
+  try {
+    const startDate = new Date(formData.start_date);
+    startDate.setHours(0, 0, 0, 0);
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
 
-        const pattern = formData.recurrence_pattern || 'monthly';
-        const recurrenceDay = parseInt(formData.recurrence_day) || 10;
+    const pattern = formData.recurrence_pattern || 'monthly';
+    const recurrenceDay = parseInt(formData.recurrence_day) || 10;
 
-        const periods = [];
+    const periods = [];
+    let currentPeriodDate = new Date(startDate);
+    let iterationCount = 0;
+    const maxIterations = 100;
 
-        // Start from the month/period of the start date
-        let currentPeriodDate = new Date(startDate);
+    // Generate period data first
+    while (iterationCount < maxIterations) {
+      iterationCount++;
 
-        // Generate all periods from start date up to and including one future period
-        let generatedFuturePeriod = false;
-        let iterationCount = 0;
-        const maxIterations = 100;
+      // Calculate the due date for this period
+      let dueDate = new Date(currentPeriodDate.getFullYear(), currentPeriodDate.getMonth(), recurrenceDay);
 
-        while (iterationCount < maxIterations) {
-          iterationCount++;
-
-          // Calculate the due date for this period
-          let dueDate = new Date(currentPeriodDate.getFullYear(), currentPeriodDate.getMonth(), recurrenceDay);
-
-          // Adjust if the day doesn't exist in this month (e.g., 31st in Feb)
-          if (dueDate.getMonth() !== currentPeriodDate.getMonth()) {
-            dueDate = new Date(currentPeriodDate.getFullYear(), currentPeriodDate.getMonth() + 1, 0);
-          }
-
-          // Only create periods where due date is >= start date
-          if (dueDate >= startDate) {
-            // Calculate period boundaries based on pattern
-            const { periodStart, periodEnd } = getPeriodBoundaries(currentPeriodDate, pattern);
-            const periodName = getPeriodName(periodStart, pattern);
-
-            // Determine status based on due date
-            let status = 'pending';
-            if (dueDate < currentDate) {
-              status = 'overdue';
-            }
-
-            periods.push({
-              work_id: workId,
-              period_name: periodName,
-              period_start_date: periodStart.toISOString().split('T')[0],
-              period_end_date: periodEnd.toISOString().split('T')[0],
-              due_date: dueDate.toISOString().split('T')[0],
-              billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
-              status: status,
-              is_billed: false,
-            });
-
-            // Check if we've generated at least one future period
-            if (dueDate > currentDate) {
-              generatedFuturePeriod = true;
-              break;
-            }
-          }
-
-          // Move to next period
-          currentPeriodDate = getNextPeriod(currentPeriodDate, pattern);
-        }
-
-        if (periods.length === 0) {
-          throw new Error('No periods were generated. Please check your start date and recurrence settings.');
-        }
-
-        // Check for existing periods first to avoid duplicates
-        const existingPeriodsResult = await supabase
-          .from('work_recurring_instances')
-          .select('period_name, due_date')
-          .eq('work_id', workId);
-
-        const existingPeriods = new Set(
-          (existingPeriodsResult.data || []).map(p => `${p.period_name}-${p.due_date}`)
-        );
-
-        // Filter out periods that already exist
-        const newPeriods = periods.filter(
-          period => !existingPeriods.has(`${period.period_name}-${period.due_date}`)
-        );
-
-        if (newPeriods.length === 0) {
-          console.log('All periods already exist, skipping creation');
-          return;
-        }
-
-        // Insert periods one at a time to avoid trigger race conditions
-        // The database trigger will automatically copy work documents to each period
-        let successCount = 0;
-        const insertedPeriodIds: string[] = [];
-
-        for (const period of newPeriods) {
-          try {
-            const { data, error } = await supabase
-              .from('work_recurring_instances')
-              .insert([period])
-              .select('id')
-              .single();
-
-            if (error) {
-              // Only log non-duplicate errors (23505 = unique_violation)
-              if (error.code !== '23505') {
-                console.error('Error inserting period:', error);
-              }
-            } else if (data) {
-              successCount++;
-              insertedPeriodIds.push(data.id);
-              // Small delay to ensure trigger completes before next insert
-              await new Promise(resolve => setTimeout(resolve, 50));
-            }
-          } catch (err: any) {
-            // Ignore duplicate key errors but log others
-            if (err.code !== '23505') {
-              console.error('Error inserting period:', err);
-            }
-          }
-        }
-
-        console.log(`Created ${successCount} recurring periods for work ${workId}`);
-      } catch (error) {
-        console.error('Error creating recurring periods:', error);
-        throw error;
+      // Adjust if the day doesn't exist in this month
+      if (dueDate.getMonth() !== currentPeriodDate.getMonth()) {
+        dueDate = new Date(currentPeriodDate.getFullYear(), currentPeriodDate.getMonth() + 1, 0);
       }
+
+      // Only create periods where due date is >= start date
+      if (dueDate >= startDate) {
+        const { periodStart, periodEnd } = getPeriodBoundaries(currentPeriodDate, pattern);
+        const periodName = getPeriodName(periodStart, pattern);
+
+        let status = 'pending';
+        if (dueDate < currentDate) {
+          status = 'overdue';
+        }
+
+        periods.push({
+          work_id: workId,
+          period_name: periodName,
+          period_start_date: periodStart.toISOString().split('T')[0],
+          period_end_date: periodEnd.toISOString().split('T')[0],
+          due_date: dueDate.toISOString().split('T')[0],
+          billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
+          status: status,
+          is_billed: false,
+        });
+
+        // Stop after generating one future period
+        if (dueDate > currentDate) {
+          break;
+        }
+      }
+
+      // Move to next period
+      currentPeriodDate = getNextPeriod(currentPeriodDate, pattern);
+    }
+
+    if (periods.length === 0) {
+      throw new Error('No periods were generated. Please check your start date and recurrence settings.');
+    }
+
+    // Check for existing periods
+    const existingPeriodsResult = await supabase
+      .from('work_recurring_instances')
+      .select('period_name, due_date')
+      .eq('work_id', workId);
+
+    const existingPeriods = new Set(
+      (existingPeriodsResult.data || []).map(p => `${p.period_name}-${p.due_date}`)
+    );
+
+    const newPeriods = periods.filter(
+      period => !existingPeriods.has(`${period.period_name}-${period.due_date}`)
+    );
+
+    if (newPeriods.length === 0) {
+      console.log('All periods already exist, skipping creation');
+      return { success: true, created: 0 };
+    }
+
+    // Insert periods sequentially with longer delays
+    let successCount = 0;
+    const errors = [];
+
+    for (let i = 0; i < newPeriods.length; i++) {
+      const period = newPeriods[i];
+      
+      try {
+        // Longer delay between inserts (500ms)
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        const { data, error } = await supabase
+          .from('work_recurring_instances')
+          .insert([period])
+          .select('id')
+          .single();
+
+        if (error) {
+          if (error.code === '23505') {
+            // Duplicate key error - log and continue
+            console.log(`Period already exists: ${period.period_name}`);
+          } else {
+            console.error(`Error inserting period ${period.period_name}:`, error);
+            errors.push({ period: period.period_name, error: error.message });
+          }
+        } else if (data) {
+          successCount++;
+          console.log(`Successfully created period: ${period.period_name}`);
+        }
+      } catch (err: any) {
+        if (err.code === '23505') {
+          console.log(`Period already exists (catch): ${period.period_name}`);
+        } else {
+          console.error(`Unexpected error for period ${period.period_name}:`, err);
+          errors.push({ period: period.period_name, error: err.message });
+        }
+      }
+    }
+
+    console.log(`Created ${successCount}/${newPeriods.length} recurring periods for work ${workId}`);
+    
+    if (errors.length > 0) {
+      console.warn('Errors encountered:', errors);
+    }
+
+    return { 
+      success: successCount > 0, 
+      created: successCount,
+      total: newPeriods.length,
+      errors: errors
     };
+
+  } catch (error) {
+    console.error('Error in createRecurringPeriodsFromStart:', error);
+    throw error;
+  }
+};
 
     // Helper function to get next period date
     function getNextPeriod(date: Date, pattern: string): Date {
