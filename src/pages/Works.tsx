@@ -171,7 +171,7 @@ export default function Works() {
     }
   };
 
-  const handleServiceChange = (serviceId: string) => {
+  const handleServiceChange = async (serviceId: string) => {
     const selectedService = services.find(s => s.id === serviceId);
 
     if (selectedService && !editingWork) {
@@ -186,7 +186,7 @@ export default function Works() {
 
       if (selectedService.is_recurring) {
         updates.recurrence_pattern = selectedService.recurrence_type || 'monthly';
-        updates.recurrence_day = selectedService.recurrence_day?.toString() || '';
+        updates.recurrence_day = selectedService.recurrence_day?.toString() || '10';
         updates.due_date = '';
       } else {
         updates.recurrence_pattern = '';
@@ -196,7 +196,6 @@ export default function Works() {
 
       setFormData({ ...formData, ...updates });
 
-      // Auto-fill title
       handleCustomerOrServiceChange(formData.customer_id, serviceId);
     } else {
       setFormData({ ...formData, service_id: serviceId });

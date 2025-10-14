@@ -9,18 +9,6 @@ interface AddServiceModalProps {
   service?: any;
 }
 
-const SERVICE_CATEGORIES = [
-  'Accounting',
-  'Tax Filing',
-  'Bookkeeping',
-  'Payroll',
-  'Auditing',
-  'Consultation',
-  'Registration',
-  'Compliance',
-  'Other',
-];
-
 const RECURRENCE_TYPES = [
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
@@ -84,9 +72,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
   const [customFieldKey, setCustomFieldKey] = useState('');
   const [customFieldValue, setCustomFieldValue] = useState('');
-  const [categories, setCategories] = useState<string[]>(SERVICE_CATEGORIES);
-  const [newCategory, setNewCategory] = useState('');
-  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
 
@@ -134,31 +120,24 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
   const loadCategories = async () => {
     try {
-      const { data: existingCategories } = await supabase
-        .from('services')
-        .select('category')
-        .not('category', 'is', null);
+      const { data: categoryData, error } = await supabase
+        .from('service_categories')
+        .select('id, name')
+        .order('name');
 
-      if (existingCategories) {
-        const uniqueCategories = Array.from(
-          new Set([...SERVICE_CATEGORIES, ...existingCategories.map(s => s.category)])
-        ).sort();
-        setCategories(uniqueCategories as string[]);
+      if (error) {
+        console.error('Error loading categories:', error);
+        return;
+      }
+
+      if (categoryData) {
+        setCategories(categoryData);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
     }
   };
 
-  const addCategory = () => {
-    if (newCategory && !categories.includes(newCategory)) {
-      const updatedCategories = [...categories, newCategory].sort();
-      setCategories(updatedCategories);
-      setFormData({ ...formData, category: newCategory });
-      setNewCategory('');
-      setShowAddCategory(false);
-    }
-  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -403,26 +382,14 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Service Code *
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    value={formData.service_code}
-                    onChange={(e) => setFormData({ ...formData, service_code: e.target.value })}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                    placeholder="SRV-001"
-                  />
-                  {!editingService && (
-                    <button
-                      type="button"
-                      onClick={generateAndSetServiceCode}
-                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors whitespace-nowrap"
-                      title="Regenerate service code"
-                    >
-                      Regenerate
-                    </button>
-                  )}
-                </div>
+                <input
+                  type="text"
+                  required
+                  value={formData.service_code}
+                  onChange={(e) => setFormData({ ...formData, service_code: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  placeholder="SRV-001"
+                />
               </div>
 
               <div>
@@ -436,8 +403,8 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                 >
                   <option value="">Select category</option>
                   {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
                     </option>
                   ))}
                 </select>
@@ -626,26 +593,37 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                     </div>
 
                   {formData.recurrence_type === 'monthly' && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                        Day of Month
-                      </label>
-                      <select
-                        value={formData.recurrence_day}
-                        onChange={(e) =>
-                          setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      >
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                          <option key={day} value={day}>
-                            Day {day}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center">
-                        <span className="font-medium">Due every month on day {formData.recurrence_day}</span>
-                      </p>
+                    <div className="md:col-span-2 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                          Due Date (Day of Month)
+                        </label>
+                        <select
+                          value={formData.recurrence_day}
+                          onChange={(e) =>
+                            setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <option key={day} value={day}>
+                              Day {day}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
+                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Period Configuration:</p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400">
+                          <span className="font-medium">Due Date:</span> Day {formData.recurrence_day} of every month
+                        </p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
+                          <span className="font-medium">Period Covered:</span> 1st day to last day of previous month
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
+                          Example: If due on Feb 10, the period covers Jan 1 - Jan 31
+                        </p>
+                      </div>
                     </div>
                   )}
 
@@ -682,115 +660,148 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                   )}
 
                   {formData.recurrence_type === 'quarterly' && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                        Day of Quarter
-                      </label>
-                      <select
-                        value={formData.recurrence_day}
-                        onChange={(e) =>
-                          setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      >
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                          <option key={day} value={day}>
-                            Day {day}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-                        Due on day {formData.recurrence_day} of the first month of each quarter (Jan, Apr, Jul, Oct)
-                      </p>
+                    <div className="md:col-span-2 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                          Due Date (Day of First Month of Quarter)
+                        </label>
+                        <select
+                          value={formData.recurrence_day}
+                          onChange={(e) =>
+                            setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <option key={day} value={day}>
+                              Day {day}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
+                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Period Configuration:</p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400">
+                          <span className="font-medium">Due Date:</span> Day {formData.recurrence_day} of Jan, Apr, Jul, Oct
+                        </p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
+                          <span className="font-medium">Period Covered:</span> Full previous quarter (3 months)
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
+                          Example: If due on Jan 10, the period covers Oct 1 - Dec 31
+                        </p>
+                      </div>
                     </div>
                   )}
 
                   {formData.recurrence_type === 'half-yearly' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          Month (Half-Yearly)
-                        </label>
-                        <select
-                          value={formData.recurrence_month}
-                          onChange={(e) =>
-                            setFormData({ ...formData, recurrence_month: parseInt(e.target.value) })
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                          {MONTHS.slice(0, 6).map((month) => (
-                            <option key={month.value} value={month.value}>
-                              {month.label}
-                            </option>
-                          ))}
-                        </select>
+                    <div className="md:col-span-2 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Month (Half-Yearly)
+                          </label>
+                          <select
+                            value={formData.recurrence_month}
+                            onChange={(e) =>
+                              setFormData({ ...formData, recurrence_month: parseInt(e.target.value) })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          >
+                            {MONTHS.slice(0, 6).map((month) => (
+                              <option key={month.value} value={month.value}>
+                                {month.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Day (Due Date)
+                          </label>
+                          <select
+                            value={formData.recurrence_day}
+                            onChange={(e) =>
+                              setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <option key={day} value={day}>
+                                {day}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          Day (Due Date)
-                        </label>
-                        <select
-                          value={formData.recurrence_day}
-                          onChange={(e) =>
-                            setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                            <option key={day} value={day}>
-                              {day}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          Due twice a year: {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day} and {MONTHS[formData.recurrence_month + 5].label} {formData.recurrence_day}
+                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
+                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Period Configuration:</p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400">
+                          <span className="font-medium">Due Date:</span> {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day} and {MONTHS[formData.recurrence_month + 5].label} {formData.recurrence_day}
+                        </p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
+                          <span className="font-medium">Period Covered:</span> Previous 6 months (half-year)
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
+                          Example: If due on Jul 10, the period covers Jan 1 - Jun 30
                         </p>
                       </div>
-                    </>
+                    </div>
                   )}
 
                   {formData.recurrence_type === 'yearly' && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          Month (Yearly Due)
-                        </label>
-                        <select
-                          value={formData.recurrence_month}
-                          onChange={(e) =>
-                            setFormData({ ...formData, recurrence_month: parseInt(e.target.value) })
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                          {MONTHS.map((month) => (
-                            <option key={month.value} value={month.value}>
-                              {month.label}
-                            </option>
-                          ))}
-                        </select>
+                    <div className="md:col-span-2 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Month (Yearly Due)
+                          </label>
+                          <select
+                            value={formData.recurrence_month}
+                            onChange={(e) =>
+                              setFormData({ ...formData, recurrence_month: parseInt(e.target.value) })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          >
+                            {MONTHS.map((month) => (
+                              <option key={month.value} value={month.value}>
+                                {month.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Day (Due Date)
+                          </label>
+                          <select
+                            value={formData.recurrence_day}
+                            onChange={(e) =>
+                              setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <option key={day} value={day}>
+                                {day}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          Day (Due Date)
-                        </label>
-                        <select
-                          value={formData.recurrence_day}
-                          onChange={(e) =>
-                            setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                            <option key={day} value={day}>
-                              {day}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          Due annually on {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day}
+                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
+                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Period Configuration:</p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400">
+                          <span className="font-medium">Due Date:</span> {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day} annually
+                        </p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
+                          <span className="font-medium">Period Covered:</span> Previous financial year (Apr-Mar)
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
+                          Example: If due on Apr 10 2024, the period covers Apr 1 2023 - Mar 31 2024
                         </p>
                       </div>
-                    </>
+                    </div>
                   )}
 
                   </div>
@@ -830,42 +841,6 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                       <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                         Leave blank for indefinite recurrence
                       </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    Additional Settings
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                        Advance Notice (Days)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={formData.advance_notice_days}
-                        onChange={(e) => setFormData({ ...formData, advance_notice_days: parseInt(e.target.value) || 0 })}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      />
-                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                        Days before due date to create work
-                      </p>
-                    </div>
-                    <div className="flex items-center">
-                      <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.auto_generate_work}
-                          onChange={(e) => setFormData({ ...formData, auto_generate_work: e.target.checked })}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700 dark:text-slate-300">
-                          Auto-generate work items
-                        </span>
-                      </label>
                     </div>
                   </div>
                 </div>
