@@ -84,9 +84,19 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
   const [customFieldKey, setCustomFieldKey] = useState('');
   const [customFieldValue, setCustomFieldValue] = useState('');
+  const [categories, setCategories] = useState<string[]>(SERVICE_CATEGORIES);
+  const [newCategory, setNewCategory] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     if (editingService) {
+      setImagePreview(editingService.image_url || '');
       setFormData({
         name: editingService.name || '',
         service_code: editingService.service_code || '',
@@ -114,17 +124,120 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
     }
   }, [editingService]);
 
+  const loadCategories = async () => {
+    try {
+      const { data: existingCategories } = await supabase
+        .from('services')
+        .select('category')
+        .not('category', 'is', null);
+
+      if (existingCategories) {
+        const uniqueCategories = Array.from(
+          new Set([...SERVICE_CATEGORIES, ...existingCategories.map(s => s.category)])
+        ).sort();
+        setCategories(uniqueCategories as string[]);
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  const addCategory = () => {
+    if (newCategory && !categories.includes(newCategory)) {
+      const updatedCategories = [...categories, newCategory].sort();
+      setCategories(updatedCategories);
+      setFormData({ ...formData, category: newCategory });
+      setNewCategory('');
+      setShowAddCategory(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size must be less than 5MB');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const generateServiceCode = async () => {
+    try {
+      const { data: existingServices } = await supabase
+        .from('services')
+        .select('service_code')
+        .not('service_code', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      let nextNumber = 1;
+      if (existingServices && existingServices.length > 0) {
+        const lastCode = existingServices[0].service_code;
+        const match = lastCode?.match(/SRV-(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1]) + 1;
+        }
+      }
+
+      return `SRV-${nextNumber.toString().padStart(3, '0')}`;
+    } catch (error) {
+      console.error('Error generating service code:', error);
+      return `SRV-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
+      let imageUrl = formData.image_url;
+
+      if (imageFile) {
+        try {
+          const fileExt = imageFile.name.split('.').pop();
+          const fileName = `${user!.id}/${Date.now()}.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('service-images')
+            .upload(fileName, imageFile);
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            alert('Image upload failed. Please contact admin to set up storage bucket. Service will be created without image.');
+          } else {
+            const { data } = supabase.storage
+              .from('service-images')
+              .getPublicUrl(fileName);
+            imageUrl = data.publicUrl;
+          }
+        } catch (error) {
+          console.error('Storage error:', error);
+          alert('Image upload is not configured. Service will be created without image.');
+        }
+      }
+
+      const generatedCode = formData.service_code || await generateServiceCode();
+
       const serviceData: any = {
         user_id: user!.id,
         name: formData.name,
-        service_code: formData.service_code || null,
+        service_code: generatedCode,
         category: formData.category || null,
         description: formData.description || null,
-        image_url: formData.image_url || null,
+        image_url: imageUrl || null,
         estimated_duration_hours: formData.estimated_duration_hours,
         estimated_duration_minutes: formData.estimated_duration_minutes,
         estimated_duration_value: formData.estimated_duration_value,
@@ -287,10 +400,10 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                   value={formData.service_code}
                   onChange={(e) => setFormData({ ...formData, service_code: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                  placeholder="Auto-generated (e.g., SRV-001)"
+                  placeholder="Will auto-generate if left empty"
                 />
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                  Leave blank to auto-generate
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  Auto-generates as SRV-001, SRV-002, etc.
                 </p>
               </div>
 
@@ -298,18 +411,54 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Category
                 </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">Select category</option>
-                  {SERVICE_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select category</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCategory(!showAddCategory)}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+                    title="Add custom category"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                {showAddCategory && (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCategory())}
+                      placeholder="New category name"
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={addCategory}
+                      className="px-3 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddCategory(false); setNewCategory(''); }}
+                      className="px-3 py-2 text-sm bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -342,33 +491,41 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                Service Image URL
+                Service Image
               </label>
-              <div className="flex space-x-2">
-                <input
-                  type="url"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                  placeholder="https://example.com/service-image.jpg"
-                />
-                {formData.image_url && (
-                  <div className="w-12 h-12 border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-slate-700">
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-400"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                    Upload an image (max 5MB, jpg/png/gif)
+                  </p>
+                </div>
+                {imagePreview && (
+                  <div className="relative w-20 h-20 border-2 border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-slate-700">
                     <img
-                      src={formData.image_url}
+                      src={imagePreview}
                       alt="Preview"
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
                     />
-                    <ImageIcon className="w-6 h-6 text-gray-400" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null);
+                        setImagePreview('');
+                        setFormData({ ...formData, image_url: '' });
+                      }}
+                      className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-bl-lg hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                Provide a URL to an image representing this service
-              </p>
             </div>
           </div>
 
@@ -697,47 +854,39 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                 <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    Automation Settings
+                    Period Tracking Settings
                   </h4>
                   <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                        Advance Notice (Days)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={formData.advance_notice_days}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            advance_notice_days: parseInt(e.target.value) || 0,
-                          })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      />
-                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                        Work items will be created this many days before the due date
-                      </p>
-                    </div>
-
-                    <div className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-slate-700 rounded-lg">
-                      <input
-                        type="checkbox"
-                        id="auto_generate_work"
-                        checked={formData.auto_generate_work}
-                        onChange={(e) =>
-                          setFormData({ ...formData, auto_generate_work: e.target.checked })
-                        }
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
-                      />
-                      <div>
-                        <label htmlFor="auto_generate_work" className="text-sm font-medium text-gray-900 dark:text-white block">
-                          Auto-generate work items
-                        </label>
-                        <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">
-                          Automatically create work tasks for customers based on this schedule
-                        </p>
+                    <div className="p-4 bg-blue-50 dark:bg-slate-700 rounded-lg border border-blue-200 dark:border-slate-600">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                          <Calendar className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                            Period-Based Work Management
+                          </h5>
+                          <p className="text-xs text-gray-600 dark:text-slate-400 leading-relaxed">
+                            For recurring services, works are managed using periods. Each period automatically tracks:
+                          </p>
+                          <ul className="mt-2 space-y-1 text-xs text-gray-600 dark:text-slate-400">
+                            <li className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                              Period start and end dates based on recurrence
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                              Due date for work completion
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                              All documents and activities for that period
+                            </li>
+                          </ul>
+                          <p className="mt-2 text-xs font-medium text-blue-700 dark:text-blue-400">
+                            Example: Monthly service due on 10th tracks work period from 1st of previous month to last day of previous month
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
