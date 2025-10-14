@@ -175,7 +175,37 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   };
 
   const fetchActivities = async () => {
-    setActivities([]);
+    try {
+      const { data, error } = await supabase
+        .from('work_activities')
+        .select(`
+          id,
+          activity_type,
+          title,
+          description,
+          metadata,
+          created_at,
+          staff_members:created_by_staff_id(name)
+        `)
+        .eq('work_id', workId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedActivities: Activity[] = (data || []).map(activity => ({
+        id: activity.id,
+        type: activity.activity_type as Activity['type'],
+        title: activity.title,
+        description: activity.description,
+        timestamp: activity.created_at,
+        user: activity.staff_members?.name || 'System',
+        metadata: activity.metadata
+      }));
+
+      setActivities(formattedActivities);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+    }
   };
 
   const checkAndCreateNextPeriod = async () => {

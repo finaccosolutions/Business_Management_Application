@@ -423,63 +423,24 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                     </button>
                   )}
                 </div>
-                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                  Auto-generated as SRV-001, SRV-002, etc. Click Regenerate to get a new code.
-                </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Category
                 </label>
-                <div className="flex gap-2">
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Select category</option>
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCategory(!showAddCategory)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
-                    title="Add custom category"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                {showAddCategory && (
-                  <div className="mt-2 flex gap-2">
-                    <input
-                      type="text"
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCategory())}
-                      placeholder="New category name"
-                      className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                    />
-                    <button
-                      type="button"
-                      onClick={addCategory}
-                      className="px-3 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                    >
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowAddCategory(false); setNewCategory(''); }}
-                      className="px-3 py-2 text-sm bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">Select category</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -875,80 +836,36 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                 <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    Work Period Information
+                    Additional Settings
                   </h4>
-                  <div className="space-y-3">
-                    <div className="p-4 bg-blue-50 dark:bg-slate-700 rounded-lg border border-blue-200 dark:border-slate-600">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                          <Calendar className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                            How Periods Work
-                          </h5>
-                          {formData.recurrence_type === 'monthly' && (
-                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
-                              <p className="font-medium text-blue-700 dark:text-blue-400">
-                                Monthly: Due on day {formData.recurrence_day} of each month
-                              </p>
-                              <p>Period covers the PREVIOUS month (1st to last day)</p>
-                              <p className="bg-white dark:bg-slate-800 p-2 rounded border border-blue-200 dark:border-slate-600">
-                                Example: Due Feb {formData.recurrence_day} → Period is Jan 1 to Jan 31
-                              </p>
-                            </div>
-                          )}
-                          {formData.recurrence_type === 'quarterly' && (
-                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
-                              <p className="font-medium text-blue-700 dark:text-blue-400">
-                                Quarterly: Due on day {formData.recurrence_day} of Jan, Apr, Jul, Oct
-                              </p>
-                              <p>Period covers the PREVIOUS quarter (3 months)</p>
-                              <p className="bg-white dark:bg-slate-800 p-2 rounded border border-blue-200 dark:border-slate-600">
-                                Example: Due Jan {formData.recurrence_day} → Period is Oct 1 to Dec 31
-                              </p>
-                            </div>
-                          )}
-                          {formData.recurrence_type === 'half-yearly' && (
-                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
-                              <p className="font-medium text-blue-700 dark:text-blue-400">
-                                Half-Yearly: Due on day {formData.recurrence_day} of Jan and Jul
-                              </p>
-                              <p>Period covers the PREVIOUS 6 months</p>
-                              <p className="bg-white dark:bg-slate-800 p-2 rounded border border-blue-200 dark:border-slate-600">
-                                Example: Due Jul {formData.recurrence_day} → Period is Jan 1 to Jun 30
-                              </p>
-                            </div>
-                          )}
-                          {formData.recurrence_type === 'yearly' && (
-                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
-                              <p className="font-medium text-blue-700 dark:text-blue-400">
-                                Yearly: Due on day {formData.recurrence_day} of {MONTHS[formData.recurrence_month - 1]?.label}
-                              </p>
-                              <p>Period covers the PREVIOUS financial year (Apr 1 to Mar 31)</p>
-                              <p className="bg-white dark:bg-slate-800 p-2 rounded border border-blue-200 dark:border-slate-600">
-                                Example: Due Apr {formData.recurrence_day} 2025 → Period is Apr 1 2024 to Mar 31 2025
-                              </p>
-                            </div>
-                          )}
-                          {formData.recurrence_type === 'weekly' && (
-                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
-                              <p className="font-medium text-blue-700 dark:text-blue-400">
-                                Weekly: Due on selected weekday(s)
-                              </p>
-                              <p>Period covers the PREVIOUS week (Mon to Sun)</p>
-                            </div>
-                          )}
-                          {formData.recurrence_type === 'daily' && (
-                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
-                              <p className="font-medium text-blue-700 dark:text-blue-400">
-                                Daily: Due every day
-                              </p>
-                              <p>Period covers the PREVIOUS day</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Advance Notice (Days)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.advance_notice_days}
+                        onChange={(e) => setFormData({ ...formData, advance_notice_days: parseInt(e.target.value) || 0 })}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                        Days before due date to create work
+                      </p>
+                    </div>
+                    <div className="flex items-center">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.auto_generate_work}
+                          onChange={(e) => setFormData({ ...formData, auto_generate_work: e.target.checked })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-slate-300">
+                          Auto-generate work items
+                        </span>
+                      </label>
                     </div>
                   </div>
                 </div>
