@@ -135,6 +135,11 @@ export default function Works() {
     work_location: '',
     requirements: '',
     deliverables: '',
+    period_calculation_type: 'previous_period',
+    period_offset_value: 1,
+    period_offset_unit: 'month',
+    due_day_of_period: 'end',
+    custom_due_offset: 10,
   });
 
   useEffect(() => {
@@ -188,6 +193,15 @@ export default function Works() {
         updates.recurrence_pattern = selectedService.recurrence_type || 'monthly';
         updates.recurrence_day = selectedService.recurrence_day?.toString() || '10';
         updates.due_date = '';
+
+        // Auto-fill period configuration from service custom fields
+        if (selectedService.custom_fields) {
+          updates.period_calculation_type = selectedService.custom_fields.period_calculation_type || 'previous_period';
+          updates.period_offset_value = selectedService.custom_fields.period_offset_value || 1;
+          updates.period_offset_unit = selectedService.custom_fields.period_offset_unit || 'month';
+          updates.due_day_of_period = selectedService.custom_fields.due_day_of_period || 'end';
+          updates.custom_due_offset = selectedService.custom_fields.custom_due_offset || 10;
+        }
       } else {
         updates.recurrence_pattern = '';
         updates.recurrence_day = '';
@@ -1538,102 +1552,315 @@ const filteredWorks = works.filter((work) => {
                     </div>
 
                     {formData.recurrence_pattern === 'monthly' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Due Day of Month *
-                        </label>
-                        <select
-                          required={formData.is_recurring}
-                          value={formData.recurrence_day}
-                          onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                            <option key={day} value={day}>
-                              Day {day}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-orange-600 mt-2">
-                          <span className="font-medium">Due every month on day {formData.recurrence_day}</span>
-                          <br />
-                          Period: Previous month 1st to last day (e.g., for due day 10th Feb: period is Jan 1 - Jan 31)
-                        </p>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Due Day of Month *
+                          </label>
+                          <select
+                            required={formData.is_recurring}
+                            value={formData.recurrence_day}
+                            onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <option key={day} value={day}>
+                                Day {day}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-3">
+                          <h5 className="text-sm font-semibold text-gray-900">Period Configuration</h5>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Period Type
+                            </label>
+                            <select
+                              value={formData.period_calculation_type}
+                              onChange={(e) => setFormData({ ...formData, period_calculation_type: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            >
+                              <option value="previous_period">Previous Month (1st to last day)</option>
+                              <option value="current_period">Current Month (1st to last day)</option>
+                              <option value="custom_range">Custom Date Range</option>
+                            </select>
+                          </div>
+
+                          {formData.period_calculation_type === 'custom_range' && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Days Before Due
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={formData.period_offset_value}
+                                  onChange={(e) => setFormData({ ...formData, period_offset_value: parseInt(e.target.value) || 1 })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Unit
+                                </label>
+                                <select
+                                  value={formData.period_offset_unit}
+                                  onChange={(e) => setFormData({ ...formData, period_offset_unit: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                >
+                                  <option value="day">Days</option>
+                                  <option value="week">Weeks</option>
+                                  <option value="month">Months</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="bg-blue-50 p-2 rounded text-xs text-blue-800">
+                            <span className="font-medium">Summary:</span> Due every month on day {formData.recurrence_day} |
+                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous month' :
+                                     formData.period_calculation_type === 'current_period' ? 'Current month' :
+                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due`}
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {formData.recurrence_pattern === 'quarterly' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Due Day of First Month of Quarter *
-                        </label>
-                        <select
-                          required={formData.is_recurring}
-                          value={formData.recurrence_day}
-                          onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                            <option key={day} value={day}>
-                              Day {day}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-orange-600 mt-2">
-                          <span className="font-medium">Due on day {formData.recurrence_day} of Jan, Apr, Jul, Oct</span>
-                          <br />
-                          Period: Previous quarter (e.g., for Jan 10: period is Oct 1 - Dec 31)
-                        </p>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Due Day of First Month of Quarter *
+                          </label>
+                          <select
+                            required={formData.is_recurring}
+                            value={formData.recurrence_day}
+                            onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <option key={day} value={day}>
+                                Day {day}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-3">
+                          <h5 className="text-sm font-semibold text-gray-900">Period Configuration</h5>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Period Type
+                            </label>
+                            <select
+                              value={formData.period_calculation_type}
+                              onChange={(e) => setFormData({ ...formData, period_calculation_type: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            >
+                              <option value="previous_period">Previous Quarter (3 months)</option>
+                              <option value="current_period">Current Quarter (3 months)</option>
+                              <option value="custom_range">Custom Date Range</option>
+                            </select>
+                          </div>
+
+                          {formData.period_calculation_type === 'custom_range' && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Days/Months Before Due
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={formData.period_offset_value}
+                                  onChange={(e) => setFormData({ ...formData, period_offset_value: parseInt(e.target.value) || 1 })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Unit
+                                </label>
+                                <select
+                                  value={formData.period_offset_unit}
+                                  onChange={(e) => setFormData({ ...formData, period_offset_unit: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                >
+                                  <option value="day">Days</option>
+                                  <option value="month">Months</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="bg-blue-50 p-2 rounded text-xs text-blue-800">
+                            <span className="font-medium">Summary:</span> Due quarterly on day {formData.recurrence_day} (Jan, Apr, Jul, Oct) |
+                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous quarter' :
+                                     formData.period_calculation_type === 'current_period' ? 'Current quarter' :
+                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due`}
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {formData.recurrence_pattern === 'half_yearly' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Due Day *
-                        </label>
-                        <select
-                          required={formData.is_recurring}
-                          value={formData.recurrence_day}
-                          onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                            <option key={day} value={day}>
-                              Day {day}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-orange-600 mt-2">
-                          <span className="font-medium">Due twice a year on day {formData.recurrence_day} (July and January)</span>
-                          <br />
-                          Period: Previous 6 months (e.g., for Jul 10: period is Jan 1 - Jun 30)
-                        </p>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Due Day *
+                          </label>
+                          <select
+                            required={formData.is_recurring}
+                            value={formData.recurrence_day}
+                            onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <option key={day} value={day}>
+                                Day {day}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-3">
+                          <h5 className="text-sm font-semibold text-gray-900">Period Configuration</h5>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Period Type
+                            </label>
+                            <select
+                              value={formData.period_calculation_type}
+                              onChange={(e) => setFormData({ ...formData, period_calculation_type: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            >
+                              <option value="previous_period">Previous Half-Year (6 months)</option>
+                              <option value="current_period">Current Half-Year (6 months)</option>
+                              <option value="custom_range">Custom Date Range</option>
+                            </select>
+                          </div>
+
+                          {formData.period_calculation_type === 'custom_range' && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Days/Months Before Due
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={formData.period_offset_value}
+                                  onChange={(e) => setFormData({ ...formData, period_offset_value: parseInt(e.target.value) || 1 })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Unit
+                                </label>
+                                <select
+                                  value={formData.period_offset_unit}
+                                  onChange={(e) => setFormData({ ...formData, period_offset_unit: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                >
+                                  <option value="day">Days</option>
+                                  <option value="month">Months</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="bg-blue-50 p-2 rounded text-xs text-blue-800">
+                            <span className="font-medium">Summary:</span> Due twice yearly on day {formData.recurrence_day} (Jan & Jul) |
+                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous half-year' :
+                                     formData.period_calculation_type === 'current_period' ? 'Current half-year' :
+                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due`}
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {formData.recurrence_pattern === 'yearly' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Due Day *
-                        </label>
-                        <select
-                          required={formData.is_recurring}
-                          value={formData.recurrence_day}
-                          onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                            <option key={day} value={day}>
-                              Day {day}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-orange-600 mt-2">
-                          <span className="font-medium">Due annually in April on day {formData.recurrence_day}</span>
-                          <br />
-                          Period: Previous financial year (Apr 1 - Mar 31)
-                        </p>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Due Day *
+                          </label>
+                          <select
+                            required={formData.is_recurring}
+                            value={formData.recurrence_day}
+                            onChange={(e) => setFormData({ ...formData, recurrence_day: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <option key={day} value={day}>
+                                Day {day}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-3">
+                          <h5 className="text-sm font-semibold text-gray-900">Period Configuration</h5>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Period Type
+                            </label>
+                            <select
+                              value={formData.period_calculation_type}
+                              onChange={(e) => setFormData({ ...formData, period_calculation_type: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            >
+                              <option value="previous_period">Previous Financial Year (Apr-Mar)</option>
+                              <option value="current_period">Current Financial Year (Apr-Mar)</option>
+                              <option value="custom_range">Custom Date Range</option>
+                            </select>
+                          </div>
+
+                          {formData.period_calculation_type === 'custom_range' && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Days/Months Before Due
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={formData.period_offset_value}
+                                  onChange={(e) => setFormData({ ...formData, period_offset_value: parseInt(e.target.value) || 1 })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Unit
+                                </label>
+                                <select
+                                  value={formData.period_offset_unit}
+                                  onChange={(e) => setFormData({ ...formData, period_offset_unit: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                >
+                                  <option value="day">Days</option>
+                                  <option value="month">Months</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="bg-blue-50 p-2 rounded text-xs text-blue-800">
+                            <span className="font-medium">Summary:</span> Due annually on day {formData.recurrence_day} (April) |
+                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous FY (Apr-Mar)' :
+                                     formData.period_calculation_type === 'current_period' ? 'Current FY (Apr-Mar)' :
+                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due`}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { X, Users, Clock, CheckSquare, FileText, DollarSign, Calendar, Briefcase, CheckCircle, Repeat, Edit2, Activity as ActivityIcon } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+import { formatDateDisplay } from '../../lib/dateUtils';
 import { WorkDetailsProps, Task, TimeLog, Assignment, RecurringInstance, Activity, WorkDocument, TaskForm, TimeForm, RecurringForm, statusColors, priorityColors } from './WorkDetailsTypes';
 import { OverviewTab, TasksTab, TimeLogsTab, AssignmentsTab, RecurringTab, ActivityTab, DocumentsTab } from './WorkDetailsTabs';
 import { ConfirmationModal, TaskModal, TimeLogModal, RecurringPeriodModal, AssignStaffModal, ReassignReasonModal } from './WorkDetailsModals';
@@ -969,7 +970,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
             {work.due_date && (
               <span className="text-sm text-gray-700 flex items-center gap-2">
                 <Calendar size={14} />
-                Due: {new Date(work.due_date).toLocaleDateString()}
+                Due: {formatDateDisplay(work.due_date)}
               </span>
             )}
           </div>

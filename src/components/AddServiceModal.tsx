@@ -68,6 +68,11 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
     auto_generate_work: true,
     status: 'active',
     custom_fields: {},
+    period_calculation_type: 'previous_period',
+    period_offset_value: 1,
+    period_offset_unit: 'month',
+    due_day_of_period: 'end',
+    custom_due_offset: 10,
   });
 
   const [customFieldKey, setCustomFieldKey] = useState('');
@@ -114,6 +119,11 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
         auto_generate_work: editingService.auto_generate_work !== false,
         status: editingService.status || 'active',
         custom_fields: editingService.custom_fields || {},
+        period_calculation_type: editingService.custom_fields?.period_calculation_type || 'previous_period',
+        period_offset_value: editingService.custom_fields?.period_offset_value || 1,
+        period_offset_unit: editingService.custom_fields?.period_offset_unit || 'month',
+        due_day_of_period: editingService.custom_fields?.due_day_of_period || 'end',
+        custom_due_offset: editingService.custom_fields?.custom_due_offset || 10,
       });
     }
   }, [editingService]);
@@ -218,6 +228,16 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
       const generatedCode = formData.service_code || await generateServiceCode();
 
+      const customFields = { ...formData.custom_fields };
+
+      if (formData.is_recurring) {
+        customFields.period_calculation_type = formData.period_calculation_type;
+        customFields.period_offset_value = formData.period_offset_value;
+        customFields.period_offset_unit = formData.period_offset_unit;
+        customFields.due_day_of_period = formData.due_day_of_period;
+        customFields.custom_due_offset = formData.custom_due_offset;
+      }
+
       const serviceData: any = {
         user_id: user!.id,
         name: formData.name,
@@ -240,7 +260,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
         advance_notice_days: formData.advance_notice_days,
         auto_generate_work: formData.auto_generate_work,
         status: formData.status,
-        custom_fields: formData.custom_fields,
+        custom_fields: customFields,
         updated_at: new Date().toISOString(),
       };
 
@@ -612,17 +632,67 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                           ))}
                         </select>
                       </div>
-                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
-                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Period Configuration:</p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400">
-                          <span className="font-medium">Due Date:</span> Day {formData.recurrence_day} of every month
-                        </p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
-                          <span className="font-medium">Period Covered:</span> 1st day to last day of previous month
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
-                          Example: If due on Feb 10, the period covers Jan 1 - Jan 31
-                        </p>
+
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
+                        <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Period Type
+                          </label>
+                          <select
+                            value={formData.period_calculation_type}
+                            onChange={(e) => setFormData({ ...formData, period_calculation_type: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          >
+                            <option value="previous_period">Previous Period (e.g., previous month)</option>
+                            <option value="current_period">Current Period (e.g., current month)</option>
+                            <option value="custom_range">Custom Date Range</option>
+                          </select>
+                        </div>
+
+                        {formData.period_calculation_type === 'custom_range' && (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Days Before Due Date
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={formData.period_offset_value}
+                                onChange={(e) => setFormData({ ...formData, period_offset_value: parseInt(e.target.value) || 1 })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Period Unit
+                              </label>
+                              <select
+                                value={formData.period_offset_unit}
+                                onChange={(e) => setFormData({ ...formData, period_offset_unit: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="day">Days</option>
+                                <option value="week">Weeks</option>
+                                <option value="month">Months</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
+                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
+                          <p className="text-xs text-blue-800 dark:text-blue-400">
+                            Due every month on day {formData.recurrence_day}
+                          </p>
+                          <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
+                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous month (1st to last day)' :
+                                     formData.period_calculation_type === 'current_period' ? 'Current month (1st to last day)' :
+                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due date`}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -679,17 +749,66 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                           ))}
                         </select>
                       </div>
-                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
-                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Period Configuration:</p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400">
-                          <span className="font-medium">Due Date:</span> Day {formData.recurrence_day} of Jan, Apr, Jul, Oct
-                        </p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
-                          <span className="font-medium">Period Covered:</span> Full previous quarter (3 months)
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
-                          Example: If due on Jan 10, the period covers Oct 1 - Dec 31
-                        </p>
+
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
+                        <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Period Type
+                          </label>
+                          <select
+                            value={formData.period_calculation_type}
+                            onChange={(e) => setFormData({ ...formData, period_calculation_type: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          >
+                            <option value="previous_period">Previous Quarter (3 months)</option>
+                            <option value="current_period">Current Quarter (3 months)</option>
+                            <option value="custom_range">Custom Date Range</option>
+                          </select>
+                        </div>
+
+                        {formData.period_calculation_type === 'custom_range' && (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Days/Months Before Due
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={formData.period_offset_value}
+                                onChange={(e) => setFormData({ ...formData, period_offset_value: parseInt(e.target.value) || 1 })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Period Unit
+                              </label>
+                              <select
+                                value={formData.period_offset_unit}
+                                onChange={(e) => setFormData({ ...formData, period_offset_unit: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="day">Days</option>
+                                <option value="month">Months</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
+                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
+                          <p className="text-xs text-blue-800 dark:text-blue-400">
+                            Due quarterly on day {formData.recurrence_day} (Jan, Apr, Jul, Oct)
+                          </p>
+                          <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
+                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous quarter (3 months)' :
+                                     formData.period_calculation_type === 'current_period' ? 'Current quarter (3 months)' :
+                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due date`}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -734,17 +853,66 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                           </select>
                         </div>
                       </div>
-                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
-                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Period Configuration:</p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400">
-                          <span className="font-medium">Due Date:</span> {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day} and {MONTHS[formData.recurrence_month + 5].label} {formData.recurrence_day}
-                        </p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
-                          <span className="font-medium">Period Covered:</span> Previous 6 months (half-year)
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
-                          Example: If due on Jul 10, the period covers Jan 1 - Jun 30
-                        </p>
+
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
+                        <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Period Type
+                          </label>
+                          <select
+                            value={formData.period_calculation_type}
+                            onChange={(e) => setFormData({ ...formData, period_calculation_type: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          >
+                            <option value="previous_period">Previous Half-Year (6 months)</option>
+                            <option value="current_period">Current Half-Year (6 months)</option>
+                            <option value="custom_range">Custom Date Range</option>
+                          </select>
+                        </div>
+
+                        {formData.period_calculation_type === 'custom_range' && (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Days/Months Before Due
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={formData.period_offset_value}
+                                onChange={(e) => setFormData({ ...formData, period_offset_value: parseInt(e.target.value) || 1 })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Period Unit
+                              </label>
+                              <select
+                                value={formData.period_offset_unit}
+                                onChange={(e) => setFormData({ ...formData, period_offset_unit: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="day">Days</option>
+                                <option value="month">Months</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
+                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
+                          <p className="text-xs text-blue-800 dark:text-blue-400">
+                            Due twice yearly: {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day} and {MONTHS[formData.recurrence_month + 5].label} {formData.recurrence_day}
+                          </p>
+                          <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
+                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous half-year (6 months)' :
+                                     formData.period_calculation_type === 'current_period' ? 'Current half-year (6 months)' :
+                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due date`}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -789,17 +957,66 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                           </select>
                         </div>
                       </div>
-                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
-                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Period Configuration:</p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400">
-                          <span className="font-medium">Due Date:</span> {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day} annually
-                        </p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
-                          <span className="font-medium">Period Covered:</span> Previous financial year (Apr-Mar)
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
-                          Example: If due on Apr 10 2024, the period covers Apr 1 2023 - Mar 31 2024
-                        </p>
+
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
+                        <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Period Type
+                          </label>
+                          <select
+                            value={formData.period_calculation_type}
+                            onChange={(e) => setFormData({ ...formData, period_calculation_type: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                          >
+                            <option value="previous_period">Previous Financial Year (Apr-Mar)</option>
+                            <option value="current_period">Current Financial Year (Apr-Mar)</option>
+                            <option value="custom_range">Custom Date Range</option>
+                          </select>
+                        </div>
+
+                        {formData.period_calculation_type === 'custom_range' && (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Days/Months Before Due
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={formData.period_offset_value}
+                                onChange={(e) => setFormData({ ...formData, period_offset_value: parseInt(e.target.value) || 1 })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Period Unit
+                              </label>
+                              <select
+                                value={formData.period_offset_unit}
+                                onChange={(e) => setFormData({ ...formData, period_offset_unit: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="day">Days</option>
+                                <option value="month">Months</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
+                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
+                          <p className="text-xs text-blue-800 dark:text-blue-400">
+                            Due annually on {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day}
+                          </p>
+                          <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
+                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous financial year (Apr-Mar)' :
+                                     formData.period_calculation_type === 'current_period' ? 'Current financial year (Apr-Mar)' :
+                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due date`}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
