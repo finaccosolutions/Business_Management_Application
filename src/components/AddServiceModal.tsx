@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { X, Plus, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Calendar, X, Plus, Trash2, Image as ImageIcon } from 'lucide-react';
 
 interface AddServiceModalProps {
   onClose: () => void;
@@ -92,7 +92,15 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
   useEffect(() => {
     loadCategories();
+    if (!editingService) {
+      generateAndSetServiceCode();
+    }
   }, []);
+
+  const generateAndSetServiceCode = async () => {
+    const code = await generateServiceCode();
+    setFormData(prev => ({ ...prev, service_code: code }));
+  };
 
   useEffect(() => {
     if (editingService) {
@@ -393,17 +401,30 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  Service Code
+                  Service Code *
                 </label>
-                <input
-                  type="text"
-                  value={formData.service_code}
-                  onChange={(e) => setFormData({ ...formData, service_code: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                  placeholder="Will auto-generate if left empty"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={formData.service_code}
+                    onChange={(e) => setFormData({ ...formData, service_code: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                    placeholder="SRV-001"
+                  />
+                  {!editingService && (
+                    <button
+                      type="button"
+                      onClick={generateAndSetServiceCode}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors whitespace-nowrap"
+                      title="Regenerate service code"
+                    >
+                      Regenerate
+                    </button>
+                  )}
+                </div>
                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                  Auto-generates as SRV-001, SRV-002, etc.
+                  Auto-generated as SRV-001, SRV-002, etc. Click Regenerate to get a new code.
                 </p>
               </div>
 
@@ -854,7 +875,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                 <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    Period Tracking Settings
+                    Work Period Information
                   </h4>
                   <div className="space-y-3">
                     <div className="p-4 bg-blue-50 dark:bg-slate-700 rounded-lg border border-blue-200 dark:border-slate-600">
@@ -863,29 +884,69 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                           <Calendar className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                            Period-Based Work Management
+                          <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                            How Periods Work
                           </h5>
-                          <p className="text-xs text-gray-600 dark:text-slate-400 leading-relaxed">
-                            For recurring services, works are managed using periods. Each period automatically tracks:
-                          </p>
-                          <ul className="mt-2 space-y-1 text-xs text-gray-600 dark:text-slate-400">
-                            <li className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                              Period start and end dates based on recurrence
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                              Due date for work completion
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                              All documents and activities for that period
-                            </li>
-                          </ul>
-                          <p className="mt-2 text-xs font-medium text-blue-700 dark:text-blue-400">
-                            Example: Monthly service due on 10th tracks work period from 1st of previous month to last day of previous month
-                          </p>
+                          {formData.recurrence_type === 'monthly' && (
+                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
+                              <p className="font-medium text-blue-700 dark:text-blue-400">
+                                Monthly: Due on day {formData.recurrence_day} of each month
+                              </p>
+                              <p>Period covers the PREVIOUS month (1st to last day)</p>
+                              <p className="bg-white dark:bg-slate-800 p-2 rounded border border-blue-200 dark:border-slate-600">
+                                Example: Due Feb {formData.recurrence_day} → Period is Jan 1 to Jan 31
+                              </p>
+                            </div>
+                          )}
+                          {formData.recurrence_type === 'quarterly' && (
+                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
+                              <p className="font-medium text-blue-700 dark:text-blue-400">
+                                Quarterly: Due on day {formData.recurrence_day} of Jan, Apr, Jul, Oct
+                              </p>
+                              <p>Period covers the PREVIOUS quarter (3 months)</p>
+                              <p className="bg-white dark:bg-slate-800 p-2 rounded border border-blue-200 dark:border-slate-600">
+                                Example: Due Jan {formData.recurrence_day} → Period is Oct 1 to Dec 31
+                              </p>
+                            </div>
+                          )}
+                          {formData.recurrence_type === 'half-yearly' && (
+                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
+                              <p className="font-medium text-blue-700 dark:text-blue-400">
+                                Half-Yearly: Due on day {formData.recurrence_day} of Jan and Jul
+                              </p>
+                              <p>Period covers the PREVIOUS 6 months</p>
+                              <p className="bg-white dark:bg-slate-800 p-2 rounded border border-blue-200 dark:border-slate-600">
+                                Example: Due Jul {formData.recurrence_day} → Period is Jan 1 to Jun 30
+                              </p>
+                            </div>
+                          )}
+                          {formData.recurrence_type === 'yearly' && (
+                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
+                              <p className="font-medium text-blue-700 dark:text-blue-400">
+                                Yearly: Due on day {formData.recurrence_day} of {MONTHS[formData.recurrence_month - 1]?.label}
+                              </p>
+                              <p>Period covers the PREVIOUS financial year (Apr 1 to Mar 31)</p>
+                              <p className="bg-white dark:bg-slate-800 p-2 rounded border border-blue-200 dark:border-slate-600">
+                                Example: Due Apr {formData.recurrence_day} 2025 → Period is Apr 1 2024 to Mar 31 2025
+                              </p>
+                            </div>
+                          )}
+                          {formData.recurrence_type === 'weekly' && (
+                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
+                              <p className="font-medium text-blue-700 dark:text-blue-400">
+                                Weekly: Due on selected weekday(s)
+                              </p>
+                              <p>Period covers the PREVIOUS week (Mon to Sun)</p>
+                            </div>
+                          )}
+                          {formData.recurrence_type === 'daily' && (
+                            <div className="space-y-2 text-xs text-gray-700 dark:text-slate-300">
+                              <p className="font-medium text-blue-700 dark:text-blue-400">
+                                Daily: Due every day
+                              </p>
+                              <p>Period covers the PREVIOUS day</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

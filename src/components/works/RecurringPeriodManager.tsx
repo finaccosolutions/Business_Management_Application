@@ -392,27 +392,45 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                         </span>
                       )}
                     </div>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p className="flex items-center gap-1">
-                        <Calendar size={14} />
-                        {formatDateDisplay(period.period_start_date)} - {formatDateDisplay(period.period_end_date)}
-                      </p>
-                      <p className="flex items-center gap-1">
-                        <Clock size={14} />
-                        Due: {formatDateDisplay(period.due_date)}
-                        {period.status !== 'completed' && daysUntilDue >= 0 && (
-                          <span className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${
-                            daysUntilDue <= 3 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {daysUntilDue === 0 ? 'Due today' : `${daysUntilDue} days`}
-                          </span>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Calendar size={14} className="text-blue-500" />
+                        <span className="font-medium text-gray-700">Period:</span>
+                        <span>{formatDateDisplay(period.period_start_date)} to {formatDateDisplay(period.period_end_date)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className={isOverdue ? 'text-red-500' : 'text-orange-500'} />
+                        <span className="font-medium text-gray-700">Due:</span>
+                        <span className={isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                          {formatDateDisplay(period.due_date)}
+                        </span>
+                        {period.status !== 'completed' && (
+                          daysUntilDue >= 0 ? (
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              daysUntilDue === 0 ? 'bg-red-100 text-red-700' :
+                              daysUntilDue <= 3 ? 'bg-orange-100 text-orange-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {daysUntilDue === 0 ? 'Due Today!' : `${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''} left`}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                              {Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) > 1 ? 's' : ''} overdue
+                            </span>
+                          )
                         )}
-                      </p>
+                      </div>
                       {period.is_billed && (
-                        <p className="flex items-center gap-1 text-green-600 font-medium">
+                        <div className="flex items-center gap-1 text-green-600 font-medium text-xs">
                           <CheckCircle size={14} />
                           Invoice Generated
-                        </p>
+                        </div>
+                      )}
+                      {period.completed_at && (
+                        <div className="flex items-center gap-1 text-green-600 text-xs">
+                          <CheckCircle size={14} />
+                          Completed on {formatDateDisplay(period.completed_at.split('T')[0])}
+                        </div>
                       )}
                     </div>
                   </div>

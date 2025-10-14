@@ -19,6 +19,7 @@ import {
 import ServiceDetails from '../components/ServiceDetails';
 import AddServiceModal from '../components/AddServiceModal';
 import ServiceFilters from '../components/ServiceFilters';
+import ServiceCategoryManager from '../components/ServiceCategoryManager';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { useToast } from '../contexts/ToastContext';
 
@@ -44,6 +45,7 @@ export default function Services() {
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,13 +159,22 @@ export default function Services() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Services</h1>
           <p className="text-gray-600 dark:text-slate-400 mt-1">Manage your business services and offerings</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Add Service</span>
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowCategoryManager(true)}
+            className="flex items-center space-x-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white px-6 py-3 rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+          >
+            <Tag className="w-5 h-5" />
+            <span>Manage Categories</span>
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add Service</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -426,6 +437,13 @@ export default function Services() {
               setShowModal(true);
             }
           }}
+        />
+      )}
+
+      {showCategoryManager && (
+        <ServiceCategoryManager
+          onClose={() => setShowCategoryManager(false)}
+          onCategoryUpdate={fetchServices}
         />
       )}
 
