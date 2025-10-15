@@ -1427,7 +1427,456 @@ export default function Reports() {
           </div>
         )}
 
-        {/* Add similar sections for other report types... */}
+        {activeReport === 'work' && workReports.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Work Performance Report</h2>
+                <p className="text-sm text-gray-600 mt-1">Comprehensive work tracking and analysis</p>
+              </div>
+              <button
+                onClick={() => exportToCSV(workReports, 'work_report')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Work Title</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Priority</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {workReports.map((report) => (
+                      <tr key={report.work_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.work_title}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{report.customer_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{report.service_name}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            report.status === 'completed' ? 'bg-green-100 text-green-700' :
+                            report.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {report.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            report.priority === 'high' ? 'bg-red-100 text-red-700' :
+                            report.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {report.priority}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {report.due_date ? new Date(report.due_date).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                          ₹{report.total_amount.toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeReport === 'staff' && staffReports.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Staff Performance Report</h2>
+                <p className="text-sm text-gray-600 mt-1">Individual staff member performance metrics</p>
+              </div>
+              <button
+                onClick={() => exportToCSV(staffReports, 'staff_report')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Staff Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Works</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Completed</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Pending</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Hours</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Efficiency</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {staffReports.map((report) => (
+                      <tr key={report.staff_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.staff_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{report.role}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_works}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            {report.completed_works}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+                            {report.pending_works}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900">{report.total_hours.toFixed(1)}h</td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            report.efficiency_rating >= 80 ? 'bg-green-100 text-green-700' :
+                            report.efficiency_rating >= 60 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {report.efficiency_rating.toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeReport === 'service' && serviceReports.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Service Performance Report</h2>
+                <p className="text-sm text-gray-600 mt-1">Service-wise revenue and performance analysis</p>
+              </div>
+              <button
+                onClick={() => exportToCSV(serviceReports, 'service_report')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Orders</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Completed</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Revenue</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Days</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {serviceReports.map((report) => (
+                      <tr key={report.service_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.service_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{report.category}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_orders}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            {report.completed_orders}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                          ₹{report.total_revenue.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900">
+                          ₹{report.avg_revenue_per_order.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-600">
+                          {report.avg_completion_time.toFixed(1)} days
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeReport === 'invoice' && invoiceReports.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Invoice Report</h2>
+                <p className="text-sm text-gray-600 mt-1">Detailed invoice tracking and payment analysis</p>
+              </div>
+              <button
+                onClick={() => exportToCSV(invoiceReports, 'invoice_report')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice No.</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Amount</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {invoiceReports.map((report) => (
+                      <tr key={report.invoice_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.invoice_number}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{report.customer_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {new Date(report.invoice_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {report.due_date ? new Date(report.due_date).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                          ₹{report.total_amount.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-green-600 font-semibold">
+                          ₹{report.amount_paid.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-red-600 font-semibold">
+                          ₹{report.balance.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            report.status === 'paid' ? 'bg-green-100 text-green-700' :
+                            report.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-700' :
+                            report.overdue_days > 0 ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {report.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeReport === 'category' && categoryReports.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Category Analysis Report</h2>
+                <p className="text-sm text-gray-600 mt-1">Service category analysis and comparison</p>
+              </div>
+              <button
+                onClick={() => exportToCSV(categoryReports, 'category_report')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Services</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Works</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Completed</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Revenue/Work</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Active Customers</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {categoryReports.map((report, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.category}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_services}</td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_works}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            {report.completed_works}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                          ₹{report.total_revenue.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900">
+                          ₹{report.avg_revenue_per_work.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.active_customers}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeReport === 'lead' && leadReports.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Lead Conversion Report</h2>
+                <p className="text-sm text-gray-600 mt-1">Lead tracking and conversion analysis</p>
+              </div>
+              <button
+                onClick={() => exportToCSV(leadReports, 'lead_report')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lead Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created Date</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Days to Convert</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Estimated Value</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned Staff</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {leadReports.map((report) => (
+                      <tr key={report.lead_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.lead_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{report.source}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            report.status === 'converted' ? 'bg-green-100 text-green-700' :
+                            report.status === 'contacted' ? 'bg-blue-100 text-blue-700' :
+                            report.status === 'qualified' ? 'bg-cyan-100 text-cyan-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {report.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {new Date(report.created_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-600">
+                          {report.days_to_convert !== null ? `${report.days_to_convert} days` : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                          ₹{report.estimated_value.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{report.assigned_staff}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeReport === 'revenue' && revenueReports.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Revenue Analysis Report</h2>
+                <p className="text-sm text-gray-600 mt-1">Monthly revenue trends and growth analysis</p>
+              </div>
+              <button
+                onClick={() => exportToCSV(revenueReports, 'revenue_report')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Paid Invoices</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Unpaid</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Invoice</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">New Customers</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Growth</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {revenueReports.map((report, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.period}</td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                          ₹{report.total_revenue.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center">
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            {report.paid_invoices}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center">
+                          <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                            {report.unpaid_invoices}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900">
+                          ₹{report.avg_invoice_value.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.new_customers}</td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            report.revenue_growth >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {report.revenue_growth >= 0 ? '+' : ''}{report.revenue_growth.toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
