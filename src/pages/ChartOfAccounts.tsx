@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, ChevronRight, ArrowLeft, Grid3x3, List, Filter } from 'lucide-react';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 
 interface AccountGroup {
@@ -66,10 +66,13 @@ export default function ChartOfAccounts() {
   const [filterType, setFilterType] = useState('all');
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [editingGroup, setEditingGroup] = useState<AccountGroup | null>(null);
-  const [activeTab, setActiveTab] = useState<'groups' | 'ledgers'>('groups');
+  const [activeTab, setActiveTab] = useState<'groups' | 'ledgers'>('ledgers');
   const [selectedGroup, setSelectedGroup] = useState<AccountGroup | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
+  const [groupFilterType, setGroupFilterType] = useState('all');
+  const [groupViewMode, setGroupViewMode] = useState<'table' | 'cards'>('table');
 
   const [formData, setFormData] = useState({
     account_code: '',
@@ -346,7 +349,13 @@ export default function ChartOfAccounts() {
 
   const groupsByType = ['asset', 'liability', 'income', 'expense', 'equity'].map((type) => ({
     type,
-    groups: groups.filter((g) => g.account_type === type),
+    groups: groups.filter((g) => {
+      const matchesType = groupFilterType === 'all' || g.account_type === groupFilterType;
+      const matchesSearch = groupSearchQuery === '' ||
+        g.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) ||
+        g.description?.toLowerCase().includes(groupSearchQuery.toLowerCase());
+      return g.account_type === type && matchesType && matchesSearch;
+    }),
   }));
 
   if (loading) {
@@ -506,6 +515,16 @@ export default function ChartOfAccounts() {
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
         <div className="flex border-b border-gray-200 dark:border-slate-700">
           <button
+            onClick={() => setActiveTab('ledgers')}
+            className={`flex-1 px-6 py-4 font-semibold transition-all ${
+              activeTab === 'ledgers'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}
+          >
+            Ledgers
+          </button>
+          <button
             onClick={() => {
               setActiveTab('groups');
               setSelectedGroup(null);
@@ -518,20 +537,60 @@ export default function ChartOfAccounts() {
           >
             Groups
           </button>
-          <button
-            onClick={() => setActiveTab('ledgers')}
-            className={`flex-1 px-6 py-4 font-semibold transition-all ${
-              activeTab === 'ledgers'
-                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
-            }`}
-          >
-            Ledgers
-          </button>
         </div>
       </div>
 
       {activeTab === 'groups' && (
+        <>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search groups..."
+                value={groupSearchQuery}
+                onChange={(e) => setGroupSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+            <select
+              value={groupFilterType}
+              onChange={(e) => setGroupFilterType(e.target.value)}
+              className="px-6 py-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors focus:ring-2 focus:ring-blue-500 dark:text-white"
+            >
+              <option value="all">All Types</option>
+              <option value="asset">Assets</option>
+              <option value="liability">Liabilities</option>
+              <option value="income">Income</option>
+              <option value="expense">Expenses</option>
+              <option value="equity">Equity</option>
+            </select>
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-1">
+              <button
+                onClick={() => setGroupViewMode('table')}
+                className={`p-2 rounded-lg transition-colors ${
+                  groupViewMode === 'table'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                }`}
+                title="Table View"
+              >
+                <List className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setGroupViewMode('cards')}
+                className={`p-2 rounded-lg transition-colors ${
+                  groupViewMode === 'cards'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                }`}
+                title="Card View"
+              >
+                <Grid3x3 className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
         <div className="space-y-4">
           {groupsByType.map(({ type, groups: typeGroups }) => {
             if (typeGroups.length === 0) return null;
@@ -558,91 +617,155 @@ export default function ChartOfAccounts() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                          Group Name
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                          Description
-                        </th>
-                        <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                          Ledgers
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                          Balance
-                        </th>
-                        <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                      {typeGroups.map((group) => {
-                        const ledgerCount = accounts.filter((a) => a.account_group_id === group.id).length;
-                        const groupBalance = accounts
-                          .filter((a) => a.account_group_id === group.id)
-                          .reduce((sum, a) => sum + a.current_balance, 0);
+                {groupViewMode === 'table' ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Group Name
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Description
+                          </th>
+                          <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Ledgers
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Balance
+                          </th>
+                          <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                        {typeGroups.map((group) => {
+                          const ledgerCount = accounts.filter((a) => a.account_group_id === group.id).length;
+                          const groupBalance = accounts
+                            .filter((a) => a.account_group_id === group.id)
+                            .reduce((sum, a) => sum + a.current_balance, 0);
 
-                        return (
-                          <tr
-                            key={group.id}
-                            className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                            onClick={() => handleGroupClick(group)}
-                          >
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-gray-900 dark:text-white">{group.name}</span>
-                                <ChevronRight className="w-4 h-4 text-gray-400" />
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                              {group.description || '-'}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold">
-                                {ledgerCount} Ledgers
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right font-bold text-blue-600 dark:text-blue-400">
-                              ₹{groupBalance.toLocaleString('en-IN')}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditGroup(group);
-                                  }}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                  title="Edit Group"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteGroup(group.id);
-                                  }}
-                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                  title="Delete Group"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                          return (
+                            <tr
+                              key={group.id}
+                              className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                              onClick={() => handleGroupClick(group)}
+                            >
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-gray-900 dark:text-white">{group.name}</span>
+                                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                                {group.description || '-'}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold">
+                                  {ledgerCount} Ledgers
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right font-bold text-blue-600 dark:text-blue-400">
+                                ₹{groupBalance.toLocaleString('en-IN')}
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditGroup(group);
+                                    }}
+                                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                    title="Edit Group"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteGroup(group.id);
+                                    }}
+                                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                    title="Delete Group"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                    {typeGroups.map((group) => {
+                      const ledgerCount = accounts.filter((a) => a.account_group_id === group.id).length;
+                      const groupBalance = accounts
+                        .filter((a) => a.account_group_id === group.id)
+                        .reduce((sum, a) => sum + a.current_balance, 0);
+
+                      return (
+                        <div
+                          key={group.id}
+                          onClick={() => handleGroupClick(group)}
+                          className="bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 p-4 hover:shadow-lg transition-all cursor-pointer transform hover:scale-[1.02]"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-gray-900 dark:text-white text-lg">{group.name}</h3>
+                              {group.description && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{group.description}</p>
+                              )}
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" />
+                          </div>
+
+                          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-slate-600">
+                            <div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Ledgers</p>
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{ledgerCount}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Balance</p>
+                              <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                ₹{groupBalance.toLocaleString('en-IN')}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 mt-4">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditGroup(group);
+                              }}
+                              className="flex-1 py-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteGroup(group.id);
+                              }}
+                              className="flex-1 py-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
+        </>
       )}
 
       {activeTab === 'ledgers' && (

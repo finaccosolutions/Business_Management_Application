@@ -16,34 +16,40 @@ export default function SetupVoucherTypes({ onComplete, onCancel }: SetupVoucher
 
   const defaultVoucherTypes = [
     {
+      name: 'Item Invoice',
+      code: 'ITMINV',
+      description: 'For recording item-based billing transactions',
+      display_order: 1,
+    },
+    {
       name: 'Invoice',
       code: 'INV',
       description: 'For recording service invoices and billing transactions',
-      display_order: 1,
+      display_order: 2,
     },
     {
       name: 'Receipt Voucher',
       code: 'RV',
       description: 'For recording all cash and bank receipt transactions',
-      display_order: 2,
+      display_order: 3,
     },
     {
       name: 'Payment Voucher',
       code: 'PV',
       description: 'For recording all cash and bank payment transactions',
-      display_order: 3,
+      display_order: 4,
     },
     {
       name: 'Contra Voucher',
       code: 'CV',
       description: 'For recording internal fund transfers between cash and bank accounts',
-      display_order: 4,
+      display_order: 5,
     },
     {
       name: 'Journal Voucher',
       code: 'JV',
       description: 'For recording general journal entries and adjustments',
-      display_order: 5,
+      display_order: 6,
     },
   ];
 

@@ -39,14 +39,20 @@ const statusColors = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
-const voucherTypeColors = [
-  'from-blue-500 to-blue-600',
-  'from-green-500 to-green-600',
-  'from-orange-500 to-orange-600',
-  'from-red-500 to-red-600',
-  'from-cyan-500 to-cyan-600',
-  'from-teal-500 to-teal-600',
-];
+const getVoucherTypeColor = (code: string, index: number) => {
+  if (code === 'ITMINV') {
+    return 'from-amber-500 to-orange-600';
+  }
+  const colors = [
+    'from-blue-500 to-blue-600',
+    'from-green-500 to-green-600',
+    'from-cyan-500 to-cyan-600',
+    'from-red-500 to-red-600',
+    'from-teal-500 to-teal-600',
+    'from-slate-500 to-slate-600',
+  ];
+  return colors[index % colors.length];
+};
 
 export default function Vouchers() {
   const { user } = useAuth();
@@ -386,7 +392,7 @@ export default function Vouchers() {
             onClick={() => setSelectedTypeId(stat.type.id)}
             className="group bg-white dark:bg-slate-800 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] overflow-hidden border border-gray-200 dark:border-slate-700 text-left"
           >
-            <div className={`bg-gradient-to-r ${voucherTypeColors[index % voucherTypeColors.length]} p-6 text-white`}>
+            <div className={`bg-gradient-to-r ${getVoucherTypeColor(stat.type.code, index)} p-6 text-white`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-white/20 rounded-lg">
                   <FileText className="w-8 h-8" />

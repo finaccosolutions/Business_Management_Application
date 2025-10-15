@@ -40,8 +40,7 @@ const navigation = [
     id: 'accounting',
     subItems: [
       { name: 'Vouchers', icon: Receipt, id: 'vouchers' },
-      { name: 'Ledger', icon: BookOpen, id: 'ledger' },
-      { name: 'Chart of Accounts', icon: FileText, id: 'chart-of-accounts' },
+      { name: 'Chart of Accounts', icon: BookOpen, id: 'chart-of-accounts' },
     ],
   },
   { name: 'Reports', icon: BarChart3, id: 'reports' },
@@ -52,7 +51,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
   const { signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountingExpanded, setAccountingExpanded] = useState(
-    ['accounting', 'vouchers', 'chart-of-accounts', 'ledger'].includes(currentPage)
+    ['accounting', 'vouchers', 'chart-of-accounts'].includes(currentPage)
   );
 
   const handleSignOut = async () => {
@@ -107,7 +106,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = currentPage === item.id;
-              const isAccountingSubpage = ['vouchers', 'chart-of-accounts', 'ledger'].includes(currentPage);
+              const isAccountingSubpage = ['vouchers', 'chart-of-accounts'].includes(currentPage);
               const isAccountingActive = item.id === 'accounting' && (isActive || isAccountingSubpage);
 
               if (item.subItems) {
