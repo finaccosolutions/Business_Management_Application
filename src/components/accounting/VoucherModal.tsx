@@ -49,8 +49,13 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
 
   useEffect(() => {
     fetchAccounts();
-    generateVoucherNumber();
   }, []);
+
+  useEffect(() => {
+    if (formData.voucher_type_id) {
+      generateVoucherNumber(formData.voucher_type_id);
+    }
+  }, [formData.voucher_type_id]);
 
   const fetchAccounts = async () => {
     try {
@@ -68,14 +73,32 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
     }
   };
 
-  const generateVoucherNumber = async () => {
+  const getVoucherPrefix = (typeId: string) => {
+    const type = voucherTypes.find(t => t.id === typeId);
+    if (!type) return 'VCH';
+
+    const prefixMap: { [key: string]: string } = {
+      'PAYMENT': 'PV',
+      'RECEIPT': 'RV',
+      'JOURNAL': 'JV',
+      'CONTRA': 'CV',
+      'DEBIT': 'DN',
+      'CREDIT': 'CN',
+    };
+
+    return prefixMap[type.code] || type.code.substring(0, 2).toUpperCase();
+  };
+
+  const generateVoucherNumber = async (typeId: string) => {
     try {
       const { count } = await supabase
         .from('vouchers')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user!.id);
+        .eq('user_id', user!.id)
+        .eq('voucher_type_id', typeId);
 
-      const nextNumber = `VCH-${String((count || 0) + 1).padStart(5, '0')}`;
+      const prefix = getVoucherPrefix(typeId);
+      const nextNumber = `${prefix}-${String((count || 0) + 1).padStart(5, '0')}`;
       setFormData((prev) => ({ ...prev, voucher_number: nextNumber }));
     } catch (error) {
       console.error('Error generating voucher number:', error);

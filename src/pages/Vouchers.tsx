@@ -101,7 +101,7 @@ export default function Vouchers() {
           .from('voucher_types')
           .select('*')
           .eq('is_active', true)
-          .notIn('code', ['SALES', 'PURCHASE'])
+          .not('code', 'in', '(SALES,PURCHASE,ITMINV)')
           .order('display_order', { nullsFirst: false }),
         supabase
           .from('invoices')
@@ -234,7 +234,9 @@ export default function Vouchers() {
           </div>
           {isInvoiceView ? (
             <button
-              onClick={() => setShowInvoiceModal(true)}
+              onClick={() => {
+                setShowInvoiceModal(true);
+              }}
               className="flex items-center space-x-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-3 rounded-lg hover:from-amber-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
             >
               <Plus className="w-5 h-5" />
@@ -242,7 +244,9 @@ export default function Vouchers() {
             </button>
           ) : (
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => {
+                setShowModal(true);
+              }}
               className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
             >
               <Plus className="w-5 h-5" />
@@ -456,7 +460,19 @@ export default function Vouchers() {
               fetchData();
             }}
             voucherTypes={voucherTypes}
-            selectedTypeId={selectedTypeId}
+            selectedTypeId={selectedTypeId || undefined}
+          />
+        )}
+
+        {showInvoiceModal && (
+          <InvoiceFormModal
+            onClose={() => {
+              setShowInvoiceModal(false);
+            }}
+            onSuccess={() => {
+              fetchData();
+              setShowInvoiceModal(false);
+            }}
           />
         )}
 
@@ -491,9 +507,18 @@ export default function Vouchers() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Invoices Section */}
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <FileText className="w-6 h-6 text-amber-600" />
+          Customer Invoices
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <button
-          onClick={() => setSelectedTypeId('invoices')}
+          onClick={() => {
+            setSelectedTypeId('invoices');
+            setShowInvoiceModal(false);
+          }}
           className="group bg-white dark:bg-slate-800 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] overflow-hidden border-2 border-amber-300 dark:border-amber-700 text-left"
         >
           <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 text-white">
@@ -532,7 +557,16 @@ export default function Vouchers() {
             </div>
           </div>
         </button>
+        </div>
+      </div>
 
+      {/* Accounting Vouchers Section */}
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <FileText className="w-6 h-6 text-blue-600" />
+          Accounting Vouchers
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {voucherTypeStats.map((stat, index) => (
           <button
             key={stat.type.id}
@@ -576,6 +610,7 @@ export default function Vouchers() {
             </div>
           </button>
         ))}
+        </div>
       </div>
 
       {voucherTypeStats.length === 0 && (
@@ -593,13 +628,6 @@ export default function Vouchers() {
             fetchData();
           }}
           onCancel={() => setShowSetup(false)}
-        />
-      )}
-
-      {showInvoiceModal && (
-        <InvoiceFormModal
-          onClose={() => setShowInvoiceModal(false)}
-          onSuccess={() => fetchData()}
         />
       )}
     </div>
