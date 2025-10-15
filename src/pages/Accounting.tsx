@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { BookOpen, Receipt, FileText, ArrowRight } from 'lucide-react';
+import { Receipt, BookOpen, FileText } from 'lucide-react';
 
 interface AccountingProps {
   onNavigate: (page: string) => void;
@@ -10,25 +9,23 @@ export default function Accounting({ onNavigate }: AccountingProps) {
     {
       id: 'vouchers',
       title: 'Vouchers',
-      description: 'Manage all accounting vouchers including invoices and journal entries',
+      description: 'Manage all accounting vouchers including invoices, payments, receipts, and journal entries',
       icon: Receipt,
       color: 'from-blue-500 to-blue-600',
-      submodules: [
-        { name: 'Invoices', description: 'Sales invoices and billing' },
-        { name: 'Journal Entries', description: 'Payment, receipt, and other vouchers' },
-      ],
     },
     {
       id: 'chart-of-accounts',
       title: 'Chart of Accounts',
-      description: 'Manage account groups, ledgers, and master data',
+      description: 'Manage account ledgers, groups, and view complete account structure hierarchy',
       icon: BookOpen,
       color: 'from-green-500 to-green-600',
-      submodules: [
-        { name: 'Account Ledgers', description: 'All accounting heads and balances' },
-        { name: 'Account Groups', description: 'Organize accounts by type' },
-        { name: 'Masters', description: 'Tax rates, payment terms, banks' },
-      ],
+    },
+    {
+      id: 'accounting-masters',
+      title: 'Masters',
+      description: 'Configure payment terms, tax rates, and bank account master data',
+      icon: FileText,
+      color: 'from-orange-500 to-orange-600',
     },
   ];
 
@@ -41,7 +38,7 @@ export default function Accounting({ onNavigate }: AccountingProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {modules.map((module) => {
           const Icon = module.icon;
           return (
@@ -50,35 +47,19 @@ export default function Accounting({ onNavigate }: AccountingProps) {
               onClick={() => onNavigate(module.id)}
               className="group bg-white dark:bg-slate-800 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] overflow-hidden border border-gray-200 dark:border-slate-700 text-left"
             >
-              <div className={`bg-gradient-to-r ${module.color} p-6`}>
-                <div className="flex items-center justify-between">
-                  <div className="p-4 bg-white/20 rounded-xl">
-                    <Icon className="w-10 h-10 text-white" />
-                  </div>
-                  <ArrowRight className="w-6 h-6 text-white/80 group-hover:translate-x-2 transition-transform" />
+              <div className={`bg-gradient-to-r ${module.color} p-6 text-white`}>
+                <div className="p-4 bg-white/20 rounded-xl inline-flex mb-4">
+                  <Icon className="w-10 h-10" />
                 </div>
-                <h2 className="text-2xl font-bold text-white mt-4">{module.title}</h2>
+                <h2 className="text-2xl font-bold">{module.title}</h2>
               </div>
 
-              <div className="p-6 space-y-4">
+              <div className="p-6">
                 <p className="text-gray-600 dark:text-gray-400">{module.description}</p>
-
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Features
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium group-hover:translate-x-2 transition-transform">
+                    Open Module →
                   </p>
-                  {module.submodules.map((sub, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300"
-                    >
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-1.5 flex-shrink-0"></div>
-                      <div>
-                        <span className="font-medium">{sub.name}</span>
-                        <span className="text-gray-500 dark:text-gray-400"> - {sub.description}</span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </button>

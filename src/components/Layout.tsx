@@ -1,4 +1,3 @@
-// src/components/Layout.tsx (Updated)
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import TopNavBar from './TopNavBar';
@@ -15,6 +14,11 @@ import {
   BarChart3,
   UsersRound,
   Calculator,
+  ChevronDown,
+  ChevronRight,
+  Receipt,
+  BookOpen,
+  FileText,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -30,7 +34,16 @@ const navigation = [
   { name: 'Staff', icon: UsersRound, id: 'staff' },
   { name: 'Services', icon: Briefcase, id: 'services' },
   { name: 'Works', icon: ClipboardList, id: 'works' },
-  { name: 'Accounting', icon: Calculator, id: 'accounting' },
+  {
+    name: 'Accounting',
+    icon: Calculator,
+    id: 'accounting',
+    subItems: [
+      { name: 'Vouchers', icon: Receipt, id: 'vouchers' },
+      { name: 'Chart of Accounts', icon: BookOpen, id: 'chart-of-accounts' },
+      { name: 'Masters', icon: FileText, id: 'accounting-masters' },
+    ],
+  },
   { name: 'Reports', icon: BarChart3, id: 'reports' },
   { name: 'Reminders', icon: Bell, id: 'reminders' },
 ];
@@ -38,12 +51,24 @@ const navigation = [
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accountingExpanded, setAccountingExpanded] = useState(
+    ['accounting', 'vouchers', 'chart-of-accounts', 'accounting-masters', 'invoices', 'ledger'].includes(currentPage)
+  );
 
   const handleSignOut = async () => {
     try {
       await signOut();
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handleNavClick = (id: string) => {
+    if (id === 'accounting') {
+      setAccountingExpanded(!accountingExpanded);
+    } else {
+      onNavigate(id);
+      setSidebarOpen(false);
     }
   };
 
@@ -81,16 +106,65 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navigation.map((item) => {
               const Icon = item.icon;
-              const isActive = currentPage === item.id ||
-                ['vouchers', 'chart-of-accounts', 'invoices', 'ledger', 'accounting-masters'].includes(currentPage) && item.id === 'accounting';
+              const isActive = currentPage === item.id;
+              const isAccountingSubpage = ['vouchers', 'chart-of-accounts', 'accounting-masters', 'invoices', 'ledger'].includes(currentPage);
+              const isAccountingActive = item.id === 'accounting' && (isActive || isAccountingSubpage);
+
+              if (item.subItems) {
+                return (
+                  <div key={item.id}>
+                    <button
+                      onClick={() => handleNavClick(item.id)}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
+                        isAccountingActive
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                          : 'text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Icon className={`w-5 h-5 ${isAccountingActive ? '' : 'text-slate-400'}`} />
+                        <span className="font-medium">{item.name}</span>
+                      </div>
+                      {accountingExpanded ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </button>
+
+                    {accountingExpanded && (
+                      <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-700 pl-2">
+                        {item.subItems.map((subItem) => {
+                          const SubIcon = subItem.icon;
+                          const isSubActive = currentPage === subItem.id;
+                          return (
+                            <button
+                              key={subItem.id}
+                              onClick={() => {
+                                onNavigate(subItem.id);
+                                setSidebarOpen(false);
+                              }}
+                              className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                                isSubActive
+                                  ? 'bg-blue-600 text-white shadow-sm'
+                                  : 'text-slate-300 hover:bg-slate-700 hover:translate-x-1'
+                              }`}
+                            >
+                              <SubIcon className={`w-4 h-4 ${isSubActive ? '' : 'text-slate-400'}`} />
+                              <span className="text-sm font-medium">{subItem.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
 
               return (
                 <button
                   key={item.id}
-                  onClick={() => {
-                    onNavigate(item.id);
-                    setSidebarOpen(false);
-                  }}
+                  onClick={() => handleNavClick(item.id)}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     isActive
                       ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md transform scale-[1.02]'
