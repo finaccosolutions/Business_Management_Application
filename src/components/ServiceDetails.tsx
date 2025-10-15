@@ -65,6 +65,10 @@ interface ServiceTask {
   sort_order: number;
   is_active: boolean;
   notes: string | null;
+  due_date_offset_days: number | null;
+  due_date_offset_type: string;
+  default_assigned_to: string | null;
+  staff?: { name: string } | null;
 }
 
 interface ServiceDocument {
@@ -128,7 +132,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
           .order('created_at', { ascending: false }),
         supabase
           .from('service_tasks')
-          .select('*')
+          .select('*, staff:default_assigned_to(name)')
           .eq('service_id', serviceId)
           .order('sort_order'),
         supabase
@@ -650,6 +654,20 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
                                 Est: {task.estimated_hours}h
                               </span>
                             )}
+                            {task.due_date_offset_days && (
+                              <span className="flex items-center gap-1 text-orange-600">
+                                <Calendar size={14} />
+                                Due: {task.due_date_offset_type === 'month_start' ? `${task.due_date_offset_days}th of month` :
+                                     task.due_date_offset_type === 'period_start' ? `${task.due_date_offset_days}d after start` :
+                                     `${task.due_date_offset_days}d after end`}
+                              </span>
+                            )}
+                            {task.staff && (
+                              <span className="flex items-center gap-1 text-blue-600">
+                                <User size={14} />
+                                {task.staff.name}
+                              </span>
+                            )}
                             {!task.is_active && (
                               <span className="text-red-600 font-medium">Inactive</span>
                             )}
@@ -907,6 +925,11 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
                     ? parseFloat(formData.get('estimated_hours') as string)
                     : null,
                   notes: (formData.get('notes') as string) || null,
+                  due_date_offset_days: formData.get('due_date_offset_days')
+                    ? parseInt(formData.get('due_date_offset_days') as string)
+                    : null,
+                  due_date_offset_type: formData.get('due_date_offset_type') as string,
+                  default_assigned_to: (formData.get('default_assigned_to') as string) || null,
                   is_active: true,
                   sort_order: serviceTasks.length,
                 };
@@ -996,6 +1019,43 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
                   rows={2}
                   placeholder="Any additional notes or instructions..."
                 />
+              </div>
+
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Due Date Configuration</h4>
+                <p className="text-xs text-gray-600 mb-3">
+                  Configure when this task is due relative to the period. For example, if GSTR-1 is due on the 10th of each month, set offset to 10.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Due Date Offset
+                    </label>
+                    <input
+                      type="number"
+                      name="due_date_offset_days"
+                      min="1"
+                      max="31"
+                      defaultValue={editingTask?.due_date_offset_days || ''}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., 10 for 10th"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Offset Type
+                    </label>
+                    <select
+                      name="due_date_offset_type"
+                      defaultValue={editingTask?.due_date_offset_type || 'month_start'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="month_start">Day of Month (e.g., 10th)</option>
+                      <option value="period_start">Days after Period Start</option>
+                      <option value="period_end">Days after Period End</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="flex space-x-3 pt-4">

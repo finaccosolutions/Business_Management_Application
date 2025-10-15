@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   Calendar, Clock, CheckCircle, Edit2, Trash2, Plus, AlertTriangle,
-  DollarSign, FileText, CheckSquare, PlayCircle, Upload, Download, X
+  DollarSign, FileText, CheckSquare, PlayCircle, Upload, Download, X, ListTodo
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateDisplay } from '../../lib/dateUtils';
+import { PeriodTaskManager } from './PeriodTaskManager';
 
 interface PeriodDocument {
   id: string;
@@ -37,6 +38,7 @@ interface RecurringInstance {
   is_billed: boolean;
   invoice_id: string | null;
   notes: string | null;
+  all_tasks_completed: boolean;
   staff_members: { name: string } | null;
 }
 
@@ -50,6 +52,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   const [periods, setPeriods] = useState<RecurringInstance[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   const [periodDocuments, setPeriodDocuments] = useState<PeriodDocument[]>([]);
+  const [activeTab, setActiveTab] = useState<'tasks' | 'documents'>('tasks');
   const [loading, setLoading] = useState(true);
   const [showPeriodForm, setShowPeriodForm] = useState(false);
   const [editingPeriod, setEditingPeriod] = useState<RecurringInstance | null>(null);
@@ -420,6 +423,12 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                           )
                         )}
                       </div>
+                      {period.all_tasks_completed && (
+                        <div className="flex items-center gap-1 text-green-600 font-medium text-xs">
+                          <ListTodo size={14} />
+                          All Tasks Completed
+                        </div>
+                      )}
                       {period.is_billed && (
                         <div className="flex items-center gap-1 text-green-600 font-medium text-xs">
                           <CheckCircle size={14} />
@@ -486,76 +495,116 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
           )}
         </div>
 
-        {/* Right: Period Documents */}
+        {/* Right: Period Details (Tasks & Documents) */}
         <div className="space-y-3">
-          <h4 className="font-medium text-gray-900">
-            {selectedPeriod ? 'Period Documents' : 'Select a period to view documents'}
-          </h4>
           {selectedPeriod ? (
-            periodDocuments.length > 0 ? (
-              <div className="space-y-2">
-                {periodDocuments.map(doc => (
-                  <div
-                    key={doc.id}
-                    className={`border-2 rounded-lg p-3 ${
-                      doc.work_documents.is_required && !doc.is_collected
-                        ? 'border-red-300 bg-red-50'
-                        : doc.is_collected
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-gray-200 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h6 className="font-medium text-gray-900 text-sm">{doc.work_documents.name}</h6>
-                          {doc.work_documents.is_required && (
-                            <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
-                              Required
-                            </span>
-                          )}
-                          {doc.is_collected && (
-                            <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium flex items-center gap-1">
-                              <CheckSquare size={12} />
-                              Collected
-                            </span>
-                          )}
-                        </div>
-                        {doc.work_documents.description && (
-                          <p className="text-xs text-gray-600 mt-1">{doc.work_documents.description}</p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          Category: {doc.work_documents.category}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleToggleDocumentCollected(doc.id, !doc.is_collected)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          doc.is_collected
-                            ? 'text-green-600 hover:bg-green-100'
-                            : 'text-gray-400 hover:bg-gray-100'
-                        }`}
-                        title={doc.is_collected ? 'Mark as not collected' : 'Mark as collected'}
-                      >
-                        <CheckSquare size={18} />
-                      </button>
-                    </div>
+            <>
+              <div className="flex items-center gap-2 border-b border-gray-200">
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    activeTab === 'tasks'
+                      ? 'text-orange-600 border-b-2 border-orange-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <ListTodo size={18} />
+                    Tasks
                   </div>
-                ))}
+                </button>
+                <button
+                  onClick={() => setActiveTab('documents')}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    activeTab === 'documents'
+                      ? 'text-orange-600 border-b-2 border-orange-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText size={18} />
+                    Documents
+                  </div>
+                </button>
               </div>
-            ) : (
-              <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-                <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-600 text-sm">No documents for this period yet.</p>
-                <p className="text-gray-500 text-xs mt-2">
-                  Documents are automatically copied from the work template when the period is created.
-                </p>
-              </div>
-            )
+
+              {activeTab === 'tasks' ? (
+                <PeriodTaskManager
+                  periodId={selectedPeriod}
+                  periodName={periods.find(p => p.id === selectedPeriod)?.period_name || ''}
+                  periodStatus={periods.find(p => p.id === selectedPeriod)?.status || ''}
+                  onTasksUpdate={() => {
+                    fetchPeriods();
+                    onUpdate();
+                  }}
+                />
+              ) : (
+                periodDocuments.length > 0 ? (
+                  <div className="space-y-2">
+                    {periodDocuments.map(doc => (
+                      <div
+                        key={doc.id}
+                        className={`border-2 rounded-lg p-3 ${
+                          doc.work_documents.is_required && !doc.is_collected
+                            ? 'border-red-300 bg-red-50'
+                            : doc.is_collected
+                            ? 'border-green-300 bg-green-50'
+                            : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h6 className="font-medium text-gray-900 text-sm">{doc.work_documents.name}</h6>
+                              {doc.work_documents.is_required && (
+                                <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
+                                  Required
+                                </span>
+                              )}
+                              {doc.is_collected && (
+                                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium flex items-center gap-1">
+                                  <CheckSquare size={12} />
+                                  Collected
+                                </span>
+                              )}
+                            </div>
+                            {doc.work_documents.description && (
+                              <p className="text-xs text-gray-600 mt-1">{doc.work_documents.description}</p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">
+                              Category: {doc.work_documents.category}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleToggleDocumentCollected(doc.id, !doc.is_collected)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              doc.is_collected
+                                ? 'text-green-600 hover:bg-green-100'
+                                : 'text-gray-400 hover:bg-gray-100'
+                            }`}
+                            title={doc.is_collected ? 'Mark as not collected' : 'Mark as collected'}
+                          >
+                            <CheckSquare size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                    <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-600 text-sm">No documents for this period yet.</p>
+                    <p className="text-gray-500 text-xs mt-2">
+                      Documents are automatically copied from the work template when the period is created.
+                    </p>
+                  </div>
+                )
+              )}
+            </>
           ) : (
             <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600 text-sm">Select a period from the list to view its documents</p>
+              <ListTodo size={48} className="mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-600 text-sm">Select a period from the list to view tasks and documents</p>
             </div>
           )}
         </div>
