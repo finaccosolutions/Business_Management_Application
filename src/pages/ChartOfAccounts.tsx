@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, ChevronRight, ArrowLeft, Grid3x3, List, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, ChevronRight, ArrowLeft, Grid3x3, List, Filter, Network } from 'lucide-react';
 import { useConfirmation } from '../contexts/ConfirmationContext';
+import AccountTreeView from '../components/AccountTreeView';
 
 interface AccountGroup {
   id: string;
@@ -72,7 +73,7 @@ export default function ChartOfAccounts() {
   const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [groupSearchQuery, setGroupSearchQuery] = useState('');
   const [groupFilterType, setGroupFilterType] = useState('all');
-  const [groupViewMode, setGroupViewMode] = useState<'table' | 'cards'>('table');
+  const [groupViewMode, setGroupViewMode] = useState<'table' | 'cards' | 'tree'>('table');
 
   const [formData, setFormData] = useState({
     account_code: '',
@@ -588,36 +589,61 @@ export default function ChartOfAccounts() {
               >
                 <Grid3x3 className="w-5 h-5" />
               </button>
+              <button
+                onClick={() => setGroupViewMode('tree')}
+                className={`p-2 rounded-lg transition-colors ${
+                  groupViewMode === 'tree'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                }`}
+                title="Tree View"
+              >
+                <Network className="w-5 h-5" />
+              </button>
             </div>
           </div>
 
         <div className="space-y-4">
-          {groupsByType.map(({ type, groups: typeGroups }) => {
-            if (typeGroups.length === 0) return null;
+          {groupViewMode === 'tree' ? (
+            <AccountTreeView
+              groups={groups.filter(g => {
+                const matchesType = groupFilterType === 'all' || g.account_type === groupFilterType;
+                const matchesSearch = groupSearchQuery === '' ||
+                  g.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) ||
+                  g.description?.toLowerCase().includes(groupSearchQuery.toLowerCase());
+                return matchesType && matchesSearch;
+              })}
+              accounts={accounts}
+              onGroupClick={(group) => handleGroupClick(group)}
+              onAccountClick={(account) => handleAccountClick(account)}
+            />
+          ) : (
+            groupsByType.map(({ type, groups: typeGroups }) => {
+              if (typeGroups.length === 0) return null;
 
-            const groupAccounts = accounts.filter((a) =>
-              typeGroups.some((g) => g.id === a.account_group_id)
-            );
-            const totalBalance = groupAccounts.reduce((sum, a) => sum + a.current_balance, 0);
+              const groupAccounts = accounts.filter((a) =>
+                typeGroups.some((g) => g.id === a.account_group_id)
+              );
+              const totalBalance = groupAccounts.reduce((sum, a) => sum + a.current_balance, 0);
 
-            return (
-              <div
-                key={type}
-                className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden"
-              >
+              return (
                 <div
-                  className={`bg-gradient-to-r ${
-                    accountTypeBgColors[type as keyof typeof accountTypeBgColors]
-                  } px-6 py-4 flex items-center justify-between`}
+                  key={type}
+                  className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden"
                 >
-                  <h2 className="text-xl font-bold text-white uppercase">{type}</h2>
-                  <div className="text-right">
-                    <p className="text-white/80 text-sm">Total Balance</p>
-                    <p className="text-2xl font-bold text-white">₹{totalBalance.toLocaleString('en-IN')}</p>
+                  <div
+                    className={`bg-gradient-to-r ${
+                      accountTypeBgColors[type as keyof typeof accountTypeBgColors]
+                    } px-6 py-4 flex items-center justify-between`}
+                  >
+                    <h2 className="text-xl font-bold text-white uppercase">{type}</h2>
+                    <div className="text-right">
+                      <p className="text-white/80 text-sm">Total Balance</p>
+                      <p className="text-2xl font-bold text-white">₹{totalBalance.toLocaleString('en-IN')}</p>
+                    </div>
                   </div>
-                </div>
 
-                {groupViewMode === 'table' ? (
+                  {groupViewMode === 'table' ? (
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
@@ -762,8 +788,9 @@ export default function ChartOfAccounts() {
                   </div>
                 )}
               </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
         </>
       )}

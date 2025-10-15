@@ -102,6 +102,11 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
       if (editingService.category_id) {
         loadSubcategories(editingService.category_id);
       }
+
+      const internalFields = ['period_calculation_type', 'period_offset_value', 'period_offset_unit', 'due_day_of_period', 'custom_due_offset', 'quarterly_day', 'quarterly_month', 'half_yearly_day', 'half_yearly_month', 'yearly_day', 'yearly_month'];
+      const userCustomFields = { ...editingService.custom_fields };
+      internalFields.forEach(field => delete userCustomFields[field]);
+
       setFormData({
         name: editingService.name || '',
         service_code: editingService.service_code || '',
@@ -126,7 +131,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
         advance_notice_days: editingService.advance_notice_days || 3,
         auto_generate_work: editingService.auto_generate_work !== false,
         status: editingService.status || 'active',
-        custom_fields: editingService.custom_fields || {},
+        custom_fields: userCustomFields,
         period_calculation_type: editingService.custom_fields?.period_calculation_type || 'previous_period',
         period_offset_value: editingService.custom_fields?.period_offset_value || 1,
         period_offset_unit: editingService.custom_fields?.period_offset_unit || 'month',
