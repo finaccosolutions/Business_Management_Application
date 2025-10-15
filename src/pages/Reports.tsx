@@ -5,20 +5,37 @@ import {
   FileText,
   Users,
   Briefcase,
-  Clock,
   DollarSign,
   TrendingUp,
   Calendar,
   Download,
-  Activity,
   Package,
   Target,
   BarChart3,
-  PieChart as PieChartIcon,
   FileSpreadsheet,
   TrendingDown,
-  AlertTriangle,
+  Building2,
+  Scale,
+  PieChart as PieChartIcon,
+  Receipt,
+  Wallet,
+  ArrowUpDown,
 } from 'lucide-react';
+
+interface ReportCategory {
+  id: string;
+  name: string;
+  icon: any;
+  reports: Report[];
+}
+
+interface Report {
+  id: string;
+  name: string;
+  description: string;
+  icon: any;
+  action: () => void;
+}
 
 interface CustomerReport {
   customer_id: string;
@@ -130,10 +147,37 @@ interface RevenueReport {
   revenue_growth: number;
 }
 
+interface TrialBalanceEntry {
+  account_code: string;
+  account_name: string;
+  group_name: string;
+  debit: number;
+  credit: number;
+}
+
+interface BalanceSheetEntry {
+  category: string;
+  accounts: Array<{
+    account_name: string;
+    amount: number;
+  }>;
+  total: number;
+}
+
+interface ProfitLossEntry {
+  category: string;
+  accounts: Array<{
+    account_name: string;
+    amount: number;
+  }>;
+  total: number;
+}
+
 export default function Reports() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('customer');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeReport, setActiveReport] = useState<string | null>(null);
 
   const [customerReports, setCustomerReports] = useState<CustomerReport[]>([]);
   const [workReports, setWorkReports] = useState<WorkReport[]>([]);
@@ -143,6 +187,9 @@ export default function Reports() {
   const [categoryReports, setCategoryReports] = useState<CategoryReport[]>([]);
   const [leadReports, setLeadReports] = useState<LeadReport[]>([]);
   const [revenueReports, setRevenueReports] = useState<RevenueReport[]>([]);
+  const [trialBalance, setTrialBalance] = useState<TrialBalanceEntry[]>([]);
+  const [balanceSheet, setBalanceSheet] = useState<BalanceSheetEntry[]>([]);
+  const [profitLoss, setProfitLoss] = useState<ProfitLossEntry[]>([]);
 
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().setDate(1)).toISOString().split('T')[0],
@@ -151,31 +198,12 @@ export default function Reports() {
 
   useEffect(() => {
     if (user) {
-      fetchReports();
-    }
-  }, [user, dateRange]);
-
-  const fetchReports = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        fetchCustomerReports(),
-        fetchWorkReports(),
-        fetchStaffReports(),
-        fetchServiceReports(),
-        fetchInvoiceReports(),
-        fetchCategoryReports(),
-        fetchLeadReports(),
-        fetchRevenueReports(),
-      ]);
-    } catch (error) {
-      console.error('Error fetching reports:', error);
-    } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const fetchCustomerReports = async () => {
+    setLoading(true);
     try {
       const { data: customers } = await supabase
         .from('customers')
@@ -247,10 +275,13 @@ export default function Reports() {
       setCustomerReports(reports.sort((a, b) => b.total_billed - a.total_billed));
     } catch (error) {
       console.error('Error fetching customer reports:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchWorkReports = async () => {
+    setLoading(true);
     try {
       const { data } = await supabase
         .from('works')
@@ -287,10 +318,13 @@ export default function Reports() {
       setWorkReports(reports);
     } catch (error) {
       console.error('Error fetching work reports:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchStaffReports = async () => {
+    setLoading(true);
     try {
       const { data: staff } = await supabase
         .from('staff_members')
@@ -357,10 +391,13 @@ export default function Reports() {
       setStaffReports(reports.sort((a, b) => b.efficiency_rating - a.efficiency_rating));
     } catch (error) {
       console.error('Error fetching staff reports:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchServiceReports = async () => {
+    setLoading(true);
     try {
       const { data: services } = await supabase
         .from('services')
@@ -424,10 +461,13 @@ export default function Reports() {
       setServiceReports(reports.sort((a, b) => b.total_revenue - a.total_revenue));
     } catch (error) {
       console.error('Error fetching service reports:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchInvoiceReports = async () => {
+    setLoading(true);
     try {
       const { data } = await supabase
         .from('invoices')
@@ -479,10 +519,13 @@ export default function Reports() {
       setInvoiceReports(reports);
     } catch (error) {
       console.error('Error fetching invoice reports:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchCategoryReports = async () => {
+    setLoading(true);
     try {
       const { data: services } = await supabase
         .from('services')
@@ -538,10 +581,13 @@ export default function Reports() {
       setCategoryReports(reports.sort((a, b) => b.total_revenue - a.total_revenue));
     } catch (error) {
       console.error('Error fetching category reports:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchLeadReports = async () => {
+    setLoading(true);
     try {
       const { data } = await supabase
         .from('leads')
@@ -576,10 +622,13 @@ export default function Reports() {
       setLeadReports(reports);
     } catch (error) {
       console.error('Error fetching lead reports:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchRevenueReports = async () => {
+    setLoading(true);
     try {
       const reports: RevenueReport[] = [];
       const months = [];
@@ -641,6 +690,197 @@ export default function Reports() {
       setRevenueReports(reports);
     } catch (error) {
       console.error('Error fetching revenue reports:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTrialBalance = async () => {
+    setLoading(true);
+    try {
+      const { data: accounts } = await supabase
+        .from('chart_of_accounts')
+        .select('*, account_groups(name)')
+        .eq('is_active', true)
+        .order('account_code');
+
+      if (!accounts) return;
+
+      const { data: transactions } = await supabase
+        .from('ledger_transactions')
+        .select('account_id, debit, credit')
+        .gte('transaction_date', dateRange.start)
+        .lte('transaction_date', dateRange.end);
+
+      const balances = new Map<string, { debit: number; credit: number }>();
+
+      transactions?.forEach((txn: any) => {
+        const existing = balances.get(txn.account_id) || { debit: 0, credit: 0 };
+        existing.debit += Number(txn.debit) || 0;
+        existing.credit += Number(txn.credit) || 0;
+        balances.set(txn.account_id, existing);
+      });
+
+      const trialBalanceData: TrialBalanceEntry[] = accounts.map((account: any) => {
+        const balance = balances.get(account.id) || { debit: 0, credit: 0 };
+        const openingBalance = Number(account.opening_balance) || 0;
+
+        let debit = balance.debit;
+        let credit = balance.credit;
+
+        if (openingBalance > 0) {
+          debit += openingBalance;
+        } else if (openingBalance < 0) {
+          credit += Math.abs(openingBalance);
+        }
+
+        return {
+          account_code: account.account_code,
+          account_name: account.account_name,
+          group_name: account.account_groups?.name || 'Uncategorized',
+          debit: debit,
+          credit: credit,
+        };
+      });
+
+      setTrialBalance(trialBalanceData);
+    } catch (error) {
+      console.error('Error fetching trial balance:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchBalanceSheet = async () => {
+    setLoading(true);
+    try {
+      const { data: accounts } = await supabase
+        .from('chart_of_accounts')
+        .select('*, account_groups(name, account_type)')
+        .eq('is_active', true);
+
+      if (!accounts) return;
+
+      const { data: transactions } = await supabase
+        .from('ledger_transactions')
+        .select('account_id, debit, credit')
+        .lte('transaction_date', dateRange.end);
+
+      const balances = new Map<string, number>();
+
+      accounts.forEach((account: any) => {
+        balances.set(account.id, Number(account.opening_balance) || 0);
+      });
+
+      transactions?.forEach((txn: any) => {
+        const existing = balances.get(txn.account_id) || 0;
+        balances.set(txn.account_id, existing + (Number(txn.debit) || 0) - (Number(txn.credit) || 0));
+      });
+
+      const assets: BalanceSheetEntry[] = [];
+      const liabilities: BalanceSheetEntry[] = [];
+      const equity: BalanceSheetEntry[] = [];
+
+      const grouped = new Map<string, Array<{ account_name: string; amount: number }>>();
+
+      accounts.forEach((account: any) => {
+        const balance = balances.get(account.id) || 0;
+        const groupName = account.account_groups?.name || 'Uncategorized';
+        const accountType = account.account_groups?.account_type;
+
+        if (!grouped.has(groupName)) {
+          grouped.set(groupName, []);
+        }
+
+        grouped.get(groupName)!.push({
+          account_name: account.account_name,
+          amount: balance,
+        });
+      });
+
+      grouped.forEach((accounts, category) => {
+        const total = accounts.reduce((sum, acc) => sum + acc.amount, 0);
+        const entry = { category, accounts, total };
+
+        const accountType = accounts[0]?.account_name;
+        if (category.toLowerCase().includes('asset')) {
+          assets.push(entry);
+        } else if (category.toLowerCase().includes('liability')) {
+          liabilities.push(entry);
+        } else if (category.toLowerCase().includes('equity') || category.toLowerCase().includes('capital')) {
+          equity.push(entry);
+        }
+      });
+
+      setBalanceSheet([...assets, ...liabilities, ...equity]);
+    } catch (error) {
+      console.error('Error fetching balance sheet:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProfitLoss = async () => {
+    setLoading(true);
+    try {
+      const { data: accounts } = await supabase
+        .from('chart_of_accounts')
+        .select('*, account_groups(name, account_type)')
+        .eq('is_active', true);
+
+      if (!accounts) return;
+
+      const { data: transactions } = await supabase
+        .from('ledger_transactions')
+        .select('account_id, debit, credit')
+        .gte('transaction_date', dateRange.start)
+        .lte('transaction_date', dateRange.end);
+
+      const balances = new Map<string, number>();
+
+      transactions?.forEach((txn: any) => {
+        const existing = balances.get(txn.account_id) || 0;
+        balances.set(txn.account_id, existing + (Number(txn.credit) || 0) - (Number(txn.debit) || 0));
+      });
+
+      const income: ProfitLossEntry[] = [];
+      const expenses: ProfitLossEntry[] = [];
+
+      const grouped = new Map<string, Array<{ account_name: string; amount: number }>>();
+
+      accounts.forEach((account: any) => {
+        const balance = balances.get(account.id) || 0;
+        const groupName = account.account_groups?.name || 'Uncategorized';
+        const accountType = account.account_groups?.account_type;
+
+        if (accountType !== 'income' && accountType !== 'expense') return;
+
+        if (!grouped.has(groupName)) {
+          grouped.set(groupName, []);
+        }
+
+        grouped.get(groupName)!.push({
+          account_name: account.account_name,
+          amount: Math.abs(balance),
+        });
+      });
+
+      grouped.forEach((accounts, category) => {
+        const total = accounts.reduce((sum, acc) => sum + acc.amount, 0);
+        const entry = { category, accounts, total };
+
+        if (category.toLowerCase().includes('income') || category.toLowerCase().includes('revenue')) {
+          income.push(entry);
+        } else if (category.toLowerCase().includes('expense') || category.toLowerCase().includes('cost')) {
+          expenses.push(entry);
+        }
+      });
+
+      setProfitLoss([...income, ...expenses]);
+    } catch (error) {
+      console.error('Error fetching profit & loss:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -664,21 +904,530 @@ export default function Reports() {
     a.click();
   };
 
-  const tabs = [
-    { id: 'customer', label: 'Customer Reports', icon: Users, count: customerReports.length },
-    { id: 'work', label: 'Work Reports', icon: Briefcase, count: workReports.length },
-    { id: 'staff', label: 'Staff Reports', icon: Users, count: staffReports.length },
-    { id: 'service', label: 'Service Reports', icon: Package, count: serviceReports.length },
-    { id: 'invoice', label: 'Invoice Reports', icon: FileText, count: invoiceReports.length },
-    { id: 'category', label: 'Category Reports', icon: BarChart3, count: categoryReports.length },
-    { id: 'lead', label: 'Lead Reports', icon: Target, count: leadReports.length },
-    { id: 'revenue', label: 'Revenue Analysis', icon: DollarSign, count: revenueReports.length },
+  const reportCategories: ReportCategory[] = [
+    {
+      id: 'accounting',
+      name: 'Accounting Reports',
+      icon: Scale,
+      reports: [
+        {
+          id: 'trial_balance',
+          name: 'Trial Balance',
+          description: 'Summary of all account balances with debit and credit totals',
+          icon: ArrowUpDown,
+          action: () => {
+            setActiveReport('trial_balance');
+            fetchTrialBalance();
+          },
+        },
+        {
+          id: 'balance_sheet',
+          name: 'Balance Sheet',
+          description: 'Statement of assets, liabilities, and equity at a point in time',
+          icon: Building2,
+          action: () => {
+            setActiveReport('balance_sheet');
+            fetchBalanceSheet();
+          },
+        },
+        {
+          id: 'profit_loss',
+          name: 'Profit & Loss Statement',
+          description: 'Income and expenses for the selected period',
+          icon: TrendingUp,
+          action: () => {
+            setActiveReport('profit_loss');
+            fetchProfitLoss();
+          },
+        },
+      ],
+    },
+    {
+      id: 'financial',
+      name: 'Financial Reports',
+      icon: DollarSign,
+      reports: [
+        {
+          id: 'revenue',
+          name: 'Revenue Analysis',
+          description: 'Monthly revenue trends and growth analysis',
+          icon: TrendingUp,
+          action: () => {
+            setActiveReport('revenue');
+            fetchRevenueReports();
+          },
+        },
+        {
+          id: 'invoice',
+          name: 'Invoice Report',
+          description: 'Detailed invoice tracking and payment analysis',
+          icon: Receipt,
+          action: () => {
+            setActiveReport('invoice');
+            fetchInvoiceReports();
+          },
+        },
+      ],
+    },
+    {
+      id: 'operations',
+      name: 'Operations Reports',
+      icon: Briefcase,
+      reports: [
+        {
+          id: 'work',
+          name: 'Work Performance',
+          description: 'Comprehensive work tracking and analysis',
+          icon: Briefcase,
+          action: () => {
+            setActiveReport('work');
+            fetchWorkReports();
+          },
+        },
+        {
+          id: 'service',
+          name: 'Service Performance',
+          description: 'Service-wise revenue and performance analysis',
+          icon: Package,
+          action: () => {
+            setActiveReport('service');
+            fetchServiceReports();
+          },
+        },
+        {
+          id: 'category',
+          name: 'Category Analysis',
+          description: 'Service category analysis and comparison',
+          icon: BarChart3,
+          action: () => {
+            setActiveReport('category');
+            fetchCategoryReports();
+          },
+        },
+      ],
+    },
+    {
+      id: 'customer',
+      name: 'Customer Reports',
+      icon: Users,
+      reports: [
+        {
+          id: 'customer',
+          name: 'Customer Performance',
+          description: 'Detailed analysis of customer engagement and revenue',
+          icon: Users,
+          action: () => {
+            setActiveReport('customer');
+            fetchCustomerReports();
+          },
+        },
+        {
+          id: 'lead',
+          name: 'Lead Conversion',
+          description: 'Lead tracking and conversion analysis',
+          icon: Target,
+          action: () => {
+            setActiveReport('lead');
+            fetchLeadReports();
+          },
+        },
+      ],
+    },
+    {
+      id: 'staff',
+      name: 'Staff Reports',
+      icon: Users,
+      reports: [
+        {
+          id: 'staff',
+          name: 'Staff Performance',
+          description: 'Individual staff member performance metrics',
+          icon: Users,
+          action: () => {
+            setActiveReport('staff');
+            fetchStaffReports();
+          },
+        },
+      ],
+    },
   ];
 
-  if (loading) {
+  if (loading && activeReport) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (activeReport) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setActiveReport(null)}
+            className="text-blue-600 hover:text-blue-700 font-medium"
+          >
+            ← Back to Reports
+          </button>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-5 h-5 text-gray-400" />
+              <label className="text-sm font-medium text-gray-700">From:</label>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-700">To:</label>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+
+        {activeReport === 'trial_balance' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Trial Balance</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Period: {new Date(dateRange.start).toLocaleDateString()} - {new Date(dateRange.end).toLocaleDateString()}
+                </p>
+              </div>
+              <button
+                onClick={() => exportToCSV(trialBalance, 'trial_balance')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Group</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Debit</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Credit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {trialBalance.map((entry, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-mono text-gray-900">{entry.account_code}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">{entry.account_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{entry.group_name}</td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                          {entry.debit > 0 ? `₹${entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                          {entry.credit > 0 ? `₹${entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                    {trialBalance.length > 0 && (
+                      <tr className="bg-gray-100 font-bold">
+                        <td colSpan={3} className="px-4 py-3 text-sm text-gray-900">TOTAL</td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900">
+                          ₹{trialBalance.reduce((sum, e) => sum + e.debit, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900">
+                          ₹{trialBalance.reduce((sum, e) => sum + e.credit, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    )}
+                    {trialBalance.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                          No transactions found for the selected period
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeReport === 'balance_sheet' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Balance Sheet</h2>
+                <p className="text-sm text-gray-600 mt-1">As on {new Date(dateRange.end).toLocaleDateString()}</p>
+              </div>
+              <button
+                onClick={() => exportToCSV(balanceSheet.flatMap(bs => bs.accounts.map(a => ({ category: bs.category, ...a }))), 'balance_sheet')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Assets</h3>
+                {balanceSheet
+                  .filter(entry => entry.category.toLowerCase().includes('asset'))
+                  .map((entry, index) => (
+                    <div key={index} className="mb-4">
+                      <h4 className="font-semibold text-gray-800 mb-2">{entry.category}</h4>
+                      {entry.accounts.map((account, idx) => (
+                        <div key={idx} className="flex justify-between py-1 text-sm">
+                          <span className="text-gray-600">{account.account_name}</span>
+                          <span className="font-medium text-gray-900">
+                            ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between py-2 border-t border-gray-200 mt-2">
+                        <span className="font-semibold text-gray-800">Total {entry.category}</span>
+                        <span className="font-bold text-gray-900">
+                          ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Liabilities & Equity</h3>
+                {balanceSheet
+                  .filter(entry => !entry.category.toLowerCase().includes('asset'))
+                  .map((entry, index) => (
+                    <div key={index} className="mb-4">
+                      <h4 className="font-semibold text-gray-800 mb-2">{entry.category}</h4>
+                      {entry.accounts.map((account, idx) => (
+                        <div key={idx} className="flex justify-between py-1 text-sm">
+                          <span className="text-gray-600">{account.account_name}</span>
+                          <span className="font-medium text-gray-900">
+                            ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between py-2 border-t border-gray-200 mt-2">
+                        <span className="font-semibold text-gray-800">Total {entry.category}</span>
+                        <span className="font-bold text-gray-900">
+                          ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {balanceSheet.length === 0 && (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600">No balance sheet data available</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeReport === 'profit_loss' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Profit & Loss Statement</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Period: {new Date(dateRange.start).toLocaleDateString()} - {new Date(dateRange.end).toLocaleDateString()}
+                </p>
+              </div>
+              <button
+                onClick={() => exportToCSV(profitLoss.flatMap(pl => pl.accounts.map(a => ({ category: pl.category, ...a }))), 'profit_loss')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-green-600 mb-4">Income</h3>
+                  {profitLoss
+                    .filter(entry => entry.category.toLowerCase().includes('income') || entry.category.toLowerCase().includes('revenue'))
+                    .map((entry, index) => (
+                      <div key={index} className="mb-4">
+                        <h4 className="font-semibold text-gray-800 mb-2">{entry.category}</h4>
+                        {entry.accounts.map((account, idx) => (
+                          <div key={idx} className="flex justify-between py-1 text-sm">
+                            <span className="text-gray-600 ml-4">{account.account_name}</span>
+                            <span className="font-medium text-gray-900">
+                              ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between py-2 border-t border-gray-200 mt-2">
+                          <span className="font-semibold text-gray-800">Total {entry.category}</span>
+                          <span className="font-bold text-green-600">
+                            ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  <div className="flex justify-between py-3 border-t-2 border-gray-300">
+                    <span className="font-bold text-gray-900">Total Income</span>
+                    <span className="font-bold text-green-600 text-lg">
+                      ₹{profitLoss
+                        .filter(e => e.category.toLowerCase().includes('income') || e.category.toLowerCase().includes('revenue'))
+                        .reduce((sum, e) => sum + e.total, 0)
+                        .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-red-600 mb-4">Expenses</h3>
+                  {profitLoss
+                    .filter(entry => entry.category.toLowerCase().includes('expense') || entry.category.toLowerCase().includes('cost'))
+                    .map((entry, index) => (
+                      <div key={index} className="mb-4">
+                        <h4 className="font-semibold text-gray-800 mb-2">{entry.category}</h4>
+                        {entry.accounts.map((account, idx) => (
+                          <div key={idx} className="flex justify-between py-1 text-sm">
+                            <span className="text-gray-600 ml-4">{account.account_name}</span>
+                            <span className="font-medium text-gray-900">
+                              ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between py-2 border-t border-gray-200 mt-2">
+                          <span className="font-semibold text-gray-800">Total {entry.category}</span>
+                          <span className="font-bold text-red-600">
+                            ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  <div className="flex justify-between py-3 border-t-2 border-gray-300">
+                    <span className="font-bold text-gray-900">Total Expenses</span>
+                    <span className="font-bold text-red-600 text-lg">
+                      ₹{profitLoss
+                        .filter(e => e.category.toLowerCase().includes('expense') || e.category.toLowerCase().includes('cost'))
+                        .reduce((sum, e) => sum + e.total, 0)
+                        .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4 border-2 border-gray-300">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-gray-900 text-lg">Net Profit / Loss</span>
+                    <span className={`font-bold text-2xl ${
+                      (profitLoss
+                        .filter(e => e.category.toLowerCase().includes('income') || e.category.toLowerCase().includes('revenue'))
+                        .reduce((sum, e) => sum + e.total, 0) -
+                      profitLoss
+                        .filter(e => e.category.toLowerCase().includes('expense') || e.category.toLowerCase().includes('cost'))
+                        .reduce((sum, e) => sum + e.total, 0)) >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      ₹{(profitLoss
+                        .filter(e => e.category.toLowerCase().includes('income') || e.category.toLowerCase().includes('revenue'))
+                        .reduce((sum, e) => sum + e.total, 0) -
+                      profitLoss
+                        .filter(e => e.category.toLowerCase().includes('expense') || e.category.toLowerCase().includes('cost'))
+                        .reduce((sum, e) => sum + e.total, 0))
+                        .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {profitLoss.length === 0 && (
+                <div className="text-center py-12">
+                  <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">No profit & loss data available for the selected period</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeReport === 'customer' && customerReports.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Customer Performance Report</h2>
+                <p className="text-sm text-gray-600 mt-1">Detailed analysis of customer engagement and revenue</p>
+              </div>
+              <button
+                onClick={() => exportToCSV(customerReports, 'customer_report')}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Works</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Completed</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Billed</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Pending</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {customerReports.map((report) => (
+                      <tr key={report.customer_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.customer_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          <div>{report.email}</div>
+                          <div className="text-xs text-gray-500">{report.phone}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_works}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            {report.completed_works}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                          ₹{report.total_billed.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-green-600 font-semibold">
+                          ₹{report.total_paid.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-red-600 font-semibold">
+                          ₹{report.total_pending.toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add similar sections for other report types... */}
       </div>
     );
   }
@@ -692,751 +1441,53 @@ export default function Reports() {
               <FileSpreadsheet className="w-8 h-8" />
               Business Reports & Analytics
             </h1>
-            <p className="text-slate-300 mt-2">Comprehensive reports and insights for data-driven decisions</p>
+            <p className="text-slate-300 mt-2">Comprehensive reports for data-driven business decisions</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <Calendar className="w-5 h-5 text-gray-400" />
-            <label className="text-sm font-medium text-gray-700">From:</label>
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">To:</label>
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="flex flex-wrap gap-1 border-b border-gray-200 p-2 bg-gray-50">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2 px-4 py-3 font-medium transition-all rounded-lg ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              <span className="text-sm">{tab.label}</span>
-              <span className={`px-2 py-0.5 text-xs rounded-full ${
-                activeTab === tab.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
-              }`}>
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="p-6">
-          {activeTab === 'customer' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Customer Performance Report</h2>
-                  <p className="text-sm text-gray-600 mt-1">Detailed analysis of customer engagement and revenue</p>
-                </div>
-                <button
-                  onClick={() => exportToCSV(customerReports, 'customer_report')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </button>
-              </div>
-
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Works</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Completed</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Pending</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Overdue</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Billed</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Pending</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Invoice</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {customerReports.map((report) => (
-                        <tr key={report.customer_id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.customer_name}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            <div>{report.email}</div>
-                            <div className="text-xs text-gray-500">{report.phone}</div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_works}</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                              {report.completed_works}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
-                              {report.pending_works}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-                              {report.overdue_works}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                            ₹{report.total_billed.toLocaleString('en-IN')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-green-600 font-semibold">
-                            ₹{report.total_paid.toLocaleString('en-IN')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-red-600 font-semibold">
-                            ₹{report.total_pending.toLocaleString('en-IN')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-600">
-                            ₹{Math.round(report.avg_invoice_value).toLocaleString('en-IN')}
-                          </td>
-                        </tr>
-                      ))}
-                      {customerReports.length === 0 && (
-                        <tr>
-                          <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
-                            No customer data available for the selected period
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'work' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Work Performance Report</h2>
-                  <p className="text-sm text-gray-600 mt-1">Comprehensive work tracking and analysis</p>
-                </div>
-                <button
-                  onClick={() => exportToCSV(workReports, 'work_report')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {workReports.map((report) => (
-                  <div
-                    key={report.work_id}
-                    className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{report.work_title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{report.customer_name}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{report.service_name}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full font-medium ${
-                            report.status === 'completed'
-                              ? 'bg-green-100 text-green-700'
-                              : report.status === 'in_progress'
-                              ? 'bg-blue-100 text-blue-700'
-                              : report.status === 'overdue'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }`}
-                        >
-                          {report.status}
-                        </span>
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full font-medium ${
-                            report.priority === 'high'
-                              ? 'bg-orange-100 text-orange-700'
-                              : report.priority === 'medium'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {report.priority}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3 mt-4 pt-3 border-t border-gray-200">
-                      <div>
-                        <p className="text-xs text-gray-500">Est. Hours</p>
-                        <p className="text-lg font-semibold text-gray-900">{report.estimated_hours}h</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Actual Hours</p>
-                        <p className="text-lg font-semibold text-gray-900">{report.actual_hours}h</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Amount</p>
-                        <p className="text-lg font-semibold text-green-600">
-                          ₹{Math.round(report.total_amount).toLocaleString('en-IN')}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                      <span>Assigned: {report.assigned_staff}</span>
-                      <span className={`font-medium ${
-                        report.billing_status === 'billed' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {report.billing_status}
-                      </span>
-                    </div>
+      <div className="grid grid-cols-1 gap-6">
+        {reportCategories.map((category) => {
+          const Icon = category.icon;
+          return (
+            <div key={category.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white rounded-lg shadow-sm">
+                    <Icon className="w-6 h-6 text-blue-600" />
                   </div>
-                ))}
-
-                {workReports.length === 0 && (
-                  <div className="col-span-full text-center py-12 text-gray-500">
-                    No work data available for the selected period
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'staff' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Staff Performance Report</h2>
-                  <p className="text-sm text-gray-600 mt-1">Individual staff member performance metrics</p>
+                  <h2 className="text-xl font-bold text-gray-900">{category.name}</h2>
                 </div>
-                <button
-                  onClick={() => exportToCSV(staffReports, 'staff_report')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </button>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {staffReports.map((report) => (
-                  <div
-                    key={report.staff_id}
-                    className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow"
-                  >
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg">
-                        <Users className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{report.staff_name}</h3>
-                        <p className="text-xs text-gray-500">{report.role}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Total Works</span>
-                        <span className="font-semibold text-gray-900">{report.total_works}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Completed</span>
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                          {report.completed_works}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Pending</span>
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
-                          {report.pending_works}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Overdue</span>
-                        <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-                          {report.overdue_works}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                        <span className="text-sm text-gray-600">Total Hours</span>
-                        <span className="font-bold text-lg text-blue-600">{report.total_hours.toFixed(1)}h</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Avg Completion</span>
-                        <span className="text-sm font-semibold text-gray-900">
-                          {report.avg_completion_time.toFixed(1)} days
-                        </span>
-                      </div>
-                      <div className="pt-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs text-gray-600">Efficiency</span>
-                          <span className="text-xs font-bold text-green-600">
-                            {report.efficiency_rating.toFixed(0)}%
-                          </span>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {category.reports.map((report) => {
+                    const ReportIcon = report.icon;
+                    return (
+                      <button
+                        key={report.id}
+                        onClick={report.action}
+                        className="group text-left p-5 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all duration-200"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-600 transition-colors">
+                            <ReportIcon className="w-6 h-6 text-blue-600 group-hover:text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 mb-1">
+                              {report.name}
+                            </h3>
+                            <p className="text-sm text-gray-600">{report.description}</p>
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-600 h-2 rounded-full transition-all"
-                            style={{ width: `${report.efficiency_rating}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {staffReports.length === 0 && (
-                  <div className="col-span-full text-center py-12 text-gray-500">
-                    No staff data available for the selected period
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'service' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Service Performance Report</h2>
-                  <p className="text-sm text-gray-600 mt-1">Service-wise revenue and performance analysis</p>
-                </div>
-                <button
-                  onClick={() => exportToCSV(serviceReports, 'service_report')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {serviceReports.map((report) => (
-                  <div
-                    key={report.service_id}
-                    className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 text-lg">{report.service_name}</h3>
-                        <p className="text-sm text-gray-500 mt-1">{report.category}</p>
-                      </div>
-                      <div className="p-2 bg-gradient-to-br from-rose-500 to-rose-600 rounded-lg">
-                        <Package className="w-5 h-5 text-white" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <p className="text-xs text-gray-600">Total Orders</p>
-                        <p className="text-2xl font-bold text-blue-600">{report.total_orders}</p>
-                      </div>
-                      <div className="p-3 bg-green-50 rounded-lg">
-                        <p className="text-xs text-gray-600">Completed</p>
-                        <p className="text-2xl font-bold text-green-600">{report.completed_orders}</p>
-                      </div>
-                      <div className="p-3 bg-yellow-50 rounded-lg">
-                        <p className="text-xs text-gray-600">Pending</p>
-                        <p className="text-2xl font-bold text-yellow-600">{report.pending_orders}</p>
-                      </div>
-                      <div className="p-3 bg-purple-50 rounded-lg">
-                        <p className="text-xs text-gray-600">Avg Time</p>
-                        <p className="text-2xl font-bold text-purple-600">
-                          {report.avg_completion_time.toFixed(0)}d
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-gray-200 space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Total Revenue</span>
-                        <span className="text-lg font-bold text-green-600">
-                          ₹{report.total_revenue.toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Avg Revenue/Order</span>
-                        <span className="font-semibold text-gray-900">
-                          ₹{Math.round(report.avg_revenue_per_order).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Satisfaction Score</span>
-                        <span className="font-semibold text-yellow-600">
-                          {report.customer_satisfaction.toFixed(1)}/5.0
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {serviceReports.length === 0 && (
-                  <div className="col-span-full text-center py-12 text-gray-500">
-                    No service data available for the selected period
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'invoice' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Invoice Analysis Report</h2>
-                  <p className="text-sm text-gray-600 mt-1">Detailed invoice tracking and payment analysis</p>
-                </div>
-                <button
-                  onClick={() => exportToCSV(invoiceReports, 'invoice_report')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </button>
-              </div>
-
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice #</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Days to Pay</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Overdue</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {invoiceReports.map((report) => (
-                        <tr key={report.invoice_id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.invoice_number}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{report.customer_name}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {new Date(report.invoice_date).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                            ₹{report.total_amount.toLocaleString('en-IN')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-green-600 font-semibold">
-                            ₹{report.amount_paid.toLocaleString('en-IN')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-red-600 font-semibold">
-                            ₹{report.balance.toLocaleString('en-IN')}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span
-                              className={`px-2 py-1 text-xs rounded-full font-medium ${
-                                report.status === 'paid'
-                                  ? 'bg-green-100 text-green-700'
-                                  : report.status === 'partially_paid'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-red-100 text-red-700'
-                              }`}
-                            >
-                              {report.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center text-sm text-gray-600">
-                            {report.days_to_payment !== null ? `${report.days_to_payment} days` : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {report.overdue_days > 0 ? (
-                              <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-                                {report.overdue_days} days
-                              </span>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                      {invoiceReports.length === 0 && (
-                        <tr>
-                          <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
-                            No invoice data available for the selected period
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          )}
-
-          {activeTab === 'category' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Category Performance Report</h2>
-                  <p className="text-sm text-gray-600 mt-1">Service category analysis and comparison</p>
-                </div>
-                <button
-                  onClick={() => exportToCSV(categoryReports, 'category_report')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {categoryReports.map((report, index) => (
-                  <div
-                    key={index}
-                    className="bg-gradient-to-br from-white to-gray-50 rounded-lg border-2 border-gray-200 p-6 hover:shadow-xl transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-gray-900">{report.category}</h3>
-                      <div className="p-2 bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg">
-                        <BarChart3 className="w-5 h-5 text-white" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">Services</span>
-                        <span className="font-bold text-gray-900">{report.total_services}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">Total Works</span>
-                        <span className="font-bold text-gray-900">{report.total_works}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">Completed</span>
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                          {report.completed_works}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">Active Customers</span>
-                        <span className="font-bold text-blue-600">{report.active_customers}</span>
-                      </div>
-                      <div className="pt-3 mt-3 border-t-2 border-gray-300">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium text-gray-700">Total Revenue</span>
-                          <span className="text-xl font-bold text-green-600">
-                            ₹{(report.total_revenue / 1000).toFixed(0)}K
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-gray-500">Avg/Work</span>
-                          <span className="text-sm font-semibold text-gray-900">
-                            ₹{Math.round(report.avg_revenue_per_work).toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {categoryReports.length === 0 && (
-                  <div className="col-span-full text-center py-12 text-gray-500">
-                    No category data available for the selected period
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'lead' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Lead Conversion Report</h2>
-                  <p className="text-sm text-gray-600 mt-1">Lead tracking and conversion analysis</p>
-                </div>
-                <button
-                  onClick={() => exportToCSV(leadReports, 'lead_report')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </button>
-              </div>
-
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lead Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Converted</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Days to Convert</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Est. Value</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned To</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {leadReports.map((report) => (
-                        <tr key={report.lead_id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.lead_name}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{report.source}</td>
-                          <td className="px-4 py-3 text-center">
-                            <span
-                              className={`px-2 py-1 text-xs rounded-full font-medium ${
-                                report.status === 'converted'
-                                  ? 'bg-green-100 text-green-700'
-                                  : report.status === 'contacted'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : report.status === 'lost'
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-yellow-100 text-yellow-700'
-                              }`}
-                            >
-                              {report.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {new Date(report.created_date).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {report.converted_date
-                              ? new Date(report.converted_date).toLocaleDateString()
-                              : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-center text-sm text-gray-900 font-medium">
-                            {report.days_to_convert !== null ? `${report.days_to_convert} days` : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                            ₹{report.estimated_value.toLocaleString('en-IN')}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{report.assigned_staff}</td>
-                        </tr>
-                      ))}
-                      {leadReports.length === 0 && (
-                        <tr>
-                          <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                            No lead data available for the selected period
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'revenue' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Revenue Trend Analysis</h2>
-                  <p className="text-sm text-gray-600 mt-1">Monthly revenue trends and growth analysis</p>
-                </div>
-                <button
-                  onClick={() => exportToCSV(revenueReports, 'revenue_report')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export CSV</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {revenueReports.map((report, index) => (
-                  <div
-                    key={index}
-                    className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:shadow-xl transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-gray-900">{report.period}</h3>
-                      <div className="flex items-center gap-1">
-                        {report.revenue_growth >= 0 ? (
-                          <TrendingUp className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <TrendingDown className="w-5 h-5 text-red-600" />
-                        )}
-                        <span
-                          className={`text-sm font-bold ${
-                            report.revenue_growth >= 0 ? 'text-green-600' : 'text-red-600'
-                          }`}
-                        >
-                          {report.revenue_growth >= 0 ? '+' : ''}
-                          {report.revenue_growth.toFixed(1)}%
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mb-4 p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
-                      <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
-                      <p className="text-3xl font-bold text-green-600">
-                        ₹{(report.total_revenue / 1000).toFixed(0)}K
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">Paid Invoices</span>
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                          {report.paid_invoices}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">Unpaid Invoices</span>
-                        <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-                          {report.unpaid_invoices}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">Partially Paid</span>
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
-                          {report.partially_paid_invoices}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">Avg Invoice Value</span>
-                        <span className="font-semibold text-gray-900">
-                          ₹{Math.round(report.avg_invoice_value).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-sm text-gray-600">New Customers</span>
-                        <span className="font-bold text-blue-600">{report.new_customers}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {revenueReports.length === 0 && (
-                  <div className="col-span-full text-center py-12 text-gray-500">
-                    No revenue data available
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
