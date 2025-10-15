@@ -1,11 +1,11 @@
 // src/lib/invoiceUtils.ts
 
-import { Bolt Database } from './Bolt Database';
+import { supabase } from './supabase';
 
 export async function createInvoiceForCompletedWork(workId: string, userId: string) {
   try {
     // Get work details with service and customer info
-    const { data: work, error: workError } = await Bolt Database
+    const { data: work, error: workError } = await supabase
       .from('works')
       .select(`
         *,
@@ -35,7 +35,7 @@ export async function createInvoiceForCompletedWork(workId: string, userId: stri
     const dueDateStr = dueDate.toISOString().split('T')[0];
 
     // Create invoice
-    const { data: invoice, error: invoiceError } = await Bolt Database
+    const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .insert({
         user_id: userId,
@@ -58,13 +58,13 @@ export async function createInvoiceForCompletedWork(workId: string, userId: stri
     if (invoiceError) throw invoiceError;
 
     // Update work billing status
-    await Bolt Database
+    await supabase
       .from('works')
       .update({ billing_status: 'billed' })
       .eq('id', workId);
 
     // Update recurring service instance
-    await Bolt Database
+    await supabase
       .from('recurring_service_instances')
       .update({ invoice_id: invoice.id, status: 'billed' })
       .eq('work_id', workId);
@@ -78,7 +78,7 @@ export async function createInvoiceForCompletedWork(workId: string, userId: stri
 }
 
 async function generateInvoiceNumber(userId: string): Promise<string> {
-  const { data, error } = await Bolt Database
+  const { data, error } = await supabase
     .from('invoices')
     .select('invoice_number')
     .eq('user_id', userId)

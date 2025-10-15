@@ -977,43 +977,6 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    Date Range
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                        Start Date
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.recurrence_start_date}
-                        onChange={(e) =>
-                          setFormData({ ...formData, recurrence_start_date: e.target.value })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                        End Date (Optional)
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.recurrence_end_date}
-                        onChange={(e) =>
-                          setFormData({ ...formData, recurrence_end_date: e.target.value })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      />
-                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                        Leave blank for indefinite recurrence
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
           </div>

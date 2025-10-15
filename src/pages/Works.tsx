@@ -127,6 +127,8 @@ export default function Works() {
     billing_status: 'not_billed',
     billing_amount: '',
     estimated_hours: '',
+    estimated_duration_value: 0,
+    estimated_duration_unit: 'days',
     is_recurring: false,
     recurrence_pattern: '',
     recurrence_day: '',
@@ -219,9 +221,12 @@ export default function Works() {
         updates.billing_amount = selectedService.default_price.toString();
       }
 
-      // Auto-fill estimated hours from service
-      if (selectedService.estimated_duration_hours && !formData.estimated_hours) {
-        updates.estimated_hours = selectedService.estimated_duration_hours.toString();
+      // Auto-fill estimated duration from service
+      if (selectedService.estimated_duration_value && !formData.estimated_duration_value) {
+        updates.estimated_duration_value = selectedService.estimated_duration_value;
+      }
+      if (selectedService.estimated_duration_unit && !formData.estimated_duration_unit) {
+        updates.estimated_duration_unit = selectedService.estimated_duration_unit;
       }
 
       // Auto-fill start date from service recurrence_start_date
@@ -826,6 +831,8 @@ const createRecurringPeriodsFromStart = async (
             billing_status: data.billing_status,
             billing_amount: data.billing_amount?.toString() || '',
             estimated_hours: data.estimated_hours?.toString() || '',
+            estimated_duration_value: data.estimated_duration_value || 0,
+            estimated_duration_unit: data.estimated_duration_unit || 'days',
             is_recurring: data.is_recurring || false,
             recurrence_pattern: data.recurrence_pattern || '',
             recurrence_day: data.recurrence_day?.toString() || '',
@@ -838,6 +845,11 @@ const createRecurringPeriodsFromStart = async (
             work_location: data.work_location || '',
             requirements: data.requirements || '',
             deliverables: data.deliverables || '',
+            period_calculation_type: data.period_calculation_type || 'previous_period',
+            period_offset_value: data.period_offset_value || 1,
+            period_offset_unit: data.period_offset_unit || 'month',
+            due_day_of_period: data.due_day_of_period || 'end',
+            custom_due_offset: data.custom_due_offset || 10,
           });
         }
       });
@@ -858,6 +870,8 @@ const createRecurringPeriodsFromStart = async (
       billing_status: 'not_billed',
       billing_amount: '',
       estimated_hours: '',
+      estimated_duration_value: 0,
+      estimated_duration_unit: 'days',
       is_recurring: false,
       recurrence_pattern: '',
       recurrence_day: '',
@@ -870,6 +884,11 @@ const createRecurringPeriodsFromStart = async (
       work_location: '',
       requirements: '',
       deliverables: '',
+      period_calculation_type: 'previous_period',
+      period_offset_value: 1,
+      period_offset_unit: 'month',
+      due_day_of_period: 'end',
+      custom_due_offset: 10,
     });
   };
 
@@ -1467,18 +1486,37 @@ const filteredWorks = works.filter((work) => {
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         />
                       </div>
-                      <div>
+                      <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Estimated Hours
+                          Estimated Duration
                         </label>
-                        <input
-                          type="number"
-                          step="0.5"
-                          value={formData.estimated_hours}
-                          onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                          placeholder="0"
-                        />
+                        <div className="flex space-x-2">
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.estimated_duration_value}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                estimated_duration_value: parseInt(e.target.value) || 0,
+                              })
+                            }
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            placeholder="Duration"
+                          />
+                          <select
+                            value={formData.estimated_duration_unit}
+                            onChange={(e) =>
+                              setFormData({ ...formData, estimated_duration_unit: e.target.value })
+                            }
+                            className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          >
+                            <option value="hours">Hours</option>
+                            <option value="days">Days</option>
+                            <option value="weeks">Weeks</option>
+                            <option value="months">Months</option>
+                          </select>
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -1496,18 +1534,37 @@ const filteredWorks = works.filter((work) => {
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
-                      <div>
+                      <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Estimated Hours
+                          Estimated Duration
                         </label>
-                        <input
-                          type="number"
-                          step="0.5"
-                          value={formData.estimated_hours}
-                          onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="0"
-                        />
+                        <div className="flex space-x-2">
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.estimated_duration_value}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                estimated_duration_value: parseInt(e.target.value) || 0,
+                              })
+                            }
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Duration"
+                          />
+                          <select
+                            value={formData.estimated_duration_unit}
+                            onChange={(e) =>
+                              setFormData({ ...formData, estimated_duration_unit: e.target.value })
+                            }
+                            className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="hours">Hours</option>
+                            <option value="days">Days</option>
+                            <option value="weeks">Weeks</option>
+                            <option value="months">Months</option>
+                          </select>
+                        </div>
                       </div>
                     </>
                   )}
@@ -1902,24 +1959,6 @@ const filteredWorks = works.filter((work) => {
                       </div>
                     </div>
 
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                        Date Range
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            Start Date
-                          </label>
-                          <input
-                            type="date"
-                            value={formData.start_date}
-                            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
