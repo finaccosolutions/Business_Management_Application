@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, DollarSign, Calendar, Percent, CreditCard, Building2 } from 'lucide-react';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 
 interface AccountGroup {
@@ -46,6 +46,11 @@ export default function ChartOfAccounts() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [activeTab, setActiveTab] = useState<'accounts' | 'groups' | 'masters'>('accounts');
+  const [paymentTerms, setPaymentTerms] = useState<any[]>([]);
+  const [taxRates, setTaxRates] = useState<any[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [masterTab, setMasterTab] = useState<'payment_terms' | 'tax_rates' | 'bank_accounts'>('payment_terms');
 
   const [formData, setFormData] = useState({
     account_code: '',
@@ -72,7 +77,7 @@ export default function ChartOfAccounts() {
 
   const fetchData = async () => {
     try {
-      const [accountsResult, groupsResult] = await Promise.all([
+      const [accountsResult, groupsResult, paymentTermsResult, taxRatesResult, bankAccountsResult] = await Promise.all([
         supabase
           .from('chart_of_accounts')
           .select('*, account_groups(name, account_type)')
@@ -81,16 +86,25 @@ export default function ChartOfAccounts() {
           .from('account_groups')
           .select('*')
           .order('display_order'),
+        supabase.from('payment_terms_master').select('*').order('days'),
+        supabase.from('tax_rates_master').select('*').order('name'),
+        supabase.from('bank_accounts_master').select('*').order('bank_name'),
       ]);
 
       if (accountsResult.error) throw accountsResult.error;
       if (groupsResult.error) throw groupsResult.error;
+      if (paymentTermsResult.error) throw paymentTermsResult.error;
+      if (taxRatesResult.error) throw taxRatesResult.error;
+      if (bankAccountsResult.error) throw bankAccountsResult.error;
 
       setAccounts(accountsResult.data || []);
       setGroups(groupsResult.data || []);
+      setPaymentTerms(paymentTermsResult.data || []);
+      setTaxRates(taxRatesResult.data || []);
+      setBankAccounts(bankAccountsResult.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load accounts');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -264,26 +278,65 @@ export default function ChartOfAccounts() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Chart of Accounts</h1>
-          <p className="text-gray-600 mt-1">Manage your accounting ledgers</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Chart of Accounts</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage accounts, groups, and master data</p>
         </div>
         <div className="flex gap-3">
+          {activeTab === 'accounts' && (
+            <button
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+              className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add Account</span>
+            </button>
+          )}
+          {activeTab === 'groups' && (
+            <button
+              onClick={() => setShowGroupModal(true)}
+              className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add Group</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+        <div className="flex border-b border-gray-200 dark:border-slate-700">
           <button
-            onClick={() => setShowGroupModal(true)}
-            className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+            onClick={() => setActiveTab('accounts')}
+            className={`flex-1 px-6 py-4 font-semibold transition-all ${
+              activeTab === 'accounts'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}
           >
-            <Plus className="w-5 h-5" />
-            <span>Add Group</span>
+            Accounts
           </button>
           <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+            onClick={() => setActiveTab('groups')}
+            className={`flex-1 px-6 py-4 font-semibold transition-all ${
+              activeTab === 'groups'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}
           >
-            <Plus className="w-5 h-5" />
-            <span>Add Account</span>
+            Groups
+          </button>
+          <button
+            onClick={() => setActiveTab('masters')}
+            className={`flex-1 px-6 py-4 font-semibold transition-all ${
+              activeTab === 'masters'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}
+          >
+            Masters
           </button>
         </div>
       </div>

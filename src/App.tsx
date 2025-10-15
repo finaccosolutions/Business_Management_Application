@@ -17,6 +17,7 @@ import ChartOfAccounts from './pages/ChartOfAccounts';
 import Vouchers from './pages/Vouchers';
 import Ledger from './pages/Ledger';
 import AccountingMasters from './pages/AccountingMasters';
+import Accounting from './pages/Accounting';
 import Layout from './components/Layout';
 import { ConfirmationProvider } from './contexts/ConfirmationContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -57,6 +58,8 @@ function AppContent() {
         return <Staff />;
       case 'works':
         return <Works />;
+      case 'accounting':
+        return <Accounting onNavigate={setCurrentPage} />;
       case 'invoices':
         return <Invoices />;
       case 'vouchers':

@@ -45,6 +45,7 @@ export default function Vouchers() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [showSetup, setShowSetup] = useState(false);
+  const [activeTab, setActiveTab] = useState<'invoices' | 'others'>('invoices');
 
   useEffect(() => {
     if (user) {
@@ -130,6 +131,8 @@ export default function Vouchers() {
   };
 
   const filteredVouchers = vouchers.filter((voucher) => {
+    const isInvoice = voucher.voucher_types.code === 'INV' || voucher.voucher_types.code === 'INVOICE';
+    const matchesTab = activeTab === 'invoices' ? isInvoice : !isInvoice;
     const matchesSearch =
       searchQuery === '' ||
       voucher.voucher_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -137,7 +140,7 @@ export default function Vouchers() {
     const matchesStatus = filterStatus === 'all' || voucher.status === filterStatus;
     const matchesType =
       filterType === 'all' || voucher.voucher_types.code === filterType;
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesTab && matchesSearch && matchesStatus && matchesType;
   });
 
   const totalDraft = vouchers.filter((v) => v.status === 'draft').reduce((sum, v) => sum + v.total_amount, 0);
@@ -155,16 +158,41 @@ export default function Vouchers() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Voucher Entry</h1>
-          <p className="text-gray-600 mt-1">Manage all your accounting vouchers</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Voucher Management</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage invoices and accounting vouchers</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
           className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
         >
           <Plus className="w-5 h-5" />
-          <span>New Voucher</span>
+          <span>New {activeTab === 'invoices' ? 'Invoice' : 'Voucher'}</span>
         </button>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+        <div className="flex border-b border-gray-200 dark:border-slate-700">
+          <button
+            onClick={() => setActiveTab('invoices')}
+            className={`flex-1 px-6 py-4 font-semibold transition-all ${
+              activeTab === 'invoices'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}
+          >
+            Invoices
+          </button>
+          <button
+            onClick={() => setActiveTab('others')}
+            className={`flex-1 px-6 py-4 font-semibold transition-all ${
+              activeTab === 'others'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}
+          >
+            Other Vouchers
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
