@@ -942,7 +942,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
                   required
                   defaultValue={editingTask?.title || ''}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Collect purchase & sales data"
+                  placeholder="e.g., Collect client documents"
                 />
               </div>
 
