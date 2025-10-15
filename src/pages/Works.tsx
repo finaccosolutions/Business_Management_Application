@@ -1601,6 +1601,9 @@ const filteredWorks = works.filter((work) => {
                     <Repeat className="w-5 h-5 text-orange-600" />
                     <h3 className="font-semibold text-orange-900">Recurring Work Settings</h3>
                   </div>
+                  <p className="text-sm text-gray-700">
+                    Configure recurring work period settings here. Task due dates can be managed in Work Details after creation.
+                  </p>
 
                   <div className="bg-white rounded-lg p-4 border border-gray-200 space-y-4">
                     <h4 className="text-sm font-semibold text-gray-900">Schedule Configuration</h4>

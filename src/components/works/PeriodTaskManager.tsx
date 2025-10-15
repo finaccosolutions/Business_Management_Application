@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
-  CheckCircle, Clock, Edit2, User, Calendar, AlertCircle, ChevronDown, ChevronRight
+  CheckCircle, Clock, Edit2, User, Calendar, AlertCircle, ChevronDown, ChevronRight, Plus, Trash2
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateDisplay } from '../../lib/dateUtils';
@@ -38,10 +38,19 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
   const [loading, setLoading] = useState(true);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [showAddTask, setShowAddTask] = useState(false);
   const [editForm, setEditForm] = useState({
     due_date: '',
     assigned_to: '',
     remarks: ''
+  });
+  const [newTaskForm, setNewTaskForm] = useState({
+    title: '',
+    description: '',
+    due_date: '',
+    priority: 'medium',
+    assigned_to: '',
+    estimated_hours: ''
   });
   const toast = useToast();
 
@@ -83,6 +92,63 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
       setStaffList(data || []);
     } catch (error) {
       console.error('Error fetching staff:', error);
+    }
+  };
+
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('recurring_period_tasks')
+        .insert({
+          work_recurring_instance_id: periodId,
+          title: newTaskForm.title,
+          description: newTaskForm.description || null,
+          due_date: newTaskForm.due_date,
+          priority: newTaskForm.priority,
+          assigned_to: newTaskForm.assigned_to || null,
+          estimated_hours: newTaskForm.estimated_hours ? parseFloat(newTaskForm.estimated_hours) : null,
+          status: 'pending',
+          sort_order: tasks.length
+        });
+
+      if (error) throw error;
+
+      setShowAddTask(false);
+      setNewTaskForm({
+        title: '',
+        description: '',
+        due_date: '',
+        priority: 'medium',
+        assigned_to: '',
+        estimated_hours: ''
+      });
+      fetchTasks();
+      onTasksUpdate();
+      toast.success('Task added successfully!');
+    } catch (error) {
+      console.error('Error adding task:', error);
+      toast.error('Failed to add task');
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('recurring_period_tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) throw error;
+
+      fetchTasks();
+      onTasksUpdate();
+      toast.success('Task deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
     }
   };
 
@@ -199,6 +265,13 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
           <span className="text-sm font-semibold text-gray-700">
             {Math.round(completionPercentage)}%
           </span>
+          <button
+            onClick={() => setShowAddTask(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+          >
+            <Plus size={16} />
+            Add Task
+          </button>
         </div>
       </div>
 
@@ -313,6 +386,13 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
                         <option value="in_progress">In Progress</option>
                         <option value="completed">Completed</option>
                       </select>
+                      <button
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Delete task"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
 
@@ -423,6 +503,117 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
           <p className="text-sm text-green-600 mt-1">
             The period will be marked as completed and ready for billing.
           </p>
+        </div>
+      )}
+
+      {showAddTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Task</h3>
+            <form onSubmit={handleAddTask} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Task Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={newTaskForm.title}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Enter task title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={newTaskForm.description}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Task description..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={newTaskForm.due_date}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, due_date: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select
+                    value={newTaskForm.priority}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, priority: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assign To</label>
+                  <select
+                    value={newTaskForm.assigned_to}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, assigned_to: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Unassigned</option>
+                    {staffList.map(staff => (
+                      <option key={staff.id} value={staff.id}>{staff.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Hours</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={newTaskForm.estimated_hours}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, estimated_hours: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddTask(false);
+                    setNewTaskForm({
+                      title: '',
+                      description: '',
+                      due_date: '',
+                      priority: 'medium',
+                      assigned_to: '',
+                      estimated_hours: ''
+                    });
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                >
+                  Add Task
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

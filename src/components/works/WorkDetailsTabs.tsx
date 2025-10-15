@@ -153,9 +153,16 @@ export function TasksTab({ tasks, onAddTask, onEditTask, onUpdateTaskStatus, onD
                     </span>
                   )}
                   {task.due_date && (
-                    <span className="flex items-center gap-1">
+                    <span className={`flex items-center gap-1 ${
+                      task.status !== 'completed' && new Date(task.due_date) < new Date()
+                        ? 'text-red-600 font-medium'
+                        : ''
+                    }`}>
                       <Calendar size={14} />
-                      {new Date(task.due_date).toLocaleDateString()}
+                      Due: {new Date(task.due_date).toLocaleDateString()}
+                      {task.status !== 'completed' && new Date(task.due_date) < new Date() && (
+                        <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">Overdue</span>
+                      )}
                     </span>
                   )}
                   {task.estimated_hours && (

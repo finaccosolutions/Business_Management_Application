@@ -654,7 +654,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
               </label>
             </div>
             <p className="text-sm text-gray-600 dark:text-slate-400 mb-4 ml-8">
-              Enable automatic work generation for services that repeat on a schedule. Define task templates with individual due dates in Service Details after creation.
+              Enable automatic work generation for services that repeat on a schedule. Task templates with individual due dates can be defined in the Service Details page after creation.
             </p>
 
             {formData.is_recurring && (
@@ -683,15 +683,6 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                   {formData.recurrence_type === 'monthly' && (
                     <div className="md:col-span-2 space-y-4">
-                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
-                          Task-Based Due Dates
-                        </p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400">
-                          For recurring services with multiple tasks (e.g., GSTR-1 on 10th, GSTR-3B on 20th), define task templates with individual due dates in the Service Details page after creation.
-                        </p>
-                      </div>
-
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
                         <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
 
@@ -790,15 +781,6 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                   {formData.recurrence_type === 'quarterly' && (
                     <div className="md:col-span-2 space-y-4">
-                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
-                          Task-Based Due Dates
-                        </p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400">
-                          For recurring services with multiple tasks, define task templates with individual due dates in the Service Details page after creation.
-                        </p>
-                      </div>
-
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
                         <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
 
@@ -864,15 +846,6 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                   {formData.recurrence_type === 'half-yearly' && (
                     <div className="md:col-span-2 space-y-4">
-                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
-                          Task-Based Due Dates
-                        </p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400">
-                          For recurring services with multiple tasks, define task templates with individual due dates in the Service Details page after creation.
-                        </p>
-                      </div>
-
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
                         <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
 
@@ -938,15 +911,6 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                   {formData.recurrence_type === 'yearly' && (
                     <div className="md:col-span-2 space-y-4">
-                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
-                          Task-Based Due Dates
-                        </p>
-                        <p className="text-xs text-blue-800 dark:text-blue-400">
-                          For recurring services with multiple tasks, define task templates with individual due dates in the Service Details page after creation.
-                        </p>
-                      </div>
-
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
                         <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
 
