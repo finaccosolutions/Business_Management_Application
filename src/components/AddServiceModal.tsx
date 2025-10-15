@@ -49,6 +49,8 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
     name: '',
     service_code: '',
     category: '',
+    category_id: '',
+    subcategory_id: '',
     description: '',
     image_url: '',
     estimated_duration_hours: 0,
@@ -77,7 +79,8 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
   const [customFieldKey, setCustomFieldKey] = useState('');
   const [customFieldValue, setCustomFieldValue] = useState('');
-  const [categories, setCategories] = useState<Array<{id: string, name: string}>>([]);
+  const [categories, setCategories] = useState<Array<{id: string, name: string, level: number, parent_id: string | null}>>([]);
+  const [subcategories, setSubcategories] = useState<Array<{id: string, name: string}>>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
 
@@ -96,10 +99,15 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
   useEffect(() => {
     if (editingService) {
       setImagePreview(editingService.image_url || '');
+      if (editingService.category_id) {
+        loadSubcategories(editingService.category_id);
+      }
       setFormData({
         name: editingService.name || '',
         service_code: editingService.service_code || '',
         category: editingService.category || '',
+        category_id: editingService.category_id || '',
+        subcategory_id: editingService.subcategory_id || '',
         description: editingService.description || '',
         image_url: editingService.image_url || '',
         estimated_duration_hours: editingService.estimated_duration_hours || 0,
@@ -132,7 +140,8 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
     try {
       const { data: categoryData, error } = await supabase
         .from('service_categories')
-        .select('id, name')
+        .select('id, name, level, parent_id')
+        .eq('level', 0)
         .order('name');
 
       if (error) {
@@ -145,6 +154,40 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
       }
     } catch (error) {
       console.error('Error loading categories:', error);
+    }
+  };
+
+  const loadSubcategories = async (categoryId: string) => {
+    try {
+      const { data: subcategoryData, error } = await supabase
+        .from('service_categories')
+        .select('id, name')
+        .eq('parent_id', categoryId)
+        .order('name');
+
+      if (error) {
+        console.error('Error loading subcategories:', error);
+        return;
+      }
+
+      setSubcategories(subcategoryData || []);
+    } catch (error) {
+      console.error('Error loading subcategories:', error);
+    }
+  };
+
+  const handleCategoryChange = (categoryId: string) => {
+    const selectedCategory = categories.find(c => c.id === categoryId);
+    setFormData({
+      ...formData,
+      category_id: categoryId,
+      category: selectedCategory?.name || '',
+      subcategory_id: ''
+    });
+    if (categoryId) {
+      loadSubcategories(categoryId);
+    } else {
+      setSubcategories([]);
     }
   };
 
@@ -243,6 +286,8 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
         name: formData.name,
         service_code: generatedCode,
         category: formData.category || null,
+        category_id: formData.category_id || null,
+        subcategory_id: formData.subcategory_id || null,
         description: formData.description || null,
         image_url: imageUrl || null,
         estimated_duration_hours: formData.estimated_duration_hours,
@@ -417,17 +462,41 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                   Category
                 </label>
                 <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  value={formData.category_id}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Select category</option>
                   {categories.map((cat) => (
-                    <option key={cat.id} value={cat.name}>
+                    <option key={cat.id} value={cat.id}>
                       {cat.name}
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Subcategory
+                </label>
+                <select
+                  value={formData.subcategory_id}
+                  onChange={(e) => setFormData({ ...formData, subcategory_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!formData.category_id || subcategories.length === 0}
+                >
+                  <option value="">Select subcategory</option>
+                  {subcategories.map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+                </select>
+                {formData.category_id && subcategories.length === 0 && (
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                    No subcategories available for this category
+                  </p>
+                )}
               </div>
 
               <div>

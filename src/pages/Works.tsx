@@ -105,8 +105,12 @@ export default function Works() {
   const [activeView, setActiveView] = useState<ViewType>('all');
   const [filterCustomer, setFilterCustomer] = useState('');
   const [filterService, setFilterService] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterSubcategory, setFilterSubcategory] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterBillingStatus, setFilterBillingStatus] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subcategories, setSubcategories] = useState<any[]>([]);
   const { showConfirmation } = useConfirmation();
   const toast = useToast();
 
@@ -148,9 +152,33 @@ export default function Works() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (filterCategory) {
+      loadSubcategories(filterCategory);
+    } else {
+      setSubcategories([]);
+      setFilterSubcategory('');
+    }
+  }, [filterCategory]);
+
+  const loadSubcategories = async (categoryId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('service_categories')
+        .select('*')
+        .eq('parent_id', categoryId)
+        .order('name');
+
+      if (error) throw error;
+      setSubcategories(data || []);
+    } catch (error) {
+      console.error('Error loading subcategories:', error);
+    }
+  };
+
   const fetchData = async () => {
     try {
-      const [worksResult, customersResult, servicesResult, staffResult] = await Promise.all([
+      const [worksResult, customersResult, servicesResult, staffResult, categoriesResult] = await Promise.all([
         supabase
           .from('works')
           .select('*, customers(name), services!service_id(name, is_recurring), staff_members(name)')
@@ -158,6 +186,7 @@ export default function Works() {
         supabase.from('customers').select('id, name').order('name'),
         supabase.from('services').select('*').order('name'),
         supabase.from('staff_members').select('id, name, role').eq('is_active', true).order('name'),
+        supabase.from('service_categories').select('*').eq('level', 0).order('name'),
       ]);
 
       if (worksResult.error) throw worksResult.error;
@@ -169,6 +198,7 @@ export default function Works() {
       setCustomers(customersResult.data || []);
       setServices(servicesResult.data || []);
       setStaffMembers(staffResult.data || []);
+      setCategories(categoriesResult.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -872,6 +902,18 @@ const filteredWorks = works.filter((work) => {
   // Service filter
   if (filterService && work.service_id !== filterService) return false;
 
+  // Category filter
+  if (filterCategory) {
+    const service = services.find(s => s.id === work.service_id);
+    if (!service || service.category_id !== filterCategory) return false;
+  }
+
+  // Subcategory filter
+  if (filterSubcategory) {
+    const service = services.find(s => s.id === work.service_id);
+    if (!service || service.subcategory_id !== filterSubcategory) return false;
+  }
+
   // Priority filter
   if (filterPriority && work.priority !== filterPriority) return false;
 
@@ -1007,6 +1049,33 @@ const filteredWorks = works.filter((work) => {
       </select>
 
       <select
+        value={filterCategory}
+        onChange={(e) => setFilterCategory(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+      >
+        <option value="">All Categories</option>
+        {categories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.name}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={filterSubcategory}
+        onChange={(e) => setFilterSubcategory(e.target.value)}
+        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={!filterCategory || subcategories.length === 0}
+      >
+        <option value="">All Subcategories</option>
+        {subcategories.map((sub) => (
+          <option key={sub.id} value={sub.id}>
+            {sub.name}
+          </option>
+        ))}
+      </select>
+
+      <select
         value={filterPriority}
         onChange={(e) => setFilterPriority(e.target.value)}
         className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
@@ -1029,11 +1098,13 @@ const filteredWorks = works.filter((work) => {
         <option value="paid">Paid</option>
       </select>
 
-      {(filterCustomer || filterService || filterPriority || filterBillingStatus) && (
+      {(filterCustomer || filterService || filterCategory || filterSubcategory || filterPriority || filterBillingStatus) && (
         <button
           onClick={() => {
             setFilterCustomer('');
             setFilterService('');
+            setFilterCategory('');
+            setFilterSubcategory('');
             setFilterPriority('');
             setFilterBillingStatus('');
           }}

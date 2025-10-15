@@ -53,7 +53,8 @@ export default function Services() {
   const toast = useToast();
 
   const [filters, setFilters] = useState({
-    category: '',
+    category_id: '',
+    subcategory_id: '',
     status: '',
     is_recurring: '',
   });
@@ -95,8 +96,12 @@ export default function Services() {
       );
     }
 
-    if (filters.category) {
-      filtered = filtered.filter(service => service.category === filters.category);
+    if (filters.category_id) {
+      filtered = filtered.filter(service => service.category_id === filters.category_id);
+    }
+
+    if (filters.subcategory_id) {
+      filtered = filtered.filter(service => service.subcategory_id === filters.subcategory_id);
     }
 
     if (filters.status) {
