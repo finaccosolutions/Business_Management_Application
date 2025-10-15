@@ -201,7 +201,7 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Select type</option>
-                    {voucherTypes.map((type) => (
+                    {voucherTypes.filter(type => type.code !== 'SALES' && type.code !== 'PURCHASE').map((type) => (
                       <option key={type.id} value={type.id}>
                         {type.name}
                       </option>
