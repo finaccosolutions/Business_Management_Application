@@ -654,7 +654,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
               </label>
             </div>
             <p className="text-sm text-gray-600 dark:text-slate-400 mb-4 ml-8">
-              Enable automatic work generation for services that repeat on a schedule
+              Enable automatic work generation for services that repeat on a schedule. Define task templates with individual due dates in Service Details after creation.
             </p>
 
             {formData.is_recurring && (
@@ -683,23 +683,13 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                   {formData.recurrence_type === 'monthly' && (
                     <div className="md:col-span-2 space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          Due Date (Day of Month)
-                        </label>
-                        <select
-                          value={formData.recurrence_day}
-                          onChange={(e) =>
-                            setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                            <option key={day} value={day}>
-                              Day {day}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
+                          Task-Based Due Dates
+                        </p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400">
+                          For recurring services with multiple tasks (e.g., GSTR-1 on 10th, GSTR-3B on 20th), define task templates with individual due dates in the Service Details page after creation.
+                        </p>
                       </div>
 
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
@@ -754,7 +744,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                         <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                           <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
                           <p className="text-xs text-blue-800 dark:text-blue-400">
-                            Due every month on day {formData.recurrence_day}
+                            Recurs monthly
                           </p>
                           <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
                             Period: {formData.period_calculation_type === 'previous_period' ? 'Previous month (1st to last day)' :
@@ -800,23 +790,13 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                   {formData.recurrence_type === 'quarterly' && (
                     <div className="md:col-span-2 space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          Due Date (Day of First Month of Quarter)
-                        </label>
-                        <select
-                          value={formData.recurrence_day}
-                          onChange={(e) =>
-                            setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                            <option key={day} value={day}>
-                              Day {day}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
+                          Task-Based Due Dates
+                        </p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400">
+                          For recurring services with multiple tasks, define task templates with individual due dates in the Service Details page after creation.
+                        </p>
                       </div>
 
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
@@ -870,7 +850,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                         <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                           <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
                           <p className="text-xs text-blue-800 dark:text-blue-400">
-                            Due quarterly on day {formData.recurrence_day} (Jan, Apr, Jul, Oct)
+                            Recurs quarterly (Jan, Apr, Jul, Oct)
                           </p>
                           <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
                             Period: {formData.period_calculation_type === 'previous_period' ? 'Previous quarter (3 months)' :
@@ -884,43 +864,13 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                   {formData.recurrence_type === 'half-yearly' && (
                     <div className="md:col-span-2 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            Month (Half-Yearly)
-                          </label>
-                          <select
-                            value={formData.recurrence_month}
-                            onChange={(e) =>
-                              setFormData({ ...formData, recurrence_month: parseInt(e.target.value) })
-                            }
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                          >
-                            {MONTHS.slice(0, 6).map((month) => (
-                              <option key={month.value} value={month.value}>
-                                {month.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            Day (Due Date)
-                          </label>
-                          <select
-                            value={formData.recurrence_day}
-                            onChange={(e) =>
-                              setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
-                            }
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                              <option key={day} value={day}>
-                                {day}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
+                          Task-Based Due Dates
+                        </p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400">
+                          For recurring services with multiple tasks, define task templates with individual due dates in the Service Details page after creation.
+                        </p>
                       </div>
 
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
@@ -974,7 +924,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                         <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                           <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
                           <p className="text-xs text-blue-800 dark:text-blue-400">
-                            Due twice yearly: {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day} and {MONTHS[formData.recurrence_month + 5].label} {formData.recurrence_day}
+                            Recurs twice yearly
                           </p>
                           <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
                             Period: {formData.period_calculation_type === 'previous_period' ? 'Previous half-year (6 months)' :
@@ -988,43 +938,13 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                   {formData.recurrence_type === 'yearly' && (
                     <div className="md:col-span-2 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            Month (Yearly Due)
-                          </label>
-                          <select
-                            value={formData.recurrence_month}
-                            onChange={(e) =>
-                              setFormData({ ...formData, recurrence_month: parseInt(e.target.value) })
-                            }
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                          >
-                            {MONTHS.map((month) => (
-                              <option key={month.value} value={month.value}>
-                                {month.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            Day (Due Date)
-                          </label>
-                          <select
-                            value={formData.recurrence_day}
-                            onChange={(e) =>
-                              setFormData({ ...formData, recurrence_day: parseInt(e.target.value) })
-                            }
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                              <option key={day} value={day}>
-                                {day}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                      <div className="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg border border-blue-200 dark:border-slate-600">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
+                          Task-Based Due Dates
+                        </p>
+                        <p className="text-xs text-blue-800 dark:text-blue-400">
+                          For recurring services with multiple tasks, define task templates with individual due dates in the Service Details page after creation.
+                        </p>
                       </div>
 
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
@@ -1078,7 +998,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                         <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                           <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
                           <p className="text-xs text-blue-800 dark:text-blue-400">
-                            Due annually on {MONTHS[formData.recurrence_month - 1].label} {formData.recurrence_day}
+                            Recurs annually
                           </p>
                           <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
                             Period: {formData.period_calculation_type === 'previous_period' ? 'Previous financial year (Apr-Mar)' :
