@@ -16,34 +16,34 @@ export default function SetupVoucherTypes({ onComplete, onCancel }: SetupVoucher
 
   const defaultVoucherTypes = [
     {
-      name: 'Payment Voucher',
-      code: 'PV',
-      description: 'For recording all cash and bank payment transactions',
+      name: 'Invoice',
+      code: 'INV',
+      description: 'For recording service invoices and billing transactions',
+      display_order: 1,
     },
     {
       name: 'Receipt Voucher',
       code: 'RV',
       description: 'For recording all cash and bank receipt transactions',
+      display_order: 2,
     },
     {
-      name: 'Journal Voucher',
-      code: 'JV',
-      description: 'For recording general journal entries and adjustments',
+      name: 'Payment Voucher',
+      code: 'PV',
+      description: 'For recording all cash and bank payment transactions',
+      display_order: 3,
     },
     {
       name: 'Contra Voucher',
       code: 'CV',
       description: 'For recording internal fund transfers between cash and bank accounts',
+      display_order: 4,
     },
     {
-      name: 'Sales Voucher',
-      code: 'SV',
-      description: 'For recording sales transactions (typically auto-created from invoices)',
-    },
-    {
-      name: 'Purchase Voucher',
-      code: 'PUR',
-      description: 'For recording purchase transactions',
+      name: 'Journal Voucher',
+      code: 'JV',
+      description: 'For recording general journal entries and adjustments',
+      display_order: 5,
     },
   ];
 
@@ -55,6 +55,7 @@ export default function SetupVoucherTypes({ onComplete, onCancel }: SetupVoucher
         name: type.name,
         code: type.code,
         description: type.description,
+        display_order: type.display_order,
         is_active: true,
       }));
 

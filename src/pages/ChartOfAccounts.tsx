@@ -363,56 +363,6 @@ export default function ChartOfAccounts() {
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm font-medium">Total Assets</p>
-                  <p className="text-3xl font-bold mt-2">₹{totalAssets.toLocaleString('en-IN')}</p>
-                </div>
-                <div className="p-3 bg-white/20 rounded-lg">
-                  <TrendingUp className="w-8 h-8" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-red-100 text-sm font-medium">Total Liabilities</p>
-                  <p className="text-3xl font-bold mt-2">₹{totalLiabilities.toLocaleString('en-IN')}</p>
-                </div>
-                <div className="p-3 bg-white/20 rounded-lg">
-                  <TrendingDown className="w-8 h-8" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm font-medium">Total Income</p>
-                  <p className="text-3xl font-bold mt-2">₹{totalIncome.toLocaleString('en-IN')}</p>
-                </div>
-                <div className="p-3 bg-white/20 rounded-lg">
-                  <DollarSign className="w-8 h-8" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm font-medium">Total Expenses</p>
-                  <p className="text-3xl font-bold mt-2">₹{totalExpenses.toLocaleString('en-IN')}</p>
-                </div>
-                <div className="p-3 bg-white/20 rounded-lg">
-                  <TrendingDown className="w-8 h-8" />
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">

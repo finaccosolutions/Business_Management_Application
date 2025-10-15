@@ -80,7 +80,7 @@ export default function Vouchers() {
           .from('voucher_types')
           .select('*')
           .eq('is_active', true)
-          .order('name'),
+          .order('display_order', { nullsFirst: false }),
       ]);
 
       if (vouchersResult.error) throw vouchersResult.error;
@@ -197,7 +197,7 @@ export default function Vouchers() {
             className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
           >
             <Plus className="w-5 h-5" />
-            <span>New {selectedType?.name}</span>
+            <span>Create {selectedType?.name}</span>
           </button>
         </div>
 
@@ -344,6 +344,7 @@ export default function Vouchers() {
               fetchData();
             }}
             voucherTypes={voucherTypes}
+            selectedTypeId={selectedTypeId}
           />
         )}
 

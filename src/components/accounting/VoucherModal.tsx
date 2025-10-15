@@ -26,14 +26,15 @@ interface VoucherEntry {
 interface VoucherModalProps {
   onClose: () => void;
   voucherTypes: VoucherType[];
+  selectedTypeId?: string;
 }
 
-export default function VoucherModal({ onClose, voucherTypes }: VoucherModalProps) {
+export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: VoucherModalProps) {
   const { user } = useAuth();
   const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [formData, setFormData] = useState({
-    voucher_type_id: '',
+    voucher_type_id: selectedTypeId || '',
     voucher_number: '',
     voucher_date: new Date().toISOString().split('T')[0],
     reference_number: '',
