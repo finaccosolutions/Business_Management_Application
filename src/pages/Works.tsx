@@ -56,10 +56,16 @@ interface Customer {
 interface Service {
   id: string;
   name: string;
+  category_id: string | null;
+  subcategory_id: string | null;
   is_recurring: boolean;
   recurrence_type: string | null;
   recurrence_day: number | null;
   default_price: number | null;
+  estimated_duration_value: number | null;
+  estimated_duration_unit: string | null;
+  recurrence_start_date: string | null;
+  custom_fields: any;
 }
 
 interface StaffMember {
@@ -222,10 +228,10 @@ export default function Works() {
       }
 
       // Auto-fill estimated duration from service
-      if (selectedService.estimated_duration_value && !formData.estimated_duration_value) {
+      if (selectedService.estimated_duration_value) {
         updates.estimated_duration_value = selectedService.estimated_duration_value;
       }
-      if (selectedService.estimated_duration_unit && !formData.estimated_duration_unit) {
+      if (selectedService.estimated_duration_unit) {
         updates.estimated_duration_unit = selectedService.estimated_duration_unit;
       }
 

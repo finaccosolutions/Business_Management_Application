@@ -29,11 +29,17 @@ interface Service {
   name: string;
   service_code: string | null;
   category: string | null;
+  category_id: string | null;
+  subcategory_id: string | null;
   description: string | null;
   image_url: string | null;
   is_recurring: boolean;
   recurrence_type: string | null;
   default_price: number | null;
+  estimated_duration_value: number | null;
+  estimated_duration_unit: string | null;
+  recurrence_start_date: string | null;
+  custom_fields: any;
   status: string;
 }
 
@@ -147,7 +153,7 @@ export default function Services() {
       : 0,
   };
 
-  const activeFilterCount = [filters.category, filters.status, filters.is_recurring].filter(Boolean).length;
+  const activeFilterCount = [filters.category_id, filters.status, filters.is_recurring].filter(Boolean).length;
 
   if (loading) {
     return (
@@ -438,6 +444,7 @@ export default function Services() {
           onEdit={() => {
             const serviceToEdit = services.find(s => s.id === selectedServiceId);
             if (serviceToEdit) {
+              setEditingService(serviceToEdit);
               setShowDetailsModal(false);
               setShowModal(true);
             }
