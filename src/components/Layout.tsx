@@ -15,6 +15,13 @@ import {
   X,
   BarChart3,
   UsersRound,
+  Calculator,
+  ChevronDown,
+  ChevronRight,
+  BookOpen,
+  Receipt,
+  DollarSign,
+  Settings,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -30,7 +37,18 @@ const navigation = [
   { name: 'Staff', icon: UsersRound, id: 'staff' },
   { name: 'Services', icon: Briefcase, id: 'services' },
   { name: 'Works', icon: ClipboardList, id: 'works' },
-  { name: 'Invoices', icon: FileText, id: 'invoices' },
+  {
+    name: 'Accounting',
+    icon: Calculator,
+    id: 'accounting',
+    submenu: [
+      { name: 'Invoices', icon: FileText, id: 'invoices' },
+      { name: 'Vouchers', icon: Receipt, id: 'vouchers' },
+      { name: 'Chart of Accounts', icon: BookOpen, id: 'chart-of-accounts' },
+      { name: 'Ledger', icon: DollarSign, id: 'ledger' },
+      { name: 'Masters', icon: Settings, id: 'accounting-masters' },
+    ]
+  },
   { name: 'Reports', icon: BarChart3, id: 'reports' },
   { name: 'Reminders', icon: Bell, id: 'reminders' },
 ];
@@ -38,6 +56,7 @@ const navigation = [
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accountingExpanded, setAccountingExpanded] = useState(true);
 
   const handleSignOut = async () => {
     try {
@@ -82,6 +101,59 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = currentPage === item.id;
+              const hasSubmenu = 'submenu' in item && item.submenu;
+              const isSubmenuActive = hasSubmenu && item.submenu?.some((sub: any) => sub.id === currentPage);
+
+              if (hasSubmenu) {
+                return (
+                  <div key={item.id} className="space-y-1">
+                    <button
+                      onClick={() => setAccountingExpanded(!accountingExpanded)}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
+                        isSubmenuActive
+                          ? 'bg-slate-700 text-white'
+                          : 'text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Icon className={`w-5 h-5 ${isSubmenuActive ? 'text-blue-400' : 'text-slate-400'}`} />
+                        <span className="font-medium">{item.name}</span>
+                      </div>
+                      {accountingExpanded ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </button>
+                    {accountingExpanded && (
+                      <div className="ml-4 space-y-1 border-l-2 border-slate-700 pl-2">
+                        {item.submenu?.map((subItem: any) => {
+                          const SubIcon = subItem.icon;
+                          const isSubActive = currentPage === subItem.id;
+                          return (
+                            <button
+                              key={subItem.id}
+                              onClick={() => {
+                                onNavigate(subItem.id);
+                                setSidebarOpen(false);
+                              }}
+                              className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                                isSubActive
+                                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md transform scale-[1.02]'
+                                  : 'text-slate-300 hover:bg-slate-700 hover:translate-x-1'
+                              }`}
+                            >
+                              <SubIcon className={`w-4 h-4 ${isSubActive ? '' : 'text-slate-400'}`} />
+                              <span className="text-sm font-medium">{subItem.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <button
                   key={item.id}

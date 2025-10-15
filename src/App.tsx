@@ -1,4 +1,3 @@
-// src/App.tsx (Updated)
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -14,6 +13,10 @@ import Reminders from './pages/Reminders';
 import Staff from './pages/Staff';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import ChartOfAccounts from './pages/ChartOfAccounts';
+import Vouchers from './pages/Vouchers';
+import Ledger from './pages/Ledger';
+import AccountingMasters from './pages/AccountingMasters';
 import Layout from './components/Layout';
 import { ConfirmationProvider } from './contexts/ConfirmationContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -56,6 +59,14 @@ function AppContent() {
         return <Works />;
       case 'invoices':
         return <Invoices />;
+      case 'vouchers':
+        return <Vouchers />;
+      case 'chart-of-accounts':
+        return <ChartOfAccounts />;
+      case 'ledger':
+        return <Ledger />;
+      case 'accounting-masters':
+        return <AccountingMasters />;
       case 'reminders':
         return <Reminders />;
       case 'reports':
