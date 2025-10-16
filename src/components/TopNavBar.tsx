@@ -207,24 +207,24 @@ export default function TopNavBar({ onNavigate }: TopNavBarProps = {}) {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-16 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-40 lg:left-64">
-      <div className="h-full px-4 flex items-center justify-between">
+    <div className="fixed top-0 left-0 right-0 h-14 sm:h-16 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-40 lg:left-64">
+      <div className="h-full px-2 sm:px-4 flex items-center justify-between gap-2">
         {/* Search Bar */}
-        <div className="flex-1 max-w-2xl mr-4" ref={searchRef}>
+        <div className="flex-1 max-w-2xl" ref={searchRef}>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search customers, services, leads, works..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-700 dark:bg-slate-800 text-white placeholder-slate-400 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-8 sm:pl-10 pr-2 sm:pr-4 py-1.5 sm:py-2 text-sm sm:text-base bg-slate-700 dark:bg-slate-800 text-white placeholder-slate-400 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             
             {/* Search Results Dropdown */}
             {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 max-h-96 overflow-y-auto z-50">
+              <div className="absolute top-full mt-2 left-0 right-0 sm:w-full bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 max-h-60 sm:max-h-96 overflow-y-auto z-50">
                 {searchResults.map((result) => (
                   <div
                     key={`${result.type}-${result.id}`}
@@ -258,17 +258,18 @@ export default function TopNavBar({ onNavigate }: TopNavBarProps = {}) {
         </div>
 
         {/* Right Side Actions */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3">
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg hover:bg-slate-700 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 dark:hover:bg-slate-800 transition-colors"
             title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            aria-label="Toggle theme"
           >
             {theme === 'light' ? (
-              <Moon className="w-5 h-5 text-slate-300" />
+              <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-300" />
             ) : (
-              <Sun className="w-5 h-5 text-yellow-400" />
+              <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
             )}
           </button>
 
@@ -276,11 +277,12 @@ export default function TopNavBar({ onNavigate }: TopNavBarProps = {}) {
           <div className="relative" ref={notificationRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 rounded-lg hover:bg-slate-700 dark:hover:bg-slate-800 transition-colors relative"
+              className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 dark:hover:bg-slate-800 transition-colors relative"
+              aria-label="Notifications"
             >
-              <Bell className="w-5 h-5 text-slate-300" />
+              <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-300" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-[10px] sm:text-xs rounded-full flex items-center justify-center font-medium">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
@@ -288,7 +290,7 @@ export default function TopNavBar({ onNavigate }: TopNavBarProps = {}) {
 
             {/* Notifications Dropdown */}
             {showNotifications && (
-              <div className="absolute top-full right-0 mt-2 w-96 bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 z-50">
+              <div className="absolute top-full right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 z-50">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                   <h3 className="font-semibold text-slate-900 dark:text-white">
                     Notifications
@@ -347,18 +349,19 @@ export default function TopNavBar({ onNavigate }: TopNavBarProps = {}) {
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-slate-700 dark:hover:bg-slate-800 transition-colors"
+              className="flex items-center space-x-1 sm:space-x-2 md:space-x-3 px-1.5 sm:px-2 md:px-3 py-1.5 sm:py-2 rounded-lg hover:bg-slate-700 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Profile menu"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-green-500 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
+              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-white">
+              <div className="hidden lg:block text-left min-w-0">
+                <p className="text-sm font-medium text-white truncate max-w-[120px]">
                   {userProfile?.full_name || 'User'}
                 </p>
-                <p className="text-xs text-slate-400">{userProfile?.email}</p>
+                <p className="text-xs text-slate-400 truncate max-w-[120px]">{userProfile?.email}</p>
               </div>
-              <ChevronDown className="w-4 h-4 text-slate-400" />
+              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400 hidden sm:block" />
             </button>
 
             {/* Profile Dropdown */}
