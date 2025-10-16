@@ -65,7 +65,7 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
         .from('recurring_period_tasks')
         .select(`
           *,
-          staff:assigned_to(name)
+          staff:staff_members!assigned_to(name)
         `)
         .eq('work_recurring_instance_id', periodId)
         .order('sort_order');
@@ -83,7 +83,7 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
   const fetchStaff = async () => {
     try {
       const { data, error } = await supabase
-        .from('staff')
+        .from('staff_members')
         .select('id, name')
         .eq('is_active', true)
         .order('name');

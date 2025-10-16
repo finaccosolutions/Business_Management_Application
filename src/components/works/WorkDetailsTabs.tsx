@@ -112,35 +112,32 @@ interface TasksTabProps {
 }
 
 export function TasksTab({ tasks, isRecurring = false, onAddTask, onEditTask, onUpdateTaskStatus, onDeleteTask }: TasksTabProps) {
+  // For non-recurring works, show regular task management
+  // For recurring works, show info that tasks are in Recurring Periods tab
   if (isRecurring) {
     return (
       <div className="space-y-4">
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-6">
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6">
           <div className="flex items-start gap-4">
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <Repeat size={24} className="text-orange-600" />
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Repeat size={24} className="text-blue-600" />
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Recurring Work Task Management
+                Recurring Work - Task Management
               </h3>
               <p className="text-gray-700 mb-3">
-                This is a recurring work. Tasks are managed individually for each period in the <strong>Recurring Periods</strong> tab.
+                This is a recurring work. All tasks are managed per period in the <strong>Recurring Periods</strong> tab.
               </p>
-              <div className="bg-white border border-orange-200 rounded-lg p-4 space-y-2 text-sm">
-                <p className="font-medium text-gray-900">How it works:</p>
+              <div className="bg-white border border-blue-200 rounded-lg p-4 space-y-2 text-sm">
+                <p className="font-medium text-gray-900">How task management works for recurring works:</p>
                 <ul className="list-disc list-inside space-y-1 text-gray-700 ml-2">
-                  <li>Each recurring period (e.g., monthly, quarterly) has its own set of tasks</li>
-                  <li>Tasks can have different due dates within the same period (e.g., GSTR-1 on 10th, GSTR-3B on 20th)</li>
-                  <li>Each task can be assigned, tracked, and completed separately</li>
-                  <li>Period is marked complete when all its tasks are done</li>
-                  <li>Task templates are defined in the Service settings and automatically copied to each new period</li>
+                  <li>Go to the <strong>"Recurring Periods"</strong> tab to see all periods</li>
+                  <li>Select a period to view its tasks</li>
+                  <li>Each task has its own due date, assignee, status, and remarks</li>
+                  <li>Period status automatically updates when tasks are completed</li>
+                  <li>Invoice generates automatically when all period tasks are done</li>
                 </ul>
-              </div>
-              <div className="mt-4 flex items-center gap-3">
-                <span className="text-sm text-gray-600">
-                  Switch to the <strong>Recurring Periods</strong> tab to view and manage tasks for each period.
-                </span>
               </div>
             </div>
           </div>
