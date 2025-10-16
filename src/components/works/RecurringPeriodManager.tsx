@@ -671,6 +671,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                     onChange={(e) => setForm({ ...periodForm, period_start_date: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Start date of the reporting period</p>
                 </div>
 
                 <div>
@@ -684,7 +685,17 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                     onChange={(e) => setForm({ ...periodForm, period_end_date: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   />
+                  <p className="text-xs text-gray-500 mt-1">End date of the reporting period</p>
                 </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                <p className="font-medium text-blue-900 mb-1">Period vs Task Dates:</p>
+                <ul className="text-blue-800 space-y-1 text-xs">
+                  <li>• <strong>Period dates</strong> = the reporting period (e.g., Sep 1-30 for monthly GST)</li>
+                  <li>• <strong>Task due dates</strong> = when work must be submitted (e.g., Oct 10, Oct 20)</li>
+                  <li>• Tasks are configured in the service template with due date offsets</li>
+                </ul>
               </div>
 
               <div>

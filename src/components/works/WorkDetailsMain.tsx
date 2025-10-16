@@ -887,7 +887,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Briefcase },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: tasks.length },
     { id: 'time', label: 'Time Logs', icon: Clock, count: timeLogs.length },
     { id: 'documents', label: 'Documents', icon: FileText, count: documents.length },
   ];
@@ -899,6 +898,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
       icon: Repeat,
       count: recurringInstances.length
     });
+  } else {
+    tabs.splice(1, 0, { id: 'tasks', label: 'Tasks', icon: CheckSquare, count: tasks.length });
   }
 
   tabs.push({ id: 'activity', label: 'Activity Timeline', icon: ActivityIcon, count: activities.length });
