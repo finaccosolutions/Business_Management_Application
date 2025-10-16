@@ -63,7 +63,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     period_name: '',
     period_start_date: '',
     period_end_date: '',
-    due_date: '',
     billing_amount: '',
     notes: '',
   });
@@ -116,7 +115,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .from('work_recurring_instances')
           .select('*, staff_members(name)')
           .eq('work_id', workId)
-          .order('due_date', { ascending: false }),
+          .order('period_start_date', { ascending: false }),
 
         supabase
           .from('work_documents')
@@ -632,7 +631,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         period_name: recurringForm.period_name,
         period_start_date: recurringForm.period_start_date,
         period_end_date: recurringForm.period_end_date,
-        due_date: recurringForm.due_date,
         billing_amount: recurringForm.billing_amount ? parseFloat(recurringForm.billing_amount) : null,
         notes: recurringForm.notes || null,
         status: 'pending',
@@ -645,7 +643,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         period_name: '',
         period_start_date: '',
         period_end_date: '',
-        due_date: '',
         billing_amount: '',
         notes: '',
       });
@@ -669,7 +666,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           period_name: recurringForm.period_name,
           period_start_date: recurringForm.period_start_date,
           period_end_date: recurringForm.period_end_date,
-          due_date: recurringForm.due_date,
           billing_amount: recurringForm.billing_amount ? parseFloat(recurringForm.billing_amount) : null,
           notes: recurringForm.notes || null,
           updated_at: new Date().toISOString(),
@@ -684,7 +680,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         period_name: '',
         period_start_date: '',
         period_end_date: '',
-        due_date: '',
         billing_amount: '',
         notes: '',
       });
@@ -900,7 +895,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   if (work.is_recurring) {
     tabs.push({
       id: 'recurring',
-      label: 'Recurring Periods',
+      label: 'Periods & Tasks',
       icon: Repeat,
       count: recurringInstances.length
     });

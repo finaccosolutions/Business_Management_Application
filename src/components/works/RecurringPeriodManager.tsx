@@ -31,7 +31,6 @@ interface RecurringInstance {
   period_name: string;
   period_start_date: string;
   period_end_date: string;
-  due_date: string;
   status: string;
   completed_at: string | null;
   billing_amount: number | null;
@@ -62,7 +61,6 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
     period_name: '',
     period_start_date: '',
     period_end_date: '',
-    due_date: '',
     billing_amount: '',
     notes: ''
   });
@@ -83,7 +81,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
         .from('work_recurring_instances')
         .select('*')
         .eq('work_id', workId)
-        .order('due_date', { ascending: false });
+        .order('period_start_date', { ascending: false });
   
       if (error) throw error;
       setPeriods(data || []);
@@ -122,7 +120,6 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
         period_name: periodForm.period_name,
         period_start_date: periodForm.period_start_date,
         period_end_date: periodForm.period_end_date,
-        due_date: periodForm.due_date,
         billing_amount: periodForm.billing_amount ? parseFloat(periodForm.billing_amount) : null,
         notes: periodForm.notes || null,
         status: 'pending',
@@ -152,7 +149,6 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
           period_name: periodForm.period_name,
           period_start_date: periodForm.period_start_date,
           period_end_date: periodForm.period_end_date,
-          due_date: periodForm.due_date,
           billing_amount: periodForm.billing_amount ? parseFloat(periodForm.billing_amount) : null,
           notes: periodForm.notes || null,
           updated_at: new Date().toISOString(),
@@ -264,7 +260,6 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
       period_name: period.period_name,
       period_start_date: period.period_start_date,
       period_end_date: period.period_end_date,
-      due_date: period.due_date,
       billing_amount: period.billing_amount?.toString() || '',
       notes: period.notes || ''
     });
@@ -276,7 +271,6 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
       period_name: '',
       period_start_date: '',
       period_end_date: '',
-      due_date: '',
       billing_amount: '',
       notes: ''
     });
@@ -288,7 +282,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
     inProgress: periods.filter(p => p.status === 'in_progress').length,
     completed: periods.filter(p => p.status === 'completed').length,
     overdue: periods.filter(p =>
-      p.status !== 'completed' && new Date(p.due_date) < new Date()
+      p.status !== 'completed' && new Date(p.period_end_date) < new Date()
     ).length,
   };
 
@@ -361,9 +355,9 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
         <div className="space-y-3">
           <h4 className="font-medium text-gray-900">All Periods</h4>
           {periods.map(period => {
-            const isOverdue = period.status !== 'completed' && new Date(period.due_date) < new Date();
-            const daysUntilDue = Math.ceil(
-              (new Date(period.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+            const isOverdue = period.status !== 'completed' && new Date(period.period_end_date) < new Date();
+            const daysUntilEnd = Math.ceil(
+              (new Date(period.period_end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
             );
 
             return (
@@ -402,23 +396,23 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                         <span>{formatDateDisplay(period.period_start_date)} to {formatDateDisplay(period.period_end_date)}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Clock size={14} className={isOverdue ? 'text-red-500' : 'text-orange-500'} />
-                        <span className="font-medium text-gray-700">Due:</span>
+                        <Clock size={14} className={isOverdue ? 'text-red-500' : 'text-gray-500'} />
+                        <span className="font-medium text-gray-700">End:</span>
                         <span className={isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}>
-                          {formatDateDisplay(period.due_date)}
+                          {formatDateDisplay(period.period_end_date)}
                         </span>
                         {period.status !== 'completed' && (
-                          daysUntilDue >= 0 ? (
+                          daysUntilEnd >= 0 ? (
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                              daysUntilDue === 0 ? 'bg-red-100 text-red-700' :
-                              daysUntilDue <= 3 ? 'bg-orange-100 text-orange-700' :
+                              daysUntilEnd === 0 ? 'bg-red-100 text-red-700' :
+                              daysUntilEnd <= 3 ? 'bg-orange-100 text-orange-700' :
                               'bg-blue-100 text-blue-700'
                             }`}>
-                              {daysUntilDue === 0 ? 'Due Today!' : `${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''} left`}
+                              {daysUntilEnd === 0 ? 'Ends Today!' : `${daysUntilEnd} day${daysUntilEnd > 1 ? 's' : ''} left`}
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                              {Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) > 1 ? 's' : ''} overdue
+                              {Math.abs(daysUntilEnd)} day${Math.abs(daysUntilEnd) > 1 ? 's' : ''} overdue
                             </span>
                           )
                         )}
@@ -693,33 +687,18 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Due Date *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={periodForm.due_date}
-                    onChange={(e) => setForm({ ...periodForm, due_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Billing Amount
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={periodForm.billing_amount}
-                    onChange={(e) => setForm({ ...periodForm, billing_amount: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="₹"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Billing Amount
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={periodForm.billing_amount}
+                  onChange={(e) => setForm({ ...periodForm, billing_amount: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="₹"
+                />
               </div>
 
               <div>

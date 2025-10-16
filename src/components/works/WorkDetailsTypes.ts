@@ -43,7 +43,6 @@ export interface RecurringInstance {
   period_name: string;
   period_start_date: string;
   period_end_date: string;
-  due_date: string;
   status: string;
   completed_at: string | null;
   notes: string | null;
@@ -54,6 +53,9 @@ export interface RecurringInstance {
   invoice_id: string | null;
   created_at?: string;
   updated_at?: string;
+  all_tasks_completed?: boolean;
+  total_tasks?: number;
+  completed_tasks?: number;
 }
 
 export interface Activity {
@@ -106,7 +108,6 @@ export interface RecurringForm {
   period_name: string;
   period_start_date: string;
   period_end_date: string;
-  due_date: string;
   billing_amount: string;
   notes?: string;
 }

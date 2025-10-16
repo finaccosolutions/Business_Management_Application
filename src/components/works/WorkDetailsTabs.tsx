@@ -127,16 +127,16 @@ export function TasksTab({ tasks, isRecurring = false, onAddTask, onEditTask, on
                 Recurring Work - Task Management
               </h3>
               <p className="text-gray-700 mb-3">
-                This is a recurring work. All tasks are managed per period in the <strong>Recurring Periods</strong> tab.
+                This is a recurring work. All tasks are managed per period in the <strong>Periods & Tasks</strong> tab.
               </p>
               <div className="bg-white border border-blue-200 rounded-lg p-4 space-y-2 text-sm">
                 <p className="font-medium text-gray-900">How task management works for recurring works:</p>
                 <ul className="list-disc list-inside space-y-1 text-gray-700 ml-2">
-                  <li>Go to the <strong>"Recurring Periods"</strong> tab to see all periods</li>
-                  <li>Select a period to view its tasks</li>
+                  <li>Go to the <strong>"Periods & Tasks"</strong> tab to see all periods</li>
+                  <li>Select a period to view and manage its tasks</li>
                   <li>Each task has its own due date, assignee, status, and remarks</li>
-                  <li>Period status automatically updates when tasks are completed</li>
-                  <li>Invoice generates automatically when all period tasks are done</li>
+                  <li>Period status automatically updates based on task completion</li>
+                  <li>Invoice generates automatically when all period tasks are completed</li>
                 </ul>
               </div>
             </div>
