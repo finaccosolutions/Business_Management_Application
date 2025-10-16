@@ -300,7 +300,7 @@ export default function Dashboard() {
         supabase.from('staff_members').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('services').select('id', { count: 'exact', head: true }),
         supabase.from('services').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('work_tasks').select('id', { count: 'exact', head: true }).eq('is_completed', true),
+        supabase.from('work_tasks').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
       ]);
 
       let paidInvoicesQuery = supabase
