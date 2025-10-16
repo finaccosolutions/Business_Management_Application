@@ -65,7 +65,7 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
         .from('recurring_period_tasks')
         .select(`
           *,
-          staff:staff_members!assigned_to(name)
+          staff:staff!assigned_to(name)
         `)
         .eq('work_recurring_instance_id', periodId)
         .order('sort_order');
@@ -92,6 +92,7 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
       setStaffList(data || []);
     } catch (error) {
       console.error('Error fetching staff:', error);
+      toast.error('Failed to load staff list');
     }
   };
 
