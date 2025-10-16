@@ -488,15 +488,28 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
           })}
 
           {periods.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600 font-medium">No periods yet</p>
-              <p className="text-gray-500 text-sm mt-2">
-                The first period is automatically created when you create a recurring work.
-              </p>
-              <p className="text-gray-500 text-sm">
-                Click "Add Period" above to manually add additional periods.
-              </p>
+            <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
+              <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-900 font-semibold text-lg mb-2">No Recurring Periods Found</p>
+              <div className="max-w-2xl mx-auto space-y-3 text-sm text-gray-600">
+                <p>
+                  Recurring periods should have been automatically created when this work was set up.
+                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left">
+                  <p className="font-semibold text-amber-900 mb-2">Possible reasons:</p>
+                  <ul className="list-disc list-inside space-y-1 text-amber-800 ml-2">
+                    <li>The work start date might be in the future</li>
+                    <li>There might have been an issue during work creation</li>
+                    <li>The recurrence pattern might not be properly configured</li>
+                  </ul>
+                </div>
+                <p className="text-gray-700 font-medium mt-4">
+                  Click <strong>"Add Period"</strong> above to manually create your first period.
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Each period will automatically include tasks based on your service task templates.
+                </p>
+              </div>
             </div>
           )}
         </div>

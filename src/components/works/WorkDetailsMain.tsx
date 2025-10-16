@@ -1060,6 +1060,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           {activeTab === 'tasks' && (
             <TasksTab
               tasks={tasks}
+              isRecurring={work.is_recurring}
               onAddTask={() => setShowTaskModal(true)}
               onEditTask={openEditTaskModal}
               onUpdateTaskStatus={handleUpdateTaskStatus}

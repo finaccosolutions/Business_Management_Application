@@ -276,15 +276,30 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
       </div>
 
       {tasks.length === 0 ? (
-        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <AlertCircle size={40} className="mx-auto text-gray-400 mb-3" />
-          <p className="text-gray-600 text-sm font-medium">No tasks defined for this period</p>
-          <p className="text-gray-500 text-xs mt-2">
-            Tasks are automatically created from service task templates when the period is created.
-          </p>
-          <p className="text-gray-500 text-xs mt-1">
-            Each task can have its own due date and status, allowing you to manage multiple tasks within a single period.
-          </p>
+        <div className="text-center py-8 bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg border-2 border-dashed border-orange-300">
+          <AlertCircle size={48} className="mx-auto text-orange-400 mb-3" />
+          <p className="text-gray-900 text-base font-semibold mb-2">No Tasks Found for This Period</p>
+          <div className="max-w-xl mx-auto space-y-2 text-sm">
+            <p className="text-gray-700">
+              Tasks are automatically copied from your service task templates when a period is created.
+            </p>
+            <div className="bg-white border border-orange-200 rounded-lg p-3 text-left">
+              <p className="font-medium text-gray-900 mb-1">To set up task templates:</p>
+              <ol className="list-decimal list-inside space-y-0.5 text-gray-700 ml-2 text-xs">
+                <li>Go to <strong>Services</strong> page</li>
+                <li>Select your service and click to view details</li>
+                <li>Navigate to the <strong>Task Templates</strong> tab</li>
+                <li>Add tasks with due date offsets (e.g., GSTR-1 on 10th, GSTR-3B on 20th)</li>
+                <li>New periods will automatically include these tasks</li>
+              </ol>
+            </div>
+            <p className="text-gray-700 font-medium mt-3">
+              For now, click <strong>"Add Task"</strong> above to manually add tasks to this period.
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              <strong>Example:</strong> For GST filing service, create separate tasks for GSTR-1 (due 10th) and GSTR-3B (due 20th).
+            </p>
+          </div>
         </div>
       ) : (
         <div className="space-y-2">

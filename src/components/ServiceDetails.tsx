@@ -18,6 +18,7 @@ import {
   FileText,
   History,
   Upload,
+  Repeat,
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
@@ -579,11 +580,39 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
 
           {activeTab === 'tasks' && (
             <div className="space-y-4">
+              {service.is_recurring && (
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Repeat size={20} className="text-orange-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900 mb-1">Recurring Service - Multi-Task Management</h4>
+                      <p className="text-sm text-gray-700 mb-2">
+                        This service supports multiple tasks per period, each with its own due date.
+                      </p>
+                      <div className="bg-white border border-orange-200 rounded-lg p-3 text-xs">
+                        <p className="font-medium text-gray-900 mb-1">How it works:</p>
+                        <ul className="list-disc list-inside space-y-0.5 text-gray-700 ml-2">
+                          <li>Add multiple task templates below (e.g., GSTR-1, GSTR-3B)</li>
+                          <li>Set individual due dates for each task (e.g., 10th, 20th of month)</li>
+                          <li>When a new period is created, all tasks are automatically copied</li>
+                          <li>Each task can be tracked, assigned, and completed independently</li>
+                          <li>Period completes only when all tasks are done</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Service Task Templates</h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    Define tasks that will be automatically added when creating work for this service
+                    {service.is_recurring
+                      ? 'Define tasks with individual due dates for each recurring period'
+                      : 'Define tasks that will be automatically added when creating work for this service'}
                   </p>
                 </div>
                 <button
@@ -599,21 +628,47 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
               </div>
 
               {serviceTasks.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-                  <CheckSquare size={48} className="mx-auto text-gray-400 mb-4" />
-                  <p className="text-gray-600">No task templates defined yet</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Add tasks to create a standard workflow for this service
-                  </p>
+                <div className="text-center py-12 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-dashed border-blue-300">
+                  <CheckSquare size={56} className="mx-auto text-blue-400 mb-4" />
+                  <p className="text-gray-900 font-semibold text-lg mb-2">No Task Templates Defined Yet</p>
+                  <div className="max-w-2xl mx-auto space-y-3 text-sm text-gray-700">
+                    <p>
+                      Task templates define the standard workflow for this service.
+                    </p>
+                    {service?.is_recurring && (
+                      <div className="bg-white border border-blue-200 rounded-lg p-4 text-left">
+                        <p className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                          <Repeat size={18} />
+                          Recurring Service - Multi-Task Support
+                        </p>
+                        <p className="text-gray-700 mb-2 text-xs">
+                          For recurring services, you can define multiple tasks with individual due dates.
+                        </p>
+                        <p className="text-gray-800 font-medium text-xs mb-1">Example: GST Filing Service</p>
+                        <ul className="list-disc list-inside space-y-1 text-gray-700 ml-2 text-xs">
+                          <li><strong>Task 1:</strong> GSTR-1 Filing - Due on 10th of each month</li>
+                          <li><strong>Task 2:</strong> GSTR-3B Filing - Due on 20th of each month</li>
+                        </ul>
+                        <p className="text-gray-600 mt-2 text-xs">
+                          Each period will automatically get both tasks with their respective due dates.
+                        </p>
+                      </div>
+                    )}
+                    {!service?.is_recurring && (
+                      <p className="text-gray-600">
+                        Break down this service into smaller tasks for better tracking and management.
+                      </p>
+                    )}
+                  </div>
                   <button
                     onClick={() => {
                       setEditingTask(null);
                       setShowTaskModal(true);
                     }}
-                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg font-medium"
                   >
-                    <Plus size={18} />
-                    Add First Task
+                    <Plus size={20} />
+                    Add First Task Template
                   </button>
                 </div>
               ) : (
