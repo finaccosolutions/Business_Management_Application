@@ -74,7 +74,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-30 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-50 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
         <h1 className="text-base sm:text-xl font-bold text-white truncate mr-2">WorkFlow Pro</h1>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -91,12 +91,12 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-20 w-64 sm:w-72 bg-slate-800 dark:bg-slate-900 border-r border-slate-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 lg:top-0 bottom-0 left-0 z-40 w-64 sm:w-72 bg-slate-800 dark:bg-slate-900 border-r border-slate-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 pt-14 lg:pt-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="h-full flex flex-col">
-          <div className="p-4 sm:p-6 border-b border-slate-700">
+          <div className="p-4 sm:p-6 border-b border-slate-700 hidden lg:block">
             <h1 className="text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-green-400">
               WorkFlow Pro
             </h1>
@@ -192,7 +192,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -202,7 +202,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
       {/* Main Content */}
       <main className="lg:pl-64 pt-14 sm:pt-16 min-h-screen">
-        <div className="p-3 sm:p-4 md:p-6 lg:p-8">{children}</div>
+        <div className="p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">{children}</div>
       </main>
     </div>
   );
