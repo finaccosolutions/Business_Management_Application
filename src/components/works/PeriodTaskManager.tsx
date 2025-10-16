@@ -278,9 +278,12 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
       {tasks.length === 0 ? (
         <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <AlertCircle size={40} className="mx-auto text-gray-400 mb-3" />
-          <p className="text-gray-600 text-sm">No tasks defined for this period</p>
+          <p className="text-gray-600 text-sm font-medium">No tasks defined for this period</p>
+          <p className="text-gray-500 text-xs mt-2">
+            Tasks are automatically created from service task templates when the period is created.
+          </p>
           <p className="text-gray-500 text-xs mt-1">
-            Tasks are automatically created from service task templates
+            Each task can have its own due date and status, allowing you to manage multiple tasks within a single period.
           </p>
         </div>
       ) : (

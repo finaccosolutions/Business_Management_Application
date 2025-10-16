@@ -490,7 +490,13 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
           {periods.length === 0 && (
             <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
               <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600">No periods yet. Add your first period to get started.</p>
+              <p className="text-gray-600 font-medium">No periods yet</p>
+              <p className="text-gray-500 text-sm mt-2">
+                The first period is automatically created when you create a recurring work.
+              </p>
+              <p className="text-gray-500 text-sm">
+                Click "Add Period" above to manually add additional periods.
+              </p>
             </div>
           )}
         </div>
