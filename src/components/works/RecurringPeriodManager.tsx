@@ -39,7 +39,6 @@ interface RecurringInstance {
   notes: string | null;
   all_tasks_completed: boolean;
   staff_members: { name: string } | null;
-  next_due_date?: string | null;
 }
 
 interface Props {
@@ -80,8 +79,11 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   const fetchPeriods = async () => {
     try {
       const { data, error } = await supabase
-        .rpc('get_work_periods_with_next_due', { p_work_id: workId });
-
+        .from('work_recurring_instances')
+        .select('*')
+        .eq('work_id', workId)
+        .order('period_start_date', { ascending: false });
+  
       if (error) throw error;
       setPeriods(data || []);
     } catch (error) {
@@ -427,33 +429,28 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                         <span className="font-medium text-gray-700">Period:</span>
                         <span>{formatDateDisplay(period.period_start_date)} to {formatDateDisplay(period.period_end_date)}</span>
                       </div>
-                      {period.next_due_date && period.status !== 'completed' && (
-                        <div className="flex items-center gap-2">
-                          <Clock size={14} className="text-orange-500" />
-                          <span className="font-medium text-gray-700">Next Due:</span>
-                          <span className="text-gray-600">
-                            {formatDateDisplay(period.next_due_date)}
-                          </span>
-                          {(() => {
-                            const daysUntilDue = Math.ceil(
-                              (new Date(period.next_due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-                            );
-                            return daysUntilDue >= 0 ? (
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                daysUntilDue === 0 ? 'bg-red-100 text-red-700' :
-                                daysUntilDue <= 3 ? 'bg-orange-100 text-orange-700' :
-                                'bg-blue-100 text-blue-700'
-                              }`}>
-                                {daysUntilDue === 0 ? 'Due Today!' : `${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''} left`}
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                                {Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) > 1 ? 's' : ''} overdue
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className={isOverdue ? 'text-red-500' : 'text-gray-500'} />
+                        <span className="font-medium text-gray-700">End:</span>
+                        <span className={isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                          {formatDateDisplay(period.period_end_date)}
+                        </span>
+                        {period.status !== 'completed' && (
+                          daysUntilEnd >= 0 ? (
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              daysUntilEnd === 0 ? 'bg-red-100 text-red-700' :
+                              daysUntilEnd <= 3 ? 'bg-orange-100 text-orange-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {daysUntilEnd === 0 ? 'Ends Today!' : `${daysUntilEnd} day${daysUntilEnd > 1 ? 's' : ''} left`}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                              {Math.abs(daysUntilEnd)} day${Math.abs(daysUntilEnd) > 1 ? 's' : ''} overdue
+                            </span>
+                          )
+                        )}
+                      </div>
                       {period.all_tasks_completed && (
                         <div className="flex items-center gap-1 text-green-600 font-medium text-xs">
                           <ListTodo size={14} />
