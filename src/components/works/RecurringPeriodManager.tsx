@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   Calendar, Clock, CheckCircle, Edit2, Trash2, Plus, AlertTriangle,
-  DollarSign, FileText, CheckSquare, PlayCircle, Upload, Download, X, ListTodo
+  DollarSign, FileText, CheckSquare, PlayCircle, Upload, Download, X, ListTodo, RefreshCw
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateDisplay } from '../../lib/dateUtils';
@@ -55,6 +55,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   const [loading, setLoading] = useState(true);
   const [showPeriodForm, setShowPeriodForm] = useState(false);
   const [editingPeriod, setEditingPeriod] = useState<RecurringInstance | null>(null);
+  const [generatingPeriods, setGeneratingPeriods] = useState(false);
   const toast = useToast();
 
   const [periodForm, setForm] = useState({
@@ -277,6 +278,28 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
     setEditingPeriod(null);
   };
 
+  const handleGenerateNextPeriods = async () => {
+    setGeneratingPeriods(true);
+    try {
+      const { data, error } = await supabase.rpc('generate_next_recurring_periods');
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        toast.success(`Generated ${data.length} new period(s)!`);
+        fetchPeriods();
+        onUpdate();
+      } else {
+        toast.info('No new periods to generate. Latest periods are still active.');
+      }
+    } catch (error: any) {
+      console.error('Error generating periods:', error);
+      toast.error(error.message || 'Failed to generate periods');
+    } finally {
+      setGeneratingPeriods(false);
+    }
+  };
+
   const stats = {
     pending: periods.filter(p => p.status === 'pending').length,
     inProgress: periods.filter(p => p.status === 'in_progress').length,
@@ -337,16 +360,27 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
             )}
           </p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowPeriodForm(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-        >
-          <Plus size={18} />
-          <span>Add Period</span>
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleGenerateNextPeriods}
+            disabled={generatingPeriods}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
+            title="Generate next period for elapsed periods"
+          >
+            <RefreshCw size={18} className={generatingPeriods ? 'animate-spin' : ''} />
+            <span>{generatingPeriods ? 'Generating...' : 'Generate Next'}</span>
+          </button>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowPeriodForm(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            <Plus size={18} />
+            <span>Add Period</span>
+          </button>
+        </div>
       </div>
 
       {/* Periods List */}
