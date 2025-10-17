@@ -65,7 +65,7 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
         .from('recurring_period_tasks')
         .select(`
           *,
-          staff:staff(name)
+          staff:staff!assigned_to(name)
         `)
         .eq('work_recurring_instance_id', periodId)
         .order('sort_order');
