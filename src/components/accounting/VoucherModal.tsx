@@ -404,29 +404,53 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
 
             <div className="bg-white rounded-xl p-6 border border-gray-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Accounting Entries</h3>
-                <button
-                  type="button"
-                  onClick={addEntry}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                >
-                  <Plus size={18} />
-                  Add Entry
-                </button>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {isPaymentVoucher() ? 'Payment Details' : isReceiptVoucher() ? 'Receipt Details' : 'Accounting Entries'}
+                </h3>
+                {!isPaymentVoucher() && !isReceiptVoucher() && (
+                  <button
+                    type="button"
+                    onClick={addEntry}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Plus size={18} />
+                    Add Entry
+                  </button>
+                )}
               </div>
 
               {(isPaymentVoucher() || isReceiptVoucher()) && cashBankAccountId && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    {isPaymentVoucher() ? (
-                      <><strong>Payment Voucher:</strong> Cash/Bank will be automatically <strong>CREDITED</strong> (money going out). Select debit accounts below.</>
-                    ) : (
-                      <><strong>Receipt Voucher:</strong> Cash/Bank will be automatically <strong>DEBITED</strong> (money coming in). Select credit accounts below.</>
-                    )}
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Using: {accounts.find(a => a.id === cashBankAccountId)?.account_name || 'Default Cash/Bank Account'}
-                  </p>
+                <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-blue-900 mb-2">
+                        {isPaymentVoucher() ? '💸 Payment Voucher' : '💰 Receipt Voucher'}
+                      </p>
+                      <p className="text-xs text-blue-800 mb-2">
+                        {isPaymentVoucher() ? (
+                          <>Cash/Bank will be automatically <strong>CREDITED</strong> (money going out)</>
+                        ) : (
+                          <>Cash/Bank will be automatically <strong>DEBITED</strong> (money coming in)</>
+                        )}
+                      </p>
+                      <p className="text-xs text-blue-700 font-medium">
+                        Using: {accounts.find(a => a.id === cashBankAccountId)?.account_name || 'Default Cash/Bank Account'} ({paymentReceiptType === 'cash' ? 'Cash' : 'Bank'})
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(isPaymentVoucher() || isReceiptVoucher()) && (
+                <div className="mb-4">
+                  <button
+                    type="button"
+                    onClick={addEntry}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors border border-blue-200"
+                  >
+                    <Plus size={18} />
+                    {isPaymentVoucher() ? 'Add Debit Ledger' : 'Add Credit Ledger'}
+                  </button>
                 </div>
               )}
 
@@ -434,9 +458,9 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
                 {entries.map((entry, index) => (
                   <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="grid grid-cols-12 gap-3 items-center">
-                      <div className="col-span-12 md:col-span-4">
+                      <div className="col-span-12 md:col-span-5">
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          {isPaymentVoucher() ? 'Debit Account (Expense/Payable) *' : isReceiptVoucher() ? 'Credit Account (Customer/Income) *' : 'Account *'}
+                          {isPaymentVoucher() ? 'Debit Ledger (Expense/Payable) *' : isReceiptVoucher() ? 'Credit Ledger (Customer/Income) *' : 'Account *'}
                         </label>
                         <select
                           value={entry.account_id}
@@ -444,7 +468,7 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                           required
                         >
-                          <option value="">Select account</option>
+                          <option value="">Select ledger</option>
                           {accounts.map((account) => (
                             <option key={account.id} value={account.id}>
                               {account.account_code} - {account.account_name}
@@ -453,9 +477,9 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
                         </select>
                       </div>
 
-                      <div className="col-span-5 md:col-span-3">
+                      <div className="col-span-10 md:col-span-3">
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          {isPaymentVoucher() || isReceiptVoucher() ? 'Amount (₹) *' : 'Debit (₹)'}
+                          Amount (₹) *
                         </label>
                         <input
                           type="number"
@@ -479,7 +503,7 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
                       </div>
 
                       {!isPaymentVoucher() && !isReceiptVoucher() && (
-                        <div className="col-span-5 md:col-span-3">
+                        <div className="col-span-10 md:col-span-3">
                           <label className="block text-xs font-medium text-gray-700 mb-1">
                             Credit (₹)
                           </label>
@@ -494,7 +518,7 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
                         </div>
                       )}
 
-                      <div className="col-span-2 md:col-span-2 flex items-end justify-center">
+                      <div className="col-span-2 md:col-span-1 flex items-end justify-center">
                         {((isPaymentVoucher() || isReceiptVoucher()) ? entries.length > 1 : entries.length > 2) && (
                           <button
                             type="button"
@@ -507,7 +531,7 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
                         )}
                       </div>
 
-                      <div className="col-span-12">
+                      <div className="col-span-12 md:col-span-3">
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Entry Narration (Optional)
                         </label>
@@ -516,7 +540,7 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
                           value={entry.narration}
                           onChange={(e) => updateEntry(index, 'narration', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                          placeholder="Optional entry description..."
+                          placeholder="Optional description..."
                         />
                       </div>
                     </div>
@@ -528,28 +552,52 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
             <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Summary</h3>
               <div className="space-y-3">
-                <div className="flex justify-between items-center text-base">
-                  <span className="text-gray-700 font-medium">Total Debit:</span>
-                  <span className="font-bold text-gray-900">₹{totalDebit.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-base">
-                  <span className="text-gray-700 font-medium">Total Credit:</span>
-                  <span className="font-bold text-gray-900">₹{totalCredit.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center pt-3 border-t-2 border-blue-300">
-                  <span className="text-xl font-bold text-gray-900">Difference:</span>
-                  <span
-                    className={`text-2xl font-bold ${
-                      Math.abs(difference) < 0.01 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    ₹{Math.abs(difference).toFixed(2)}
-                  </span>
-                </div>
-                {Math.abs(difference) > 0.01 && (
-                  <p className="text-sm text-red-600 text-center mt-2">
-                    Debit and Credit must be equal for a valid voucher
-                  </p>
+                {(isPaymentVoucher() || isReceiptVoucher()) ? (
+                  <>
+                    <div className="flex justify-between items-center text-base">
+                      <span className="text-gray-700 font-medium">
+                        {isPaymentVoucher() ? 'Total Payment Amount:' : 'Total Receipt Amount:'}
+                      </span>
+                      <span className="font-bold text-gray-900">
+                        ₹{(isPaymentVoucher() ? totalDebit : totalCredit).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-blue-200">
+                      <p className="text-xs text-gray-600 mb-1">Cash/Bank Ledger:</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {accounts.find(a => a.id === cashBankAccountId)?.account_name || 'Not configured'}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Will be {isPaymentVoucher() ? 'CREDITED' : 'DEBITED'} with ₹{(isPaymentVoucher() ? totalDebit : totalCredit).toFixed(2)}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center text-base">
+                      <span className="text-gray-700 font-medium">Total Debit:</span>
+                      <span className="font-bold text-gray-900">₹{totalDebit.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-base">
+                      <span className="text-gray-700 font-medium">Total Credit:</span>
+                      <span className="font-bold text-gray-900">₹{totalCredit.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-3 border-t-2 border-blue-300">
+                      <span className="text-xl font-bold text-gray-900">Difference:</span>
+                      <span
+                        className={`text-2xl font-bold ${
+                          Math.abs(difference) < 0.01 ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        ₹{Math.abs(difference).toFixed(2)}
+                      </span>
+                    </div>
+                    {Math.abs(difference) > 0.01 && (
+                      <p className="text-sm text-red-600 text-center mt-2">
+                        Debit and Credit must be equal for a valid voucher
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -566,10 +614,10 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
           </button>
           <button
             onClick={handleSubmit}
-            disabled={Math.abs(difference) > 0.01}
+            disabled={!isPaymentVoucher() && !isReceiptVoucher() && Math.abs(difference) > 0.01}
             className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create Voucher
+            Create {isPaymentVoucher() ? 'Payment' : isReceiptVoucher() ? 'Receipt' : ''} Voucher
           </button>
         </div>
       </div>
