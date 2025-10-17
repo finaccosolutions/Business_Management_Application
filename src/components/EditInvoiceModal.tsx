@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, Plus, Trash2, DollarSign, Users, Briefcase, Eye, Calendar } from 'lucide-react';
+import { X, FileText, Plus, Trash2, DollarSign, Users, Briefcase, Eye, Calendar, Landmark } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -17,6 +17,8 @@ interface Invoice {
   status: string;
   notes?: string;
   work_id?: string;
+  income_account_id?: string;
+  customer_account_id?: string;
   customers: { name: string };
 }
 
@@ -26,6 +28,7 @@ interface InvoiceItem {
   quantity: number;
   unit_price: number;
   amount: number;
+  tax_rate?: number;
 }
 
 interface Service {
@@ -34,6 +37,13 @@ interface Service {
   description: string;
   default_price: number;
   tax_rate?: number;
+  income_account_id?: string;
+}
+
+interface Account {
+  id: string;
+  account_code: string;
+  account_name: string;
 }
 
 interface Customer {
@@ -66,6 +76,8 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
   const [services, setServices] = useState<Service[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [works, setWorks] = useState<Work[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [defaultIncomeAccountId, setDefaultIncomeAccountId] = useState<string>('');
 
   const [formData, setFormData] = useState({
     customer_id: invoice.customer_id,
@@ -77,6 +89,8 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
     payment_terms: 'net_30',
     notes: invoice.notes || '',
     status: invoice.status,
+    income_account_id: invoice.income_account_id || '',
+    customer_account_id: invoice.customer_account_id || '',
   });
 
   const [lineItems, setLineItems] = useState(
@@ -87,7 +101,7 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
       custom_description: item.description,
       quantity: item.quantity,
       rate: item.unit_price,
-      tax_rate: 0,
+      tax_rate: item.tax_rate || 0,
     }))
   );
 
@@ -95,13 +109,14 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
     fetchServices();
     fetchCustomers();
     fetchWorks();
+    fetchAccounts();
   }, []);
 
   const fetchServices = async () => {
     try {
       const { data } = await supabase
         .from('services')
-        .select('id, name, description, default_price, tax_rate')
+        .select('id, name, description, default_price, tax_rate, income_account_id')
         .order('name');
       setServices(data || []);
     } catch (error) {
@@ -109,11 +124,29 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
     }
   };
 
+  const fetchAccounts = async () => {
+    try {
+      const [accountsResult, settingsResult] = await Promise.all([
+        supabase.from('chart_of_accounts').select('id, account_code, account_name').eq('is_active', true).order('account_name'),
+        supabase.from('company_settings').select('default_income_ledger_id').eq('user_id', user!.id).maybeSingle(),
+      ]);
+
+      if (accountsResult.error) throw accountsResult.error;
+      setAccounts(accountsResult.data || []);
+
+      if (settingsResult.data?.default_income_ledger_id) {
+        setDefaultIncomeAccountId(settingsResult.data.default_income_ledger_id);
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    }
+  };
+
   const fetchCustomers = async () => {
     try {
       const { data } = await supabase
         .from('customers')
-        .select('id, name')
+        .select('id, name, account_id')
         .order('name');
       setCustomers(data || []);
     } catch (error) {
@@ -206,6 +239,13 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
           tax_rate: service.tax_rate || 0,
           custom_description: '',
         };
+
+        // Auto-set income account from service or default
+        if (service.income_account_id && !formData.income_account_id) {
+          setFormData(prev => ({ ...prev, income_account_id: service.income_account_id! }));
+        } else if (!service.income_account_id && defaultIncomeAccountId && !formData.income_account_id) {
+          setFormData(prev => ({ ...prev, income_account_id: defaultIncomeAccountId }));
+        }
       }
     } else {
       updated[index] = { ...updated[index], [field]: value };
@@ -223,7 +263,7 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
       const discount = parseFloat(formData.discount || '0');
       const totalAmount = subtotal + taxAmount - discount;
 
-      const invoiceUpdate = {
+      const invoiceUpdate: any = {
         invoice_date: formData.invoice_date,
         due_date: formData.due_date,
         status: formData.status,
@@ -231,6 +271,8 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
         subtotal,
         tax_amount: taxAmount,
         total_amount: totalAmount,
+        income_account_id: formData.income_account_id || null,
+        customer_account_id: formData.customer_account_id || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -257,7 +299,8 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
           description: finalDescription,
           quantity: parseFloat(item.quantity.toString()),
           unit_price: parseFloat(item.rate.toString()),
-          amount: calculateItemTotal(item),
+          amount: parseFloat(item.quantity.toString()) * parseFloat(item.rate.toString()),
+          tax_rate: parseFloat(item.tax_rate?.toString() || '0'),
         };
 
         if (item.id) {
@@ -434,6 +477,50 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
               </div>
             </div>
 
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <Landmark size={20} className="text-blue-600" />
+                Accounting Accounts
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Income Account (Credit)
+                  </label>
+                  <select
+                    value={formData.income_account_id}
+                    onChange={(e) => setFormData({ ...formData, income_account_id: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Auto-select from service/settings</option>
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_code} - {account.account_name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Auto-selected from service mapping or company default
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Customer Account (Debit)
+                  </label>
+                  <input
+                    type="text"
+                    value={accounts.find(a => a.id === formData.customer_account_id)?.account_name || 'Auto-selected from customer'}
+                    disabled
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Automatically linked to customer account
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white rounded-xl p-6 border border-gray-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -500,7 +587,7 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
                       </div>
                       <div className="col-span-6 md:col-span-2">
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Tax % *
+                          Tax %
                         </label>
                         <input
                           type="number"
@@ -508,7 +595,6 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
                           value={item.tax_rate}
                           onChange={(e) => updateLineItem(index, 'tax_rate', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500"
-                          required
                         />
                       </div>
                       <div className="col-span-6 md:col-span-2">

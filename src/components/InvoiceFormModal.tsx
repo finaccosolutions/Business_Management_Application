@@ -640,7 +640,7 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
                       </div>
                       <div className="col-span-6 md:col-span-2">
                         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Tax % *
+                          Tax %
                         </label>
                         <input
                           type="number"
@@ -649,7 +649,6 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
                           onChange={(e) => updateLineItem(index, 'tax_rate', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-slate-500 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 dark:bg-slate-700 dark:text-white"
                           placeholder="0"
-                          required
                         />
                       </div>
                       <div className="col-span-6 md:col-span-2">
