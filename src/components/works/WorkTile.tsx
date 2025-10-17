@@ -42,12 +42,12 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
       <div className="p-5">
         <div className="flex flex-col lg:flex-row items-start gap-4">
           {/* Work Title & Customer Section */}
-          <div className="flex items-start gap-3 w-full lg:w-auto lg:min-w-[250px] lg:max-w-[250px]">
+          <div className="flex items-start gap-3 w-full lg:w-auto lg:min-w-[280px] lg:max-w-[280px]">
             <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white flex-shrink-0">
               <Briefcase size={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-bold text-gray-900 text-base mb-1 line-clamp-1">{work.title}</h3>
+              <h3 className="font-bold text-gray-900 text-base mb-1 line-clamp-1" title={work.title}>{work.title}</h3>
               <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-1">
                 <Users size={12} className="flex-shrink-0" />
                 <span className="truncate">{work.customers.name}</span>

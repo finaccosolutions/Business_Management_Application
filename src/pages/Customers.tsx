@@ -487,7 +487,7 @@ export default function Customers() {
               >
                 <div className="p-5">
                   <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-4 flex-shrink-0" style={{ width: '240px' }}>
+                    <div className="flex items-center gap-4 flex-shrink-0" style={{ width: '280px' }}>
                       <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
                         {customer.image_url ? (
                           <img
@@ -513,24 +513,30 @@ export default function Customers() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-gray-900 text-lg truncate">{customer.name}</h3>
+                        <h3 className="font-bold text-gray-900 text-lg truncate" title={customer.name}>{customer.name}</h3>
                         {customer.company_name && (
-                          <p className="text-sm text-gray-600 truncate flex items-center gap-1">
+                          <p className="text-sm text-gray-600 truncate flex items-center gap-1" title={customer.company_name}>
                             <Building size={14} />
                             {customer.company_name}
                           </p>
                         )}
-                        {daysSinceCreated <= 30 && (
-                          <span className="inline-block mt-1 text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">
-                            New
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          {daysSinceCreated <= 30 && (
+                            <span className="inline-block text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">
+                              New
+                            </span>
+                          )}
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Calendar size={11} />
+                            <span>Since {new Date(customer.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     <div className="h-16 w-px bg-gray-200"></div>
 
-                    <div className="flex-1 min-w-0" style={{ maxWidth: '400px' }}>
+                    <div className="flex-1 min-w-0" style={{ maxWidth: '450px' }}>
                       <div className="space-y-2">
                         {customer.email && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -572,26 +578,22 @@ export default function Customers() {
 
                     <div className="h-16 w-px bg-gray-200"></div>
 
-                    <div className="flex-shrink-0" style={{ width: '160px' }}>
+                    <div className="flex-shrink-0" style={{ width: '140px' }}>
                       <div className="space-y-2">
                         {customer.gstin && (
-                          <div className="flex items-center gap-2">
-                            <FileText size={14} className="text-green-600" />
-                            <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded">
+                          <div className="flex items-center gap-1.5">
+                            <FileText size={13} className="text-green-600 flex-shrink-0" />
+                            <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded truncate">
                               GST: {customer.gstin.substring(0, 8)}...
                             </span>
                           </div>
                         )}
                         {customer.pan_number && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <FileText size={14} className="text-gray-400" />
+                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                            <FileText size={13} className="text-gray-400 flex-shrink-0" />
                             <span className="text-xs">PAN: {customer.pan_number}</span>
                           </div>
                         )}
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <Calendar size={12} />
-                          <span>Since {new Date(customer.created_at).toLocaleDateString()}</span>
-                        </div>
                       </div>
                     </div>
 
