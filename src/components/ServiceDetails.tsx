@@ -101,6 +101,8 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [editingTask, setEditingTask] = useState<ServiceTask | null>(null);
   const [editingDocument, setEditingDocument] = useState<ServiceDocument | null>(null);
+  const [ledgers, setLedgers] = useState<Array<{id: string; account_code: string; account_name: string;}>>([]);
+  const [savingLedgerMap, setSavingLedgerMap] = useState(false);
   const [statistics, setStatistics] = useState({
     totalCustomers: 0,
     activeCustomers: 0,
@@ -113,8 +115,44 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
   useEffect(() => {
     if (serviceId) {
       fetchServiceDetails();
+      fetchLedgers();
     }
   }, [serviceId]);
+
+  const fetchLedgers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('chart_of_accounts')
+        .select('id, account_code, account_name, account_groups(account_type)')
+        .eq('is_active', true)
+        .order('account_name');
+
+      if (error) throw error;
+      setLedgers(data || []);
+    } catch (error: any) {
+      console.error('Error fetching ledgers:', error);
+    }
+  };
+
+  const handleUpdateIncomeLedger = async (ledgerId: string | null) => {
+    setSavingLedgerMap(true);
+    try {
+      const { error } = await supabase
+        .from('services')
+        .update({ income_ledger_id: ledgerId })
+        .eq('id', serviceId);
+
+      if (error) throw error;
+
+      setService(service ? { ...service, income_ledger_id: ledgerId } : null);
+      toast.success('Income ledger mapping updated successfully');
+    } catch (error: any) {
+      console.error('Error updating income ledger:', error);
+      toast.error('Failed to update income ledger mapping');
+    } finally {
+      setSavingLedgerMap(false);
+    }
+  };
 
   const fetchServiceDetails = async () => {
     try {
@@ -581,6 +619,39 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
 
           {activeTab === 'revenue' && (
             <div className="space-y-6">
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Landmark size={20} className="text-blue-600" />
+                  Income Ledger Mapping
+                </h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  Map this service to a specific income ledger for accurate accounting. If not set, the company's default income ledger will be used.
+                </p>
+                <div className="bg-white border border-blue-200 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Income Ledger for this Service
+                  </label>
+                  <select
+                    value={service?.income_ledger_id || ''}
+                    onChange={(e) => handleUpdateIncomeLedger(e.target.value || null)}
+                    disabled={savingLedgerMap}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  >
+                    <option value="">-- Use Company Default Income Ledger --</option>
+                    {ledgers
+                      .filter((l: any) => l.account_groups?.account_type === 'income')
+                      .map((ledger) => (
+                        <option key={ledger.id} value={ledger.id}>
+                          {ledger.account_code} - {ledger.account_name}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-2">
+                    When auto-creating invoices, this ledger will be credited (if set). Otherwise, the company's default income ledger will be used.
+                  </p>
+                </div>
+              </div>
+
               <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-xl border border-green-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <TrendingUp size={20} className="text-green-600" />

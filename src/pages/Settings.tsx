@@ -39,6 +39,12 @@ interface CompanySettings {
   bank_swift_code: string;
   bank_branch: string;
   invoice_prefix: string;
+  payment_prefix: string;
+  receipt_prefix: string;
+  journal_prefix: string;
+  contra_prefix: string;
+  credit_note_prefix: string;
+  debit_note_prefix: string;
   invoice_terms: string;
   invoice_notes: string;
   currency: string;
@@ -85,6 +91,12 @@ export default function Settings() {
     bank_swift_code: '',
     bank_branch: '',
     invoice_prefix: 'INV',
+    payment_prefix: 'PAY',
+    receipt_prefix: 'RCT',
+    journal_prefix: 'JV',
+    contra_prefix: 'CNT',
+    credit_note_prefix: 'CN',
+    debit_note_prefix: 'DN',
     invoice_terms: '',
     invoice_notes: 'Thank you for your business!',
     currency: 'INR',
@@ -233,7 +245,7 @@ export default function Settings() {
             }`}
           >
             <FileText size={20} />
-            Invoice Settings
+            Voucher Settings
           </button>
           <button
             onClick={() => setActiveTab('ledgers')}
@@ -572,13 +584,15 @@ export default function Settings() {
             <div className="space-y-6">
               <div className="bg-white rounded-xl p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText size={20} className="text-blue-600" />
-                  Invoice Configuration
+                  <Hash size={20} className="text-blue-600" />
+                  Voucher Number Prefixes
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Configure prefixes for all voucher types
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                      <Hash size={14} />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Invoice Prefix
                     </label>
                     <input
@@ -589,9 +603,114 @@ export default function Settings() {
                       placeholder="INV"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Example: {settings.invoice_prefix}-0001
+                      Example: {settings.invoice_prefix}-000001
                     </p>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Receipt Prefix
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.receipt_prefix}
+                      onChange={(e) => setSettings({ ...settings, receipt_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="RCT"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: {settings.receipt_prefix}-000001
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Payment Prefix
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.payment_prefix}
+                      onChange={(e) => setSettings({ ...settings, payment_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="PAY"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: {settings.payment_prefix}-000001
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Journal Prefix
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.journal_prefix}
+                      onChange={(e) => setSettings({ ...settings, journal_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="JV"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: {settings.journal_prefix}-000001
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Contra Prefix
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.contra_prefix}
+                      onChange={(e) => setSettings({ ...settings, contra_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="CNT"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: {settings.contra_prefix}-000001
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Credit Note Prefix
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.credit_note_prefix}
+                      onChange={(e) => setSettings({ ...settings, credit_note_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="CN"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: {settings.credit_note_prefix}-000001
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Debit Note Prefix
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.debit_note_prefix}
+                      onChange={(e) => setSettings({ ...settings, debit_note_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="DN"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: {settings.debit_note_prefix}-000001
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <FileText size={20} className="text-blue-600" />
+                  Invoice Configuration
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
