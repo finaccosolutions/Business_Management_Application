@@ -100,7 +100,11 @@ interface CategoryData {
 
 type DateFilterPreset = 'today' | 'last7days' | 'last30days' | 'last3months' | 'last6months' | 'lastyear' | 'custom' | 'all';
 
-export default function Dashboard() {
+interface DashboardProps {
+  onNavigate: (page: string) => void;
+}
+
+export default function Dashboard({ onNavigate }: DashboardProps) {
   const { user } = useAuth();
   const [stats, setStats] = useState<Stats>({
     totalLeads: 0,
@@ -804,7 +808,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <button
-          onClick={() => window.location.href = '/leads'}
+          onClick={() => onNavigate('leads')}
           className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-3">
@@ -821,7 +825,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/customers'}
+          onClick={() => onNavigate('customers')}
           className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-3">
@@ -838,7 +842,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/works'}
+          onClick={() => onNavigate('works')}
           className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-3">
@@ -855,7 +859,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/invoices'}
+          onClick={() => onNavigate('invoices-list')}
           className="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-3">
@@ -874,7 +878,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
         <button
-          onClick={() => window.location.href = '/works'}
+          onClick={() => onNavigate('works')}
           className="bg-white rounded-lg shadow border-l-4 border-l-yellow-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -885,7 +889,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/works'}
+          onClick={() => onNavigate('works')}
           className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -896,7 +900,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/works'}
+          onClick={() => onNavigate('works')}
           className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -907,7 +911,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/works'}
+          onClick={() => onNavigate('works')}
           className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -918,7 +922,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/invoices'}
+          onClick={() => onNavigate('invoices-list')}
           className="bg-white rounded-lg shadow border-l-4 border-l-cyan-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -929,7 +933,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/invoices'}
+          onClick={() => onNavigate('invoices-list')}
           className="bg-white rounded-lg shadow border-l-4 border-l-emerald-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -940,7 +944,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/invoices'}
+          onClick={() => onNavigate('invoices-list')}
           className="bg-white rounded-lg shadow border-l-4 border-l-orange-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -951,7 +955,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/invoices'}
+          onClick={() => onNavigate('invoices-list')}
           className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -962,7 +966,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/staff'}
+          onClick={() => onNavigate('staff')}
           className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -973,7 +977,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/staff'}
+          onClick={() => onNavigate('staff')}
           className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -984,7 +988,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/services'}
+          onClick={() => onNavigate('services')}
           className="bg-white rounded-lg shadow border-l-4 border-l-rose-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">
@@ -995,7 +999,7 @@ export default function Dashboard() {
         </button>
 
         <button
-          onClick={() => window.location.href = '/services'}
+          onClick={() => onNavigate('services')}
           className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-2">

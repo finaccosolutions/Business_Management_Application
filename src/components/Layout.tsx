@@ -46,7 +46,6 @@ const navigation = [
   },
   { name: 'Reports', icon: BarChart3, id: 'reports' },
   { name: 'Reminders', icon: Bell, id: 'reminders' },
-  { name: 'Overdue Report', icon: AlertTriangle, id: 'overdue-report' },
 ];
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {

@@ -136,7 +136,8 @@ export default function Reminders() {
         .select(`
           *,
           customers (name, email, phone),
-          services (name)
+          services (name),
+          staff_members (name)
         `)
         .eq('user_id', user?.id)
         .in('status', ['pending', 'in_progress'])
@@ -148,6 +149,7 @@ export default function Reminders() {
           const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
           let urgency: 'critical' | 'high' | 'medium' | 'low' = 'low';
+          const isOverdue = daysUntil < 0;
           if (daysUntil < 0) urgency = 'critical';
           else if (daysUntil === 0) urgency = 'critical';
           else if (daysUntil === 1) urgency = 'high';
@@ -157,13 +159,21 @@ export default function Reminders() {
 
           alertsList.push({
             id: work.id,
-            type: 'work',
+            type: isOverdue ? 'overdue_work' : 'work',
             title: `${statusLabel}: ${work.services?.name || 'Service'} - ${work.customers?.name || 'Customer'}`,
-            description: `Due ${daysUntil < 0 ? Math.abs(daysUntil) + ' days overdue' : daysUntil === 0 ? 'today' : 'in ' + daysUntil + ' days'}`,
+            description: `Due ${daysUntil < 0 ? Math.abs(daysUntil) + ' days overdue' : daysUntil === 0 ? 'today' : 'in ' + daysUntil + ' days'}${work.overdue_reason ? ' - Reason: ' + work.overdue_reason : ''}`,
             date: work.due_date,
             urgency,
-            category: 'Works & Tasks',
-            metadata: { customer: work.customers, service: work.services, status: work.status },
+            category: isOverdue ? 'Overdue Works' : 'Works & Tasks',
+            metadata: {
+              customer: work.customers,
+              service: work.services,
+              status: work.status,
+              assigned_to: work.staff_members?.name,
+              overdue_reason: work.overdue_reason,
+              priority: work.priority,
+              days_overdue: isOverdue ? Math.abs(daysUntil) : 0,
+            },
           });
         }
       });
@@ -658,7 +668,7 @@ export default function Reminders() {
   const categoryGroups = {
     'Lead Management': ['Lead Follow-ups', 'Lead Management'],
     'Customer Relations': ['Customer Engagement', 'Data Quality'],
-    'Work & Projects': ['Works & Tasks', 'Work Scheduling'],
+    'Work & Projects': ['Works & Tasks', 'Work Scheduling', 'Overdue Works'],
     'Financial': ['Payments & Invoices', 'Upcoming Payments', 'Billing Required', 'Overdue Payments'],
     'Staff & Team': ['Staff Performance', 'Staff Workload'],
     'General': ['Manual Reminders']
