@@ -39,7 +39,7 @@ interface Service {
   recurrence_type: string;
   default_price: number;
   created_at: string;
-  income_ledger_id: string | null;
+  income_account_id: string | null;
 }
 
 interface CustomerService {
@@ -140,12 +140,12 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
     try {
       const { error } = await supabase
         .from('services')
-        .update({ income_ledger_id: ledgerId })
+        .update({ income_account_id: ledgerId })
         .eq('id', serviceId);
 
       if (error) throw error;
 
-      setService(service ? { ...service, income_ledger_id: ledgerId } : null);
+      setService(service ? { ...service, income_account_id: ledgerId } : null);
       toast.success('Income ledger mapping updated successfully');
     } catch (error: any) {
       console.error('Error updating income ledger:', error);
@@ -450,7 +450,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                       </div>
                     )}
                   </div>
-                  {service.income_ledger_id && (
+                  {service.income_account_id && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <label className="text-sm font-medium text-gray-500">Income Ledger Mapping</label>
                       <p className="text-gray-900 mt-1">
@@ -633,7 +633,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                     Income Ledger for this Service
                   </label>
                   <select
-                    value={service?.income_ledger_id || ''}
+                    value={service?.income_account_id || ''}
                     onChange={(e) => handleUpdateIncomeLedger(e.target.value || null)}
                     disabled={savingLedgerMap}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"

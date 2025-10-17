@@ -33,8 +33,8 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
   const { user } = useAuth();
   const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [ledgers, setLedgers] = useState<any[]>([]);
-  const [cashBankLedgerId, setCashBankLedgerId] = useState<string>('');
+  const [cashBankAccountId, setCashBankAccountId] = useState<string>('');
+  const [paymentReceiptType, setPaymentReceiptType] = useState<'cash' | 'bank'>('cash');
   const [formData, setFormData] = useState({
     voucher_type_id: selectedTypeId || '',
     voucher_number: '',
@@ -46,19 +46,30 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
 
   const [entries, setEntries] = useState<VoucherEntry[]>([
     { account_id: '', debit_amount: '0', credit_amount: '0', narration: '' },
-    { account_id: '', debit_amount: '0', credit_amount: '0', narration: '' },
   ]);
 
   useEffect(() => {
     fetchAccounts();
-    fetchLedgersAndSettings();
+    fetchSettings();
   }, []);
 
   useEffect(() => {
     if (formData.voucher_type_id) {
       generateVoucherNumber(formData.voucher_type_id);
+      setupVoucherEntries();
     }
   }, [formData.voucher_type_id]);
+
+  const setupVoucherEntries = () => {
+    if (isPaymentVoucher() || isReceiptVoucher()) {
+      setEntries([{ account_id: '', debit_amount: '0', credit_amount: '0', narration: '' }]);
+    } else {
+      setEntries([
+        { account_id: '', debit_amount: '0', credit_amount: '0', narration: '' },
+        { account_id: '', debit_amount: '0', credit_amount: '0', narration: '' },
+      ]);
+    }
+  };
 
   const fetchAccounts = async () => {
     try {
@@ -76,23 +87,26 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
     }
   };
 
-  const fetchLedgersAndSettings = async () => {
+  const fetchSettings = async () => {
     try {
-      const [ledgersResult, settingsResult] = await Promise.all([
-        supabase.from('ledgers').select('id, name').order('name'),
-        supabase.from('company_settings').select('default_cash_ledger_id, default_bank_ledger_id, default_payment_receipt_type').eq('user_id', user!.id).maybeSingle()
-      ]);
+      const { data: settings, error } = await supabase
+        .from('company_settings')
+        .select('default_cash_ledger_id, default_bank_ledger_id, default_payment_receipt_type')
+        .eq('user_id', user!.id)
+        .maybeSingle();
 
-      if (ledgersResult.data) setLedgers(ledgersResult.data);
+      if (error) throw error;
 
-      if (settingsResult.data) {
-        const ledgerId = settingsResult.data.default_payment_receipt_type === 'bank'
-          ? settingsResult.data.default_bank_ledger_id
-          : settingsResult.data.default_cash_ledger_id;
-        if (ledgerId) setCashBankLedgerId(ledgerId);
+      if (settings) {
+        const type = settings.default_payment_receipt_type || 'cash';
+        setPaymentReceiptType(type);
+        const accountId = type === 'bank'
+          ? settings.default_bank_ledger_id
+          : settings.default_cash_ledger_id;
+        if (accountId) setCashBankAccountId(accountId);
       }
     } catch (error) {
-      console.error('Error fetching ledgers and settings:', error);
+      console.error('Error fetching settings:', error);
     }
   };
 
@@ -143,7 +157,8 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
   };
 
   const removeEntry = (index: number) => {
-    if (entries.length > 2) {
+    const minEntries = (isPaymentVoucher() || isReceiptVoucher()) ? 1 : 2;
+    if (entries.length > minEntries) {
       setEntries(entries.filter((_, i) => i !== index));
     }
   };
@@ -163,19 +178,92 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const { totalDebit, totalCredit, difference } = calculateTotals();
-
-    if (Math.abs(difference) > 0.01) {
-      toast.error('Debit and Credit amounts must be equal');
+    // Validate entries
+    if (entries.length === 0 || !entries.some(e => e.account_id && (parseFloat(e.debit_amount) > 0 || parseFloat(e.credit_amount) > 0))) {
+      toast.error('Please add at least one entry');
       return;
     }
 
-    if (totalDebit === 0 || totalCredit === 0) {
-      toast.error('Please enter valid amounts');
+    // For payment/receipt vouchers, check cash/bank account is configured
+    if ((isPaymentVoucher() || isReceiptVoucher()) && !cashBankAccountId) {
+      toast.error('Please configure default cash/bank account in Settings');
       return;
     }
 
     try {
+      // Build entries list
+      let entriesData: any[] = [];
+
+      if (isPaymentVoucher()) {
+        // Payment: User entries are DEBIT (expenses), Cash/Bank is CREDIT
+        const userEntries = entries
+          .filter((entry) => entry.account_id && parseFloat(entry.debit_amount) > 0)
+          .map((entry) => ({
+            account_id: entry.account_id,
+            debit_amount: parseFloat(entry.debit_amount),
+            credit_amount: 0,
+            narration: entry.narration || formData.narration,
+          }));
+
+        const totalAmount = userEntries.reduce((sum, e) => sum + e.debit_amount, 0);
+
+        entriesData = [
+          ...userEntries,
+          {
+            account_id: cashBankAccountId,
+            debit_amount: 0,
+            credit_amount: totalAmount,
+            narration: `Payment via ${paymentReceiptType}`,
+          },
+        ];
+      } else if (isReceiptVoucher()) {
+        // Receipt: User entries are CREDIT (income/customer), Cash/Bank is DEBIT
+        const userEntries = entries
+          .filter((entry) => entry.account_id && parseFloat(entry.credit_amount) > 0)
+          .map((entry) => ({
+            account_id: entry.account_id,
+            debit_amount: 0,
+            credit_amount: parseFloat(entry.credit_amount),
+            narration: entry.narration || formData.narration,
+          }));
+
+        const totalAmount = userEntries.reduce((sum, e) => sum + e.credit_amount, 0);
+
+        entriesData = [
+          {
+            account_id: cashBankAccountId,
+            debit_amount: totalAmount,
+            credit_amount: 0,
+            narration: `Receipt via ${paymentReceiptType}`,
+          },
+          ...userEntries,
+        ];
+      } else {
+        // Regular journal voucher: validate debit = credit
+        const { totalDebit, totalCredit, difference } = calculateTotals();
+
+        if (Math.abs(difference) > 0.01) {
+          toast.error('Debit and Credit amounts must be equal');
+          return;
+        }
+
+        if (totalDebit === 0 || totalCredit === 0) {
+          toast.error('Please enter valid amounts');
+          return;
+        }
+
+        entriesData = entries
+          .filter((entry) => entry.account_id && (parseFloat(entry.debit_amount) > 0 || parseFloat(entry.credit_amount) > 0))
+          .map((entry) => ({
+            account_id: entry.account_id,
+            debit_amount: parseFloat(entry.debit_amount || '0'),
+            credit_amount: parseFloat(entry.credit_amount || '0'),
+            narration: entry.narration,
+          }));
+      }
+
+      const totalAmount = entriesData.reduce((sum, e) => sum + Math.max(e.debit_amount, e.credit_amount), 0) / 2;
+
       const voucherData = {
         user_id: user!.id,
         voucher_type_id: formData.voucher_type_id,
@@ -183,7 +271,7 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
         voucher_date: formData.voucher_date,
         reference_number: formData.reference_number,
         narration: formData.narration,
-        total_amount: totalDebit,
+        total_amount: totalAmount,
         status: formData.status,
         created_by: user!.id,
       };
@@ -196,19 +284,14 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
 
       if (voucherError) throw voucherError;
 
-      const entriesData = entries
-        .filter((entry) => entry.account_id && (parseFloat(entry.debit_amount) > 0 || parseFloat(entry.credit_amount) > 0))
-        .map((entry) => ({
-          voucher_id: voucher.id,
-          account_id: entry.account_id,
-          debit_amount: parseFloat(entry.debit_amount || '0'),
-          credit_amount: parseFloat(entry.credit_amount || '0'),
-          narration: entry.narration,
-        }));
+      const finalEntriesData = entriesData.map((entry) => ({
+        ...entry,
+        voucher_id: voucher.id,
+      }));
 
       const { error: entriesError } = await supabase
         .from('voucher_entries')
-        .insert(entriesData);
+        .insert(finalEntriesData);
 
       if (entriesError) throw entriesError;
 
@@ -332,13 +415,28 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
                 </button>
               </div>
 
+              {(isPaymentVoucher() || isReceiptVoucher()) && cashBankAccountId && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    {isPaymentVoucher() ? (
+                      <><strong>Payment Voucher:</strong> Cash/Bank will be automatically <strong>CREDITED</strong> (money going out). Select debit accounts below.</>
+                    ) : (
+                      <><strong>Receipt Voucher:</strong> Cash/Bank will be automatically <strong>DEBITED</strong> (money coming in). Select credit accounts below.</>
+                    )}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Using: {accounts.find(a => a.id === cashBankAccountId)?.account_name || 'Default Cash/Bank Account'}
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {entries.map((entry, index) => (
                   <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="grid grid-cols-12 gap-3 items-center">
                       <div className="col-span-12 md:col-span-4">
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Account *
+                          {isPaymentVoucher() ? 'Debit Account (Expense/Payable) *' : isReceiptVoucher() ? 'Credit Account (Customer/Income) *' : 'Account *'}
                         </label>
                         <select
                           value={entry.account_id}
@@ -357,34 +455,47 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
 
                       <div className="col-span-5 md:col-span-3">
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Debit (₹)
+                          {isPaymentVoucher() || isReceiptVoucher() ? 'Amount (₹) *' : 'Debit (₹)'}
                         </label>
                         <input
                           type="number"
                           step="0.01"
-                          value={entry.debit_amount}
-                          onChange={(e) => updateEntry(index, 'debit_amount', e.target.value)}
+                          value={isPaymentVoucher() ? entry.debit_amount : isReceiptVoucher() ? entry.credit_amount : entry.debit_amount}
+                          onChange={(e) => {
+                            if (isPaymentVoucher()) {
+                              updateEntry(index, 'debit_amount', e.target.value);
+                              updateEntry(index, 'credit_amount', '0');
+                            } else if (isReceiptVoucher()) {
+                              updateEntry(index, 'credit_amount', e.target.value);
+                              updateEntry(index, 'debit_amount', '0');
+                            } else {
+                              updateEntry(index, 'debit_amount', e.target.value);
+                            }
+                          }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                           placeholder="0.00"
+                          required={isPaymentVoucher() || isReceiptVoucher()}
                         />
                       </div>
 
-                      <div className="col-span-5 md:col-span-3">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Credit (₹)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={entry.credit_amount}
-                          onChange={(e) => updateEntry(index, 'credit_amount', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                          placeholder="0.00"
-                        />
-                      </div>
+                      {!isPaymentVoucher() && !isReceiptVoucher() && (
+                        <div className="col-span-5 md:col-span-3">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Credit (₹)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={entry.credit_amount}
+                            onChange={(e) => updateEntry(index, 'credit_amount', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      )}
 
                       <div className="col-span-2 md:col-span-2 flex items-end justify-center">
-                        {entries.length > 2 && (
+                        {((isPaymentVoucher() || isReceiptVoucher()) ? entries.length > 1 : entries.length > 2) && (
                           <button
                             type="button"
                             onClick={() => removeEntry(index)}
