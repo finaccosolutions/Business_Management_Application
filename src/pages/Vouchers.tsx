@@ -4,7 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Plus, FileText, Search, Filter, X, Eye, Edit2, Trash2, Calendar } from 'lucide-react';
 import { useConfirmation } from '../contexts/ConfirmationContext';
-import VoucherModal from '../components/accounting/VoucherModal';
+import PaymentVoucherModal from '../components/accounting/PaymentVoucherModal';
+import ReceiptVoucherModal from '../components/accounting/ReceiptVoucherModal';
+import JournalVoucherModal from '../components/accounting/JournalVoucherModal';
 import SetupVoucherTypes from '../components/accounting/SetupVoucherTypes';
 import InvoiceFormModal from '../components/InvoiceFormModal';
 import { formatDateDisplay } from '../lib/dateUtils';
@@ -76,6 +78,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
+  const [selectedVoucherType, setSelectedVoucherType] = useState<VoucherType | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -218,6 +221,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
           </div>
           <button
             onClick={() => {
+              setSelectedVoucherType(selectedType || null);
               setShowModal(true);
             }}
             className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
@@ -353,7 +357,11 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No vouchers found</h3>
               <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first voucher to get started</p>
               <button
-                onClick={() => setShowModal(true)}
+                onClick={() => {
+                  const selectedType = voucherTypes.find(t => t.id === selectedTypeId);
+                  setSelectedVoucherType(selectedType || null);
+                  setShowModal(true);
+                }}
                 className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-5 h-5" />
@@ -363,15 +371,38 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
           )}
         </div>
 
-        {showModal && voucherTypes.length > 0 && (
-          <VoucherModal
-            onClose={() => {
-              setShowModal(false);
-              fetchData();
-            }}
-            voucherTypes={voucherTypes}
-            selectedTypeId={selectedTypeId || undefined}
-          />
+        {showModal && selectedVoucherType && (
+          <>
+            {selectedVoucherType.code === 'PAYMENT' ? (
+              <PaymentVoucherModal
+                onClose={() => {
+                  setShowModal(false);
+                  setSelectedVoucherType(null);
+                  fetchData();
+                }}
+                voucherTypeId={selectedVoucherType.id}
+              />
+            ) : selectedVoucherType.code === 'RECEIPT' ? (
+              <ReceiptVoucherModal
+                onClose={() => {
+                  setShowModal(false);
+                  setSelectedVoucherType(null);
+                  fetchData();
+                }}
+                voucherTypeId={selectedVoucherType.id}
+              />
+            ) : (
+              <JournalVoucherModal
+                onClose={() => {
+                  setShowModal(false);
+                  setSelectedVoucherType(null);
+                  fetchData();
+                }}
+                voucherTypeId={selectedVoucherType.id}
+                voucherTypeName={selectedVoucherType.name}
+              />
+            )}
+          </>
         )}
 
         {selectedVoucher && (
