@@ -43,6 +43,18 @@ interface CompanySettings {
   invoice_notes: string;
   currency: string;
   currency_symbol: string;
+  default_cash_ledger_id: string | null;
+  default_bank_ledger_id: string | null;
+  default_income_ledger_id: string | null;
+  default_discount_ledger_id: string | null;
+  default_payment_receipt_type: 'cash' | 'bank';
+}
+
+interface Ledger {
+  id: string;
+  account_code: string;
+  account_name: string;
+  account_groups: { account_type: string };
 }
 
 export default function Settings() {
@@ -50,7 +62,9 @@ export default function Settings() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'company' | 'bank' | 'invoice'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'bank' | 'invoice' | 'ledgers'>('company');
+  const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  const [ledgerSearchTerm, setLedgerSearchTerm] = useState('');
   const [settings, setSettings] = useState<CompanySettings>({
     company_name: '',
     company_logo_url: '',
@@ -75,6 +89,11 @@ export default function Settings() {
     invoice_notes: 'Thank you for your business!',
     currency: 'INR',
     currency_symbol: '₹',
+    default_cash_ledger_id: null,
+    default_bank_ledger_id: null,
+    default_income_ledger_id: null,
+    default_discount_ledger_id: null,
+    default_payment_receipt_type: 'cash',
   });
 
   useEffect(() => {
@@ -85,17 +104,26 @@ export default function Settings() {
 
   const fetchSettings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('company_settings')
-        .select('*')
-        .eq('user_id', user?.id)
-        .maybeSingle();
+      const [settingsResult, ledgersResult] = await Promise.all([
+        supabase
+          .from('company_settings')
+          .select('*')
+          .eq('user_id', user?.id)
+          .maybeSingle(),
+        supabase
+          .from('chart_of_accounts')
+          .select('id, account_code, account_name, account_groups(account_type)')
+          .eq('is_active', true)
+          .order('account_name')
+      ]);
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (settingsResult.error && settingsResult.error.code !== 'PGRST116') throw settingsResult.error;
+      if (ledgersResult.error) throw ledgersResult.error;
 
-      if (data) {
-        setSettings(data);
+      if (settingsResult.data) {
+        setSettings(settingsResult.data);
       }
+      setLedgers(ledgersResult.data || []);
     } catch (error: any) {
       console.error('Error fetching settings:', error.message);
       toast.error('Failed to load settings');
@@ -206,6 +234,17 @@ export default function Settings() {
           >
             <FileText size={20} />
             Invoice Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('ledgers')}
+            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+              activeTab === 'ledgers'
+                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Landmark size={20} />
+            Ledger Mapping
           </button>
         </div>
 
@@ -605,6 +644,181 @@ export default function Settings() {
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'ledgers' && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border-2 border-blue-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <Landmark size={20} className="text-blue-600" />
+                  Ledger Mapping Configuration
+                </h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  Map default ledgers for automatic voucher creation and invoicing. These settings help streamline your accounting workflow.
+                </p>
+                <div className="bg-white border border-blue-200 rounded-lg p-4">
+                  <p className="text-xs text-gray-700 font-medium mb-2">How it works:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs text-gray-600">
+                    <li>Set default ledgers for common transactions</li>
+                    <li>When creating receipts/payments, mapped ledgers are auto-filled</li>
+                    <li>When invoices are marked as paid, receipt vouchers are auto-created</li>
+                    <li>Service-specific income ledgers override company defaults</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Default Payment Ledgers</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  These ledgers are used for receipt and payment vouchers
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Default Cash Ledger
+                    </label>
+                    <select
+                      value={settings.default_cash_ledger_id || ''}
+                      onChange={(e) => setSettings({ ...settings, default_cash_ledger_id: e.target.value || null })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">-- Select Cash Ledger --</option>
+                      {ledgers
+                        .filter((l) => l.account_groups.account_type === 'asset')
+                        .map((ledger) => (
+                        <option key={ledger.id} value={ledger.id}>
+                          {ledger.account_code} - {ledger.account_name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Used for cash transactions (e.g., Cash in Hand)
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Default Bank Ledger
+                    </label>
+                    <select
+                      value={settings.default_bank_ledger_id || ''}
+                      onChange={(e) => setSettings({ ...settings, default_bank_ledger_id: e.target.value || null })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">-- Select Bank Ledger --</option>
+                      {ledgers
+                        .filter((l) => l.account_groups.account_type === 'asset')
+                        .map((ledger) => (
+                        <option key={ledger.id} value={ledger.id}>
+                          {ledger.account_code} - {ledger.account_name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Used for bank transactions (e.g., Bank Account)
+                    </p>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Default Receipt/Payment Type
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="payment_type"
+                          value="cash"
+                          checked={settings.default_payment_receipt_type === 'cash'}
+                          onChange={(e) => setSettings({ ...settings, default_payment_receipt_type: 'cash' })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">Cash</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="payment_type"
+                          value="bank"
+                          checked={settings.default_payment_receipt_type === 'bank'}
+                          onChange={(e) => setSettings({ ...settings, default_payment_receipt_type: 'bank' })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">Bank</span>
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Default type for auto-created receipts when invoices are marked as paid
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Income & Discount Ledgers</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  These ledgers are used for invoice creation and discounts
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Default Income Ledger
+                    </label>
+                    <select
+                      value={settings.default_income_ledger_id || ''}
+                      onChange={(e) => setSettings({ ...settings, default_income_ledger_id: e.target.value || null })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">-- Select Income Ledger --</option>
+                      {ledgers
+                        .filter((l) => l.account_groups.account_type === 'income')
+                        .map((ledger) => (
+                        <option key={ledger.id} value={ledger.id}>
+                          {ledger.account_code} - {ledger.account_name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Used for service income when creating invoices
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Default Discount Ledger
+                    </label>
+                    <select
+                      value={settings.default_discount_ledger_id || ''}
+                      onChange={(e) => setSettings({ ...settings, default_discount_ledger_id: e.target.value || null })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">-- Select Discount Ledger --</option>
+                      {ledgers
+                        .filter((l) => l.account_groups.account_type === 'expense')
+                        .map((ledger) => (
+                        <option key={ledger.id} value={ledger.id}>
+                          {ledger.account_code} - {ledger.account_name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Used for invoice discounts
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-900 font-medium mb-2">Note:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
+                  <li>Service-specific income ledgers (configured in Service Details) override company defaults</li>
+                  <li>Receipt vouchers are auto-created when invoices are marked as paid (if ledgers are mapped)</li>
+                  <li>Payment and receipt vouchers use these default ledgers for auto-filling</li>
+                </ul>
               </div>
             </div>
           )}

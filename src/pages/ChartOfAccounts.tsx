@@ -74,6 +74,7 @@ export default function ChartOfAccounts() {
   const [groupSearchQuery, setGroupSearchQuery] = useState('');
   const [groupFilterType, setGroupFilterType] = useState('all');
   const [groupViewMode, setGroupViewMode] = useState<'table' | 'cards' | 'tree'>('table');
+  const [groupSearchTerm, setGroupSearchTerm] = useState('');
 
   const [formData, setFormData] = useState({
     account_code: '',
@@ -300,9 +301,23 @@ export default function ChartOfAccounts() {
     });
   };
 
-  const resetForm = () => {
+  const generateLedgerCode = async () => {
+    try {
+      const { data, error } = await supabase.rpc('generate_ledger_code', {
+        p_user_id: user!.id
+      });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error generating ledger code:', error);
+      return '';
+    }
+  };
+
+  const resetForm = async () => {
+    const newCode = await generateLedgerCode();
     setFormData({
-      account_code: '',
+      account_code: newCode,
       account_name: '',
       account_group_id: '',
       opening_balance: '0',
@@ -500,8 +515,8 @@ export default function ChartOfAccounts() {
           )}
           {activeTab === 'ledgers' && (
             <button
-              onClick={() => {
-                resetForm();
+              onClick={async () => {
+                await resetForm();
                 setShowModal(true);
               }}
               className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
@@ -991,33 +1006,58 @@ export default function ChartOfAccounts() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Ledger Code *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.account_code}
-                    onChange={(e) => setFormData({ ...formData, account_code: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                    placeholder="e.g., 1000"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={formData.account_code}
+                      onChange={(e) => setFormData({ ...formData, account_code: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white bg-gray-50 dark:bg-slate-600"
+                      placeholder="Auto-generated"
+                      readOnly={!editingAccount}
+                    />
+                    {!editingAccount && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Code is auto-generated
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Account Group *
                   </label>
-                  <select
-                    required
-                    value={formData.account_group_id}
-                    onChange={(e) => setFormData({ ...formData, account_group_id: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                  >
-                    <option value="">Select group</option>
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name} ({group.account_type})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
+                    <input
+                      type="text"
+                      value={groupSearchTerm}
+                      onChange={(e) => setGroupSearchTerm(e.target.value)}
+                      placeholder="Search groups..."
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white mb-2"
+                    />
+                    <select
+                      required
+                      value={formData.account_group_id}
+                      onChange={(e) => setFormData({ ...formData, account_group_id: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                      size={6}
+                    >
+                      <option value="">Select group</option>
+                      {groups
+                        .filter((group) =>
+                          groupSearchTerm === '' ||
+                          group.name.toLowerCase().includes(groupSearchTerm.toLowerCase()) ||
+                          group.account_type.toLowerCase().includes(groupSearchTerm.toLowerCase())
+                        )
+                        .map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name} ({group.account_type})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -1128,41 +1168,24 @@ export default function ChartOfAccounts() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Account Type *
-                  </label>
-                  <select
-                    required
-                    value={groupFormData.account_type}
-                    onChange={(e) =>
-                      setGroupFormData({ ...groupFormData, account_type: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                  >
-                    <option value="asset">Asset</option>
-                    <option value="liability">Liability</option>
-                    <option value="income">Income</option>
-                    <option value="expense">Expense</option>
-                    <option value="equity">Equity</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Display Order
-                  </label>
-                  <input
-                    type="number"
-                    value={groupFormData.display_order}
-                    onChange={(e) =>
-                      setGroupFormData({ ...groupFormData, display_order: parseInt(e.target.value) || 0 })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                    placeholder="0"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Account Type *
+                </label>
+                <select
+                  required
+                  value={groupFormData.account_type}
+                  onChange={(e) =>
+                    setGroupFormData({ ...groupFormData, account_type: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                >
+                  <option value="asset">Asset</option>
+                  <option value="liability">Liability</option>
+                  <option value="income">Income</option>
+                  <option value="expense">Expense</option>
+                  <option value="equity">Equity</option>
+                </select>
               </div>
 
               <div>

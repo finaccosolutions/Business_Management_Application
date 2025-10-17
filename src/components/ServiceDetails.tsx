@@ -38,6 +38,7 @@ interface Service {
   recurrence_type: string;
   default_price: number;
   created_at: string;
+  income_ledger_id: string | null;
 }
 
 interface CustomerService {
@@ -410,6 +411,17 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                       </div>
                     )}
                   </div>
+                  {service.income_ledger_id && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <label className="text-sm font-medium text-gray-500">Income Ledger Mapping</label>
+                      <p className="text-gray-900 mt-1">
+                        Custom ledger configured (overrides company default)
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Income from this service will be credited to the configured ledger
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
