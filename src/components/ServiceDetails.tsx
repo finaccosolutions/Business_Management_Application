@@ -117,20 +117,15 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
 
   const fetchServiceDetails = async () => {
     try {
-      const [serviceRes, customerServicesRes, worksRes, tasksRes, documentsRes] = await Promise.all([
+      const [serviceRes, worksRes, tasksRes, documentsRes] = await Promise.all([
         supabase
           .from('services')
           .select('*')
           .eq('id', serviceId)
           .single(),
         supabase
-          .from('customer_services')
-          .select('*, customers(id, name, email)')
-          .eq('service_id', serviceId)
-          .order('created_at', { ascending: false }),
-        supabase
           .from('works')
-          .select('*, customers(name)')
+          .select('*, customers(id, name, email)')
           .eq('service_id', serviceId)
           .order('created_at', { ascending: false }),
         supabase
@@ -146,28 +141,48 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
       ]);
 
       if (serviceRes.error) throw serviceRes.error;
-      if (customerServicesRes.error) throw customerServicesRes.error;
       if (worksRes.error) throw worksRes.error;
       if (tasksRes.error) throw tasksRes.error;
       if (documentsRes.error) throw documentsRes.error;
 
       setService(serviceRes.data);
-      setCustomerServices(customerServicesRes.data || []);
       setWorks(worksRes.data || []);
       setServiceTasks(tasksRes.data || []);
       setServiceDocuments(documentsRes.data || []);
 
-      const allCustomerServices = customerServicesRes.data || [];
-      const activeCS = allCustomerServices.filter((cs) => cs.status === 'active');
-      const totalRevenue = allCustomerServices.reduce((sum, cs) => sum + (cs.price || 0), 0);
-      const avgPrice = allCustomerServices.length > 0 ? totalRevenue / allCustomerServices.length : 0;
+      const uniqueCustomers = new Map();
+      worksRes.data?.forEach((work: any) => {
+        if (work.customers && work.customer_id) {
+          if (!uniqueCustomers.has(work.customer_id)) {
+            uniqueCustomers.set(work.customer_id, {
+              id: work.customer_id,
+              customer_id: work.customer_id,
+              price: 0,
+              start_date: work.created_at,
+              end_date: null,
+              status: 'active',
+              customers: {
+                id: work.customer_id,
+                name: work.customers.name,
+                email: work.customers.email || ''
+              }
+            });
+          }
+        }
+      });
+
+      const customerServicesList = Array.from(uniqueCustomers.values());
+      setCustomerServices(customerServicesList);
+
+      const totalRevenue = 0;
+      const avgPrice = 0;
 
       const allWorks = worksRes.data || [];
       const completed = allWorks.filter((w) => w.status === 'completed');
 
       setStatistics({
-        totalCustomers: allCustomerServices.length,
-        activeCustomers: activeCS.length,
+        totalCustomers: uniqueCustomers.size,
+        activeCustomers: uniqueCustomers.size,
         totalWorks: allWorks.length,
         completedWorks: completed.length,
         totalRevenue,

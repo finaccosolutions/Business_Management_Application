@@ -230,10 +230,31 @@ export default function CustomerDetails({
       setNotes(notesRes.data || []);
       setActivities(activitiesRes.data || []);
 
+      const uniqueServiceIds = [...new Set(worksRes.data?.map((w: any) => w.service_id).filter(Boolean) || [])];
+      if (uniqueServiceIds.length > 0 && (!servicesRes.data || servicesRes.data.length === 0)) {
+        const { data: servicesFromWorks } = await supabase
+          .from('services')
+          .select('id, name, description, default_price')
+          .in('id', uniqueServiceIds);
+
+        if (servicesFromWorks) {
+          const servicesList = servicesFromWorks.map(s => ({
+            id: s.id,
+            service_id: s.id,
+            price: s.default_price || 0,
+            start_date: '',
+            end_date: null,
+            status: 'active',
+            services: { name: s.name, description: s.description || '' }
+          }));
+          setServices(servicesList as CustomerService[]);
+        }
+      }
+
       const totalInvoiced = invoicesRes.data?.reduce((sum, inv) => sum + inv.total_amount, 0) || 0;
       const totalPaid = invoicesRes.data?.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.total_amount, 0) || 0;
       const totalPending = totalInvoiced - totalPaid;
-      const activeServices = servicesRes.data?.filter(s => s.status === 'active').length || 0;
+      const activeServices = uniqueServiceIds.length || servicesRes.data?.filter(s => s.status === 'active').length || 0;
       const completedWorks = worksRes.data?.filter(w => w.status === 'completed').length || 0;
       const pendingWorks = worksRes.data?.filter(w => w.status !== 'completed').length || 0;
 
@@ -438,11 +459,21 @@ export default function CustomerDetails({
           )}
 
           {activeTab === 'services' && (
-            <ServicesTab services={services} customerId={customerId} onUpdate={fetchCustomerDetails} />
+            <ServicesTab
+              services={services}
+              customerId={customerId}
+              onUpdate={fetchCustomerDetails}
+              onNavigateToService={onNavigateToService}
+            />
           )}
 
           {activeTab === 'works' && (
-            <WorksTab works={works} customerId={customerId} onUpdate={fetchCustomerDetails} />
+            <WorksTab
+              works={works}
+              customerId={customerId}
+              onUpdate={fetchCustomerDetails}
+              onNavigateToWork={onNavigateToWork}
+            />
           )}
 
           {activeTab === 'invoices' && (
@@ -705,10 +736,12 @@ function ServicesTab({
   services,
   customerId,
   onUpdate,
+  onNavigateToService,
 }: {
   services: CustomerService[];
   customerId: string;
   onUpdate: () => void;
+  onNavigateToService?: (serviceId: string) => void;
 }) {
   const statusColors: Record<string, string> = {
     active: 'bg-green-100 text-green-700',
@@ -811,10 +844,12 @@ function WorksTab({
   works,
   customerId,
   onUpdate,
+  onNavigateToWork,
 }: {
   works: Work[];
   customerId: string;
   onUpdate: () => void;
+  onNavigateToWork?: (workId: string) => void;
 }) {
   const [filterStatus, setFilterStatus] = useState('all');
 

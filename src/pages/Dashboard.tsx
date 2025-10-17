@@ -803,7 +803,10 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white">
+        <button
+          onClick={() => window.location.href = '/leads'}
+          className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-3">
             <Users className="w-10 h-10 opacity-80" />
             <div className="text-right">
@@ -815,9 +818,12 @@ export default function Dashboard() {
             <span className="text-sm">Conversion Rate</span>
             <span className="font-bold">{leadConversionRate}%</span>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+        <button
+          onClick={() => window.location.href = '/customers'}
+          className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-3">
             <UserCog className="w-10 h-10 opacity-80" />
             <div className="text-right">
@@ -829,9 +835,12 @@ export default function Dashboard() {
             <span className="text-sm">Avg Revenue</span>
             <span className="font-bold">₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString()}</span>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl shadow-lg p-6 text-white">
+        <button
+          onClick={() => window.location.href = '/works'}
+          className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-3">
             <ClipboardList className="w-10 h-10 opacity-80" />
             <div className="text-right">
@@ -843,9 +852,12 @@ export default function Dashboard() {
             <span className="text-sm">Completion Rate</span>
             <span className="font-bold">{workCompletionRate}%</span>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl shadow-lg p-6 text-white">
+        <button
+          onClick={() => window.location.href = '/invoices'}
+          className="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-3">
             <DollarSign className="w-10 h-10 opacity-80" />
             <div className="text-right">
@@ -857,105 +869,141 @@ export default function Dashboard() {
             <span className="text-sm">Collection Rate</span>
             <span className="font-bold">{invoiceCollectionRate}%</span>
           </div>
-        </div>
+        </button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-yellow-500 p-4">
+        <button
+          onClick={() => window.location.href = '/works'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-yellow-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <Clock className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Pending Works</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.pendingWorks}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4">
+        <button
+          onClick={() => window.location.href = '/works'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <Activity className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">In Progress</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.inProgressWorks}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4">
+        <button
+          onClick={() => window.location.href = '/works'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <AlertTriangle className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Overdue Works</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.overdueWorks}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4">
+        <button
+          onClick={() => window.location.href = '/works'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <CheckCircle className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Completed</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.completedWorks}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-cyan-500 p-4">
+        <button
+          onClick={() => window.location.href = '/invoices'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-cyan-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <FileText className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Total Invoices</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalInvoices}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-emerald-500 p-4">
+        <button
+          onClick={() => window.location.href = '/invoices'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-emerald-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <CheckCircle className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Paid Invoices</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.paidInvoices}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-orange-500 p-4">
+        <button
+          onClick={() => window.location.href = '/invoices'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-orange-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <Wallet className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Partially Paid</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.partiallyPaidInvoices}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4">
+        <button
+          onClick={() => window.location.href = '/invoices'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <AlertCircle className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Unpaid Invoices</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.unpaidInvoices}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4">
+        <button
+          onClick={() => window.location.href = '/staff'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <Briefcase className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Total Staff</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalStaff}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4">
+        <button
+          onClick={() => window.location.href = '/staff'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <UserCheck className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Active Staff</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeStaff}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-rose-500 p-4">
+        <button
+          onClick={() => window.location.href = '/services'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-rose-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <Package className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Total Services</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalServices}</p>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4">
+        <button
+          onClick={() => window.location.href = '/services'}
+          className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+        >
           <div className="flex items-center justify-between mb-2">
             <CheckCircle className="w-5 h-5 text-gray-600" />
           </div>
           <p className="text-xs font-medium text-gray-600 uppercase">Active Services</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeServices}</p>
-        </div>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
