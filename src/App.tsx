@@ -9,6 +9,7 @@ import Leads from './pages/Leads';
 import Customers from './pages/Customers';
 import Works from './pages/Works';
 import Invoices from './pages/Invoices';
+import InvoicesList from './pages/InvoicesList';
 import Reminders from './pages/Reminders';
 import Staff from './pages/Staff';
 import Reports from './pages/Reports';
@@ -63,8 +64,10 @@ function AppContent() {
         return <Accounting onNavigate={setCurrentPage} />;
       case 'invoices':
         return <Invoices />;
+      case 'invoices-list':
+        return <InvoicesList onBack={() => setCurrentPage('vouchers')} />;
       case 'vouchers':
-        return <Vouchers />;
+        return <Vouchers onNavigate={setCurrentPage} />;
       case 'chart-of-accounts':
         return <ChartOfAccounts />;
       case 'ledger':

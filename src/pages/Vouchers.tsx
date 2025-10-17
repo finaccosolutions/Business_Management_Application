@@ -27,17 +27,6 @@ interface Voucher {
   voucher_types: { name: string; code: string };
 }
 
-interface Invoice {
-  id: string;
-  invoice_number: string;
-  invoice_date: string;
-  due_date: string;
-  subtotal: number;
-  tax_amount: number;
-  total_amount: number;
-  status: string;
-  customers: { name: string };
-}
 
 interface VoucherTypeStats {
   type: VoucherType;
@@ -67,12 +56,17 @@ const getVoucherTypeColor = (code: string, index: number) => {
   return colors[index % colors.length];
 };
 
-export default function Vouchers() {
+interface VouchersProps {
+  onNavigate?: (page: string) => void;
+}
+
+export default function Vouchers({ onNavigate }: VouchersProps) {
   const { user } = useAuth();
   const toast = useToast();
   const { showConfirmation } = useConfirmation();
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoiceCount, setInvoiceCount] = useState(0);
+  const [invoicesTotalAmount, setInvoicesTotalAmount] = useState(0);
   const [voucherTypes, setVoucherTypes] = useState<VoucherType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -82,7 +76,6 @@ export default function Vouchers() {
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -105,7 +98,7 @@ export default function Vouchers() {
           .order('display_order', { nullsFirst: false }),
         supabase
           .from('invoices')
-          .select('*, customers(name)')
+          .select('total_amount')
           .order('created_at', { ascending: false }),
       ]);
 
@@ -115,7 +108,10 @@ export default function Vouchers() {
 
       setVouchers(vouchersResult.data || []);
       setVoucherTypes(typesResult.data || []);
-      setInvoices(invoicesResult.data || []);
+
+      const invoicesData = invoicesResult.data || [];
+      setInvoiceCount(invoicesData.length);
+      setInvoicesTotalAmount(invoicesData.reduce((sum, inv) => sum + inv.total_amount, 0));
 
       if ((typesResult.data || []).length === 0) {
         setShowSetup(true);
@@ -196,17 +192,6 @@ export default function Vouchers() {
       })
     : [];
 
-  const filteredInvoices = selectedTypeId === 'invoices'
-    ? invoices.filter((invoice) => {
-        const matchesSearch =
-          searchQuery === '' ||
-          invoice.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          invoice.customers.name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = filterStatus === 'all' || invoice.status === filterStatus;
-        return matchesSearch && matchesStatus;
-      })
-    : [];
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -217,7 +202,6 @@ export default function Vouchers() {
 
   if (selectedTypeId) {
     const selectedType = voucherTypes.find((t) => t.id === selectedTypeId);
-    const isInvoiceView = selectedTypeId === 'invoices';
 
     return (
       <div className="space-y-6">
@@ -225,34 +209,22 @@ export default function Vouchers() {
           <div>
             <button
               onClick={() => setSelectedTypeId(null)}
-              className="text-blue-600 hover:text-blue-700 mb-2 flex items-center gap-2"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-2 flex items-center gap-2 transition-colors"
             >
               ← Back to All Voucher Types
             </button>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{isInvoiceView ? 'Invoices' : selectedType?.name}</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">{isInvoiceView ? 'View all customer invoices' : `Manage ${selectedType?.name.toLowerCase()} vouchers`}</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{selectedType?.name}</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage {selectedType?.name.toLowerCase()} vouchers</p>
           </div>
-          {isInvoiceView ? (
-            <button
-              onClick={() => {
-                setShowInvoiceModal(true);
-              }}
-              className="flex items-center space-x-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-3 rounded-lg hover:from-amber-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Create Invoice</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                setShowModal(true);
-              }}
-              className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Create {selectedType?.name}</span>
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setShowModal(true);
+            }}
+            className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Create {selectedType?.name}</span>
+          </button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
@@ -294,162 +266,100 @@ export default function Vouchers() {
         )}
 
         <div className="space-y-3">
-          {isInvoiceView ? (
-            filteredInvoices.length > 0 ? (
-              filteredInvoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl shadow-sm border-2 border-amber-200 dark:border-amber-700 p-5 hover:shadow-md transition-all"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className="p-3 bg-gradient-to-br from-amber-100 to-orange-200 dark:from-amber-900/50 dark:to-orange-900/50 rounded-lg flex-shrink-0">
-                        <FileText className="w-6 h-6 text-amber-700 dark:text-amber-300" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-white">{invoice.invoice_number}</h3>
-                          <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-200 dark:bg-amber-700 text-amber-900 dark:text-amber-100">
-                            INVOICE
-                          </span>
-                          <span
-                            className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                              statusColors[invoice.status as keyof typeof statusColors]
-                            }`}
-                          >
-                            {invoice.status.toUpperCase()}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Customer</p>
-                            <p className="font-medium text-gray-900 dark:text-white">{invoice.customers.name}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Date</p>
-                            <p className="font-medium text-gray-900 dark:text-white flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                              {formatDateDisplay(invoice.invoice_date)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Amount</p>
-                            <p className="text-lg font-bold text-amber-700 dark:text-amber-400">
-                              ₹{invoice.total_amount.toLocaleString('en-IN')}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+          {filteredVouchers.map((voucher) => (
+            <div
+              key={voucher.id}
+              className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="p-3 bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-lg flex-shrink-0">
+                    <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-12 bg-gray-50 dark:bg-slate-800 rounded-xl">
-                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No invoices found</h3>
-                <p className="text-gray-600 dark:text-gray-400">Invoices will appear here</p>
-              </div>
-            )
-          ) : (
-            <>
-              {filteredVouchers.map((voucher) => (
-                <div
-                  key={voucher.id}
-                  className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5 hover:shadow-md transition-all"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className="p-3 bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-lg flex-shrink-0">
-                        <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-white">{voucher.voucher_number}</h3>
-                          <span
-                            className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                              statusColors[voucher.status as keyof typeof statusColors]
-                            }`}
-                          >
-                            {voucher.status.toUpperCase()}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Date</p>
-                            <p className="font-medium text-gray-900 dark:text-white flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                              {formatDateDisplay(voucher.voucher_date)}
-                            </p>
-                          </div>
-                          {voucher.reference_number && (
-                            <div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Reference</p>
-                              <p className="font-medium text-gray-900 dark:text-white">{voucher.reference_number}</p>
-                            </div>
-                          )}
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Amount</p>
-                            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                              ₹{voucher.total_amount.toLocaleString('en-IN')}
-                            </p>
-                          </div>
-                        </div>
-
-                        {voucher.narration && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{voucher.narration}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 flex-shrink-0">
-                      {voucher.status === 'draft' && (
-                        <button
-                          onClick={() => handlePost(voucher.id)}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors text-xs font-medium"
-                          title="Post Voucher"
-                        >
-                          Post
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setSelectedVoucher(voucher)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-xs font-medium"
-                        title="View Details"
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{voucher.voucher_number}</h3>
+                      <span
+                        className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                          statusColors[voucher.status as keyof typeof statusColors]
+                        }`}
                       >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      {voucher.status === 'draft' && (
-                        <button
-                          onClick={() => handleDelete(voucher.id)}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors text-xs font-medium"
-                          title="Delete Voucher"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                        {voucher.status.toUpperCase()}
+                      </span>
                     </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Date</p>
+                        <p className="font-medium text-gray-900 dark:text-white flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                          {formatDateDisplay(voucher.voucher_date)}
+                        </p>
+                      </div>
+                      {voucher.reference_number && (
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Reference</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{voucher.reference_number}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Amount</p>
+                        <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                          ₹{voucher.total_amount.toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {voucher.narration && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{voucher.narration}</p>
+                    )}
                   </div>
                 </div>
-              ))}
 
-              {filteredVouchers.length === 0 && (
-                <div className="text-center py-12 bg-gray-50 dark:bg-slate-800 rounded-xl">
-                  <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No vouchers found</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first voucher to get started</p>
+                <div className="flex gap-2 flex-shrink-0">
+                  {voucher.status === 'draft' && (
+                    <button
+                      onClick={() => handlePost(voucher.id)}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors text-xs font-medium"
+                      title="Post Voucher"
+                    >
+                      Post
+                    </button>
+                  )}
                   <button
-                    onClick={() => setShowModal(true)}
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={() => setSelectedVoucher(voucher)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-xs font-medium"
+                    title="View Details"
                   >
-                    <Plus className="w-5 h-5" />
-                    <span>New Voucher</span>
+                    <Eye className="w-4 h-4" />
                   </button>
+                  {voucher.status === 'draft' && (
+                    <button
+                      onClick={() => handleDelete(voucher.id)}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors text-xs font-medium"
+                      title="Delete Voucher"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-              )}
-            </>
+              </div>
+            </div>
+          ))}
+
+          {filteredVouchers.length === 0 && (
+            <div className="text-center py-12 bg-gray-50 dark:bg-slate-800 rounded-xl">
+              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No vouchers found</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first voucher to get started</p>
+              <button
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                <span>New Voucher</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -461,18 +371,6 @@ export default function Vouchers() {
             }}
             voucherTypes={voucherTypes}
             selectedTypeId={selectedTypeId || undefined}
-          />
-        )}
-
-        {showInvoiceModal && (
-          <InvoiceFormModal
-            onClose={() => {
-              setShowInvoiceModal(false);
-            }}
-            onSuccess={() => {
-              fetchData();
-              setShowInvoiceModal(false);
-            }}
           />
         )}
 
@@ -516,8 +414,9 @@ export default function Vouchers() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <button
           onClick={() => {
-            setSelectedTypeId('invoices');
-            setShowInvoiceModal(false);
+            if (onNavigate) {
+              onNavigate('invoices-list');
+            }
           }}
           className="group bg-white dark:bg-slate-800 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] overflow-hidden border-2 border-amber-300 dark:border-amber-700 text-left"
         >
@@ -528,7 +427,7 @@ export default function Vouchers() {
               </div>
               <div className="text-right">
                 <p className="text-white/80 text-sm font-medium">Total Count</p>
-                <p className="text-3xl font-bold">{invoices.length}</p>
+                <p className="text-3xl font-bold">{invoiceCount}</p>
               </div>
             </div>
             <h2 className="text-2xl font-bold">Invoices</h2>
@@ -539,7 +438,7 @@ export default function Vouchers() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Total Amount</span>
                 <span className="text-lg font-bold text-amber-600 dark:text-amber-400">
-                  ₹{invoices.reduce((sum, inv) => sum + inv.total_amount, 0).toLocaleString('en-IN')}
+                  ₹{invoicesTotalAmount.toLocaleString('en-IN')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
