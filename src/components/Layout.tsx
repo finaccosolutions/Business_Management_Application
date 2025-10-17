@@ -74,12 +74,11 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-50 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between">
-        <h1 className="text-base sm:text-xl font-bold text-white truncate mr-2">WorkFlow Pro</h1>
+      {/* Mobile Header - Only menu button and logo */}
+      <div className="lg:hidden fixed top-0 left-0 z-50 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0"
+          className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0 bg-slate-800"
           aria-label="Toggle menu"
         >
           {sidebarOpen ? (
@@ -88,6 +87,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
             <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           )}
         </button>
+        <h1 className="text-base sm:text-xl font-bold text-white ml-3">WorkFlow Pro</h1>
       </div>
 
       {/* Sidebar */}
