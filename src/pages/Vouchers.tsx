@@ -373,7 +373,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
 
         {showModal && selectedVoucherType && (
           <>
-            {selectedVoucherType.code === 'PAYMENT' ? (
+            {selectedVoucherType.code.toUpperCase() === 'PAYMENT' ? (
               <PaymentVoucherModal
                 onClose={() => {
                   setShowModal(false);
@@ -382,7 +382,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
                 }}
                 voucherTypeId={selectedVoucherType.id}
               />
-            ) : selectedVoucherType.code === 'RECEIPT' ? (
+            ) : selectedVoucherType.code.toUpperCase() === 'RECEIPT' ? (
               <ReceiptVoucherModal
                 onClose={() => {
                   setShowModal(false);
