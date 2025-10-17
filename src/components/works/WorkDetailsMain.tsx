@@ -77,12 +77,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
     fetchActivities();
   }, [workId]);
 
-  useEffect(() => {
-    if (work && work.is_recurring && recurringInstances.length > 0) {
-      checkAndCreateNextPeriod();
-    }
-  }, [work, recurringInstances]);
-
   const fetchWorkDetails = async () => {
     try {
       const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes, documentsRes, communicationsRes, notesRes] = await Promise.all([
@@ -117,7 +111,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
 
         supabase
           .from('work_recurring_instances')
-          .select('*, staff_members(name)')
+          .select('*')
           .eq('work_id', workId)
           .order('period_start_date', { ascending: false }),
 
@@ -226,104 +220,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
     }
   };
 
-  const checkAndCreateNextPeriod = async () => {
-    if (!work || !work.is_recurring) return;
-
-    try {
-      const sortedPeriods = [...recurringInstances].sort((a, b) =>
-        new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
-      );
-
-      if (sortedPeriods.length === 0) return;
-
-      const latestPeriod = sortedPeriods[0];
-      const latestDueDate = new Date(latestPeriod.due_date);
-      const today = new Date();
-
-      if (latestDueDate < today || latestPeriod.status === 'completed') {
-        const nextDueDate = calculateNextDueDate(latestDueDate, work.recurrence_pattern, work.recurrence_day);
-
-        const existingNextPeriod = recurringInstances.find(p => {
-          const pDate = new Date(p.due_date);
-          return pDate.getTime() === nextDueDate.getTime();
-        });
-
-        if (!existingNextPeriod) {
-          await createNextRecurringPeriod(nextDueDate);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking/creating next period:', error);
-    }
-  };
-
-  const calculateNextDueDate = (currentDueDate: Date, pattern: string, recurrenceDay: number): Date => {
-    const nextDate = new Date(currentDueDate);
-
-    if (pattern === 'monthly') {
-      nextDate.setMonth(nextDate.getMonth() + 1);
-    } else if (pattern === 'quarterly') {
-      nextDate.setMonth(nextDate.getMonth() + 3);
-    } else if (pattern === 'half_yearly') {
-      nextDate.setMonth(nextDate.getMonth() + 6);
-    } else if (pattern === 'yearly') {
-      nextDate.setFullYear(nextDate.getFullYear() + 1);
-    }
-
-    if (recurrenceDay) {
-      nextDate.setDate(recurrenceDay);
-    }
-
-    return nextDate;
-  };
-
-  const createNextRecurringPeriod = async (dueDate: Date) => {
-    try {
-      let periodStart: Date;
-      let periodEnd: Date;
-      let periodName: string;
-
-      const pattern = work.recurrence_pattern;
-
-      if (pattern === 'monthly') {
-        periodStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), 1);
-        periodEnd = new Date(dueDate.getFullYear(), dueDate.getMonth() + 1, 0);
-        periodName = `${periodStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
-      } else if (pattern === 'quarterly') {
-        const quarter = Math.floor(dueDate.getMonth() / 3);
-        periodStart = new Date(dueDate.getFullYear(), quarter * 3, 1);
-        periodEnd = new Date(dueDate.getFullYear(), quarter * 3 + 3, 0);
-        periodName = `Q${quarter + 1} ${dueDate.getFullYear()}`;
-      } else if (pattern === 'half_yearly') {
-        const half = Math.floor(dueDate.getMonth() / 6);
-        periodStart = new Date(dueDate.getFullYear(), half * 6, 1);
-        periodEnd = new Date(dueDate.getFullYear(), half * 6 + 6, 0);
-        periodName = `H${half + 1} ${dueDate.getFullYear()}`;
-      } else {
-        periodStart = new Date(dueDate.getFullYear(), 0, 1);
-        periodEnd = new Date(dueDate.getFullYear(), 11, 31);
-        periodName = `Year ${dueDate.getFullYear()}`;
-      }
-
-      const { error } = await supabase.from('work_recurring_instances').insert({
-        work_id: workId,
-        period_name: periodName,
-        period_start_date: periodStart.toISOString().split('T')[0],
-        period_end_date: periodEnd.toISOString().split('T')[0],
-        due_date: dueDate.toISOString().split('T')[0],
-        billing_amount: work.billing_amount,
-        status: 'pending',
-      });
-
-      if (error) throw error;
-
-      console.log(`Auto-created next recurring period: ${periodName}`);
-      fetchWorkDetails();
-      toast.success(`Next period created: ${periodName}`);
-    } catch (error) {
-      console.error('Error creating next recurring period:', error);
-    }
-  };
 
   const handleUpdateWorkStatus = async (status: string) => {
     try {
