@@ -18,6 +18,7 @@ import Vouchers from './pages/Vouchers';
 import Ledger from './pages/Ledger';
 import AccountingMasters from './pages/AccountingMasters';
 import Accounting from './pages/Accounting';
+import OverdueReport from './pages/OverdueReport';
 import Layout from './components/Layout';
 import { ConfirmationProvider } from './contexts/ConfirmationContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -72,6 +73,8 @@ function AppContent() {
         return <AccountingMasters />;
       case 'reminders':
         return <Reminders />;
+      case 'overdue-report':
+        return <OverdueReport />;
       case 'reports':
         return <Reports />;
       case 'settings':

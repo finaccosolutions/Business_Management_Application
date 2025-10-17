@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { X, Users, Clock, CheckSquare, FileText, DollarSign, Calendar, Briefcase, CheckCircle, Repeat, Edit2, Activity as ActivityIcon } from 'lucide-react';
+import { X, Users, Clock, CheckSquare, FileText, DollarSign, Calendar, Briefcase, CheckCircle, Repeat, Edit2, Activity as ActivityIcon, MessageSquare, StickyNote } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateDisplay } from '../../lib/dateUtils';
 import { WorkDetailsProps, Task, TimeLog, Assignment, RecurringInstance, Activity, WorkDocument, TaskForm, TimeForm, RecurringForm, statusColors, priorityColors } from './WorkDetailsTypes';
 import { OverviewTab, TasksTab, TimeLogsTab, AssignmentsTab, RecurringTab, ActivityTab, DocumentsTab } from './WorkDetailsTabs';
+import { CommunicationsTab } from './CommunicationsTab';
+import { NotesTab } from './NotesTab';
 import { ConfirmationModal, TaskModal, TimeLogModal, RecurringPeriodModal, AssignStaffModal, ReassignReasonModal } from './WorkDetailsModals';
 
 export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkDetailsProps) {
@@ -15,6 +17,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   const [recurringInstances, setRecurringInstances] = useState<RecurringInstance[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [documents, setDocuments] = useState<WorkDocument[]>([]);
+  const [communications, setCommunications] = useState<any[]>([]);
+  const [notes, setNotes] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -81,7 +85,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
   const fetchWorkDetails = async () => {
     try {
-      const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes, documentsRes] = await Promise.all([
+      const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes, documentsRes, communicationsRes, notesRes] = await Promise.all([
         supabase
           .from('works')
           .select(`
@@ -122,12 +126,26 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           .select('*')
           .eq('work_id', workId)
           .order('sort_order'),
+
+        supabase
+          .from('work_communications')
+          .select('*')
+          .eq('work_id', workId)
+          .order('communication_date', { ascending: false }),
+
+        supabase
+          .from('work_notes')
+          .select('*')
+          .eq('work_id', workId)
+          .order('created_at', { ascending: false }),
       ]);
 
       if (workRes.data) setWork(workRes.data);
       if (tasksRes.data) setTasks(tasksRes.data);
       if (timeLogsRes.data) setTimeLogs(timeLogsRes.data);
       if (documentsRes.data) setDocuments(documentsRes.data);
+      if (communicationsRes.data) setCommunications(communicationsRes.data);
+      if (notesRes.data) setNotes(notesRes.data);
 
       if (assignmentsRes.data) {
         const enrichedAssignments = await Promise.all(
@@ -889,6 +907,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
     { id: 'overview', label: 'Overview', icon: Briefcase },
     { id: 'time', label: 'Time Logs', icon: Clock, count: timeLogs.length },
     { id: 'documents', label: 'Documents', icon: FileText, count: documents.length },
+    { id: 'communications', label: 'Communications', icon: MessageSquare, count: communications.length },
+    { id: 'notes', label: 'Notes', icon: StickyNote, count: notes.length },
   ];
 
   if (work.is_recurring) {
@@ -1097,6 +1117,28 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
           {activeTab === 'activity' && (
             <ActivityTab activities={activities} />
+          )}
+
+          {activeTab === 'communications' && (
+            <CommunicationsTab
+              workId={workId}
+              communications={communications}
+              onUpdate={() => {
+                fetchWorkDetails();
+                onUpdate();
+              }}
+            />
+          )}
+
+          {activeTab === 'notes' && (
+            <NotesTab
+              workId={workId}
+              notes={notes}
+              onUpdate={() => {
+                fetchWorkDetails();
+                onUpdate();
+              }}
+            />
           )}
         </div>
       </div>
