@@ -26,6 +26,8 @@ interface ServiceDetailsProps {
   serviceId: string;
   onClose: () => void;
   onEdit: () => void;
+  onNavigateToCustomer?: (customerId: string) => void;
+  onNavigateToWork?: (workId: string) => void;
 }
 
 interface Service {
@@ -84,7 +86,7 @@ interface ServiceDocument {
 
 type TabType = 'overview' | 'customers' | 'works' | 'revenue' | 'activity' | 'tasks' | 'documents';
 
-export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDetailsProps) {
+export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateToCustomer, onNavigateToWork }: ServiceDetailsProps) {
   const { user } = useAuth();
   const toast = useToast();
   const [service, setService] = useState<Service | null>(null);
@@ -210,7 +212,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
               <Briefcase size={28} />
-              Service Details
+              {service.name}
             </h2>
             <p className="text-blue-100 text-sm mt-1">
               Created on {new Date(service.created_at).toLocaleDateString()}
@@ -253,39 +255,54 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 p-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-200 flex-shrink-0">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => setActiveTab('customers')}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <Users size={16} className="text-blue-600" />
               <p className="text-xs font-medium text-gray-600">Total Customers</p>
             </div>
             <p className="text-xl font-bold text-blue-600">{statistics.totalCustomers}</p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => setActiveTab('customers')}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle size={16} className="text-green-600" />
               <p className="text-xs font-medium text-gray-600">Active</p>
             </div>
             <p className="text-xl font-bold text-green-600">{statistics.activeCustomers}</p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => setActiveTab('works')}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <Clock size={16} className="text-orange-600" />
               <p className="text-xs font-medium text-gray-600">Total Works</p>
             </div>
             <p className="text-xl font-bold text-orange-600">{statistics.totalWorks}</p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => setActiveTab('works')}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle size={16} className="text-emerald-600" />
               <p className="text-xs font-medium text-gray-600">Completed</p>
             </div>
             <p className="text-xl font-bold text-emerald-600">{statistics.completedWorks}</p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => setActiveTab('revenue')}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <DollarSign size={16} className="text-teal-600" />
               <p className="text-xs font-medium text-gray-600">Total Revenue</p>
@@ -293,9 +310,12 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
             <p className="text-xl font-bold text-teal-600">
               ₹{statistics.totalRevenue.toLocaleString('en-IN')}
             </p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => setActiveTab('revenue')}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp size={16} className="text-purple-600" />
               <p className="text-xs font-medium text-gray-600">Avg Price</p>
@@ -303,7 +323,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
             <p className="text-xl font-bold text-purple-600">
               ₹{statistics.averagePrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
             </p>
-          </div>
+          </button>
         </div>
 
         {/* Tabs */}
@@ -414,9 +434,15 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {customerServices.map((cs) => (
-                    <div
+                    <button
                       key={cs.id}
-                      className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+                      onClick={() => {
+                        if (onNavigateToCustomer) {
+                          onClose();
+                          onNavigateToCustomer(cs.customer_id);
+                        }
+                      }}
+                      className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow text-left cursor-pointer"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3 flex-1">
@@ -424,7 +450,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
                             {cs.customers?.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <h4 className="font-semibold text-gray-900">{cs.customers?.name}</h4>
+                            <h4 className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">{cs.customers?.name}</h4>
                             {cs.customers?.email && (
                               <p className="text-sm text-gray-600">{cs.customers.email}</p>
                             )}
@@ -461,7 +487,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
                           </div>
                         )}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -481,13 +507,19 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {works.map((work) => (
-                    <div
+                    <button
                       key={work.id}
-                      className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+                      onClick={() => {
+                        if (onNavigateToWork) {
+                          onClose();
+                          onNavigateToWork(work.id);
+                        }
+                      }}
+                      className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow text-left cursor-pointer"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900 mb-1">{work.title}</h4>
+                          <h4 className="font-semibold text-gray-900 mb-1 hover:text-blue-600 transition-colors">{work.title}</h4>
                           <p className="text-sm text-gray-600">{work.customers?.name}</p>
                         </div>
                         <span
@@ -513,7 +545,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit }: ServiceDe
                           <span>Completed: {new Date(work.completed_at).toLocaleDateString()}</span>
                         </div>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}

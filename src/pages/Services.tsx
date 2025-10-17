@@ -20,6 +20,8 @@ import ServiceDetails from '../components/ServiceDetails';
 import AddServiceModal from '../components/AddServiceModal';
 import ServiceFilters from '../components/ServiceFilters';
 import ServiceCategoryManager from '../components/ServiceCategoryManager';
+import CustomerDetails from '../components/CustomerDetails';
+import WorkDetails from '../components/works/WorkDetailsMain';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { useToast } from '../contexts/ToastContext';
 
@@ -53,6 +55,8 @@ export default function Services() {
   const [showFilters, setShowFilters] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedWorkId, setSelectedWorkId] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const { showConfirmation } = useConfirmation();
@@ -449,6 +453,41 @@ export default function Services() {
               setShowModal(true);
             }
           }}
+          onNavigateToCustomer={(customerId) => {
+            setShowDetailsModal(false);
+            setSelectedServiceId(null);
+            setSelectedCustomerId(customerId);
+          }}
+          onNavigateToWork={(workId) => {
+            setShowDetailsModal(false);
+            setSelectedServiceId(null);
+            setSelectedWorkId(workId);
+          }}
+        />
+      )}
+
+      {selectedCustomerId && (
+        <CustomerDetails
+          customerId={selectedCustomerId}
+          onClose={() => setSelectedCustomerId(null)}
+          onUpdate={fetchServices}
+          onNavigateToService={(serviceId) => {
+            setSelectedCustomerId(null);
+            setSelectedServiceId(serviceId);
+            setShowDetailsModal(true);
+          }}
+          onNavigateToWork={(workId) => {
+            setSelectedCustomerId(null);
+            setSelectedWorkId(workId);
+          }}
+        />
+      )}
+
+      {selectedWorkId && (
+        <WorkDetails
+          workId={selectedWorkId}
+          onClose={() => setSelectedWorkId(null)}
+          onUpdate={fetchServices}
         />
       )}
 

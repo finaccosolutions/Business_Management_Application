@@ -6,9 +6,11 @@ import { RecurringPeriodManager } from './RecurringPeriodManager';
 interface OverviewTabProps {
   work: any;
   onStatusChange?: (status: string) => void;
+  onNavigateToCustomer?: (customerId: string) => void;
+  onNavigateToService?: (serviceId: string) => void;
 }
 
-export function OverviewTab({ work, onStatusChange }: OverviewTabProps) {
+export function OverviewTab({ work, onStatusChange, onNavigateToCustomer, onNavigateToService }: OverviewTabProps) {
   return (
     <div className="space-y-6">
       {/* Work Information */}
@@ -31,11 +33,29 @@ export function OverviewTab({ work, onStatusChange }: OverviewTabProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-500">Customer</label>
-              <p className="text-gray-900 mt-1">{work.customers?.name}</p>
+              {onNavigateToCustomer ? (
+                <button
+                  onClick={() => onNavigateToCustomer(work.customer_id)}
+                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium mt-1 text-left"
+                >
+                  {work.customers?.name}
+                </button>
+              ) : (
+                <p className="text-gray-900 mt-1">{work.customers?.name}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500">Service</label>
-              <p className="text-gray-900 mt-1">{work.services?.name}</p>
+              {onNavigateToService ? (
+                <button
+                  onClick={() => onNavigateToService(work.service_id)}
+                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium mt-1 text-left"
+                >
+                  {work.services?.name}
+                </button>
+              ) : (
+                <p className="text-gray-900 mt-1">{work.services?.name}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500">Priority</label>

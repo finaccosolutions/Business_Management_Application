@@ -27,6 +27,8 @@ import {
 import CustomerDetails from '../components/CustomerDetails';
 import CustomerFormModal from '../components/CustomerFormModal';
 import CustomerFilters, { FilterState } from '../components/CustomerFilters';
+import ServiceDetails from '../components/ServiceDetails';
+import WorkDetails from '../components/works/WorkDetailsMain';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { useToast } from '../contexts/ToastContext';
 
@@ -98,6 +100,8 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [selectedWorkId, setSelectedWorkId] = useState<string | null>(null);
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [statistics, setStatistics] = useState<CustomerStatistics | null>(null);
@@ -696,6 +700,38 @@ export default function Customers() {
         <CustomerDetails
           customerId={selectedCustomerId}
           onClose={() => setSelectedCustomerId(null)}
+          onUpdate={fetchCustomers}
+          onNavigateToService={(serviceId) => {
+            setSelectedCustomerId(null);
+            setSelectedServiceId(serviceId);
+          }}
+          onNavigateToWork={(workId) => {
+            setSelectedCustomerId(null);
+            setSelectedWorkId(workId);
+          }}
+        />
+      )}
+
+      {selectedServiceId && (
+        <ServiceDetails
+          serviceId={selectedServiceId}
+          onClose={() => setSelectedServiceId(null)}
+          onEdit={() => {}}
+          onNavigateToCustomer={(customerId) => {
+            setSelectedServiceId(null);
+            setSelectedCustomerId(customerId);
+          }}
+          onNavigateToWork={(workId) => {
+            setSelectedServiceId(null);
+            setSelectedWorkId(workId);
+          }}
+        />
+      )}
+
+      {selectedWorkId && (
+        <WorkDetails
+          workId={selectedWorkId}
+          onClose={() => setSelectedWorkId(null)}
           onUpdate={fetchCustomers}
         />
       )}

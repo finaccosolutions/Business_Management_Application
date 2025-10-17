@@ -2,7 +2,9 @@ export interface WorkDetailsProps {
   workId: string;
   onClose: () => void;
   onUpdate: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
+  onNavigateToCustomer?: (customerId: string) => void;
+  onNavigateToService?: (serviceId: string) => void;
 }
 
 export interface Task {

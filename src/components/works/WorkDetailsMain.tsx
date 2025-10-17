@@ -9,7 +9,7 @@ import { CommunicationsTab } from './CommunicationsTab';
 import { NotesTab } from './NotesTab';
 import { ConfirmationModal, TaskModal, TimeLogModal, RecurringPeriodModal, AssignStaffModal, ReassignReasonModal } from './WorkDetailsModals';
 
-export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkDetailsProps) {
+export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavigateToCustomer, onNavigateToService }: WorkDetailsProps) {
   const [work, setWork] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
@@ -1070,7 +1070,12 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
 
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'overview' && (
-            <OverviewTab work={work} onStatusChange={handleUpdateWorkStatus} />
+            <OverviewTab
+              work={work}
+              onStatusChange={handleUpdateWorkStatus}
+              onNavigateToCustomer={onNavigateToCustomer}
+              onNavigateToService={onNavigateToService}
+            />
           )}
 
           {activeTab === 'tasks' && (

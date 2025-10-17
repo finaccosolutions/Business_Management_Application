@@ -15,6 +15,8 @@ interface CustomerDetailsProps {
   customerId: string;
   onClose: () => void;
   onUpdate: () => void;
+  onNavigateToService?: (serviceId: string) => void;
+  onNavigateToWork?: (workId: string) => void;
 }
 
 interface Customer {
@@ -118,6 +120,8 @@ export default function CustomerDetails({
   customerId,
   onClose,
   onUpdate,
+  onNavigateToService,
+  onNavigateToWork,
 }: CustomerDetailsProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -255,15 +259,15 @@ export default function CustomerDetails({
     onUpdate();
   };
 
-  const tabs: Array<{ id: TabType; label: string; icon: any }> = [
+  const tabs: Array<{ id: TabType; label: string; icon: any; count?: number }> = [
     { id: 'overview', label: 'Overview', icon: User },
-    { id: 'services', label: 'Services', icon: Briefcase },
-    { id: 'works', label: 'Works', icon: Clock },
-    { id: 'invoices', label: 'Invoices', icon: FileText },
-    { id: 'communications', label: 'Communications', icon: MessageSquare },
-    { id: 'documents', label: 'Documents', icon: FileText },
-    { id: 'notes', label: 'Notes', icon: StickyNote },
-    { id: 'activity', label: 'Activity Timeline', icon: History },
+    { id: 'services', label: 'Services', icon: Briefcase, count: services.length },
+    { id: 'works', label: 'Works', icon: Clock, count: works.length },
+    { id: 'invoices', label: 'Invoices', icon: FileText, count: invoices.length },
+    { id: 'communications', label: 'Communications', icon: MessageSquare, count: communications.length },
+    { id: 'documents', label: 'Documents', icon: FileText, count: documents.length },
+    { id: 'notes', label: 'Notes', icon: StickyNote, count: notes.length },
+    { id: 'activity', label: 'Activity Timeline', icon: History, count: activities.length },
   ];
 
   if (loading || !customer) {
@@ -318,7 +322,12 @@ export default function CustomerDetails({
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 p-6 bg-gray-50 border-b border-gray-200">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => {
+              setActiveTab('invoices');
+            }}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <DollarSign size={16} className="text-blue-600" />
               <p className="text-xs font-medium text-gray-600">Total Invoiced</p>
@@ -326,9 +335,14 @@ export default function CustomerDetails({
             <p className="text-xl font-bold text-blue-600">
               ₹{statistics.totalInvoiced.toLocaleString('en-IN')}
             </p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => {
+              setActiveTab('invoices');
+            }}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle size={16} className="text-green-600" />
               <p className="text-xs font-medium text-gray-600">Total Paid</p>
@@ -336,9 +350,14 @@ export default function CustomerDetails({
             <p className="text-xl font-bold text-green-600">
               ₹{statistics.totalPaid.toLocaleString('en-IN')}
             </p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => {
+              setActiveTab('invoices');
+            }}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <AlertCircle size={16} className="text-orange-600" />
               <p className="text-xs font-medium text-gray-600">Pending</p>
@@ -346,31 +365,46 @@ export default function CustomerDetails({
             <p className="text-xl font-bold text-orange-600">
               ₹{statistics.totalPending.toLocaleString('en-IN')}
             </p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => {
+              setActiveTab('services');
+            }}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <Briefcase size={16} className="text-teal-600" />
               <p className="text-xs font-medium text-gray-600">Active Services</p>
             </div>
             <p className="text-xl font-bold text-teal-600">{statistics.activeServices}</p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => {
+              setActiveTab('works');
+            }}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle size={16} className="text-emerald-600" />
               <p className="text-xs font-medium text-gray-600">Completed</p>
             </div>
             <p className="text-xl font-bold text-emerald-600">{statistics.completedWorks}</p>
-          </div>
+          </button>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <button
+            onClick={() => {
+              setActiveTab('works');
+            }}
+            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
+          >
             <div className="flex items-center gap-2 mb-1">
               <Clock size={16} className="text-yellow-600" />
               <p className="text-xs font-medium text-gray-600">Pending Works</p>
             </div>
             <p className="text-xl font-bold text-yellow-600">{statistics.pendingWorks}</p>
-          </div>
+          </button>
         </div>
 
         <div className="flex border-b border-gray-200 bg-gray-50 px-6 overflow-x-auto">
@@ -388,6 +422,11 @@ export default function CustomerDetails({
               >
                 <Icon size={18} />
                 {tab.label}
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-semibold">
+                    {tab.count}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -712,13 +751,19 @@ function ServicesTab({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {services.map((service) => (
-            <div
+            <button
               key={service.id}
-              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+              onClick={() => {
+                if (onNavigateToService) {
+                  onClose();
+                  onNavigateToService(service.service_id);
+                }
+              }}
+              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow text-left cursor-pointer"
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-1">{service.services.name}</h4>
+                  <h4 className="font-semibold text-gray-900 mb-1 hover:text-green-600 transition-colors">{service.services.name}</h4>
                   {service.services.description && (
                     <p className="text-sm text-gray-600">{service.services.description}</p>
                   )}
@@ -754,7 +799,7 @@ function ServicesTab({
                   </div>
                 )}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -844,13 +889,19 @@ function WorksTab({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredWorks.map((work) => (
-            <div
+            <button
               key={work.id}
-              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+              onClick={() => {
+                if (onNavigateToWork) {
+                  onClose();
+                  onNavigateToWork(work.id);
+                }
+              }}
+              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow text-left cursor-pointer"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-1">{work.title}</h4>
+                  <h4 className="font-semibold text-gray-900 mb-1 hover:text-green-600 transition-colors">{work.title}</h4>
                   <p className="text-sm text-gray-600">{work.services.name}</p>
                 </div>
                 <span
@@ -881,7 +932,7 @@ function WorksTab({
                   </div>
                 )}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

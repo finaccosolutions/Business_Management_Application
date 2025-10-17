@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import WorkDetails from '../components/works/WorkDetailsMain';
 import WorkTile from '../components/works/WorkTile';
+import CustomerDetails from '../components/CustomerDetails';
+import ServiceDetails from '../components/ServiceDetails';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { useToast } from '../contexts/ToastContext';
 
@@ -108,6 +110,8 @@ export default function Works() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingWork, setEditingWork] = useState<Work | null>(null);
   const [selectedWork, setSelectedWork] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewType>('all');
   const [filterCustomer, setFilterCustomer] = useState('');
   const [filterService, setFilterService] = useState('');
@@ -1514,6 +1518,46 @@ const filteredWorks = works.filter((work) => {
               setSelectedWork(null);
               handleEdit(work);
             }
+          }}
+          onNavigateToCustomer={(customerId) => {
+            setSelectedWork(null);
+            setSelectedCustomerId(customerId);
+          }}
+          onNavigateToService={(serviceId) => {
+            setSelectedWork(null);
+            setSelectedServiceId(serviceId);
+          }}
+        />
+      )}
+
+      {selectedCustomerId && (
+        <CustomerDetails
+          customerId={selectedCustomerId}
+          onClose={() => setSelectedCustomerId(null)}
+          onUpdate={fetchData}
+          onNavigateToService={(serviceId) => {
+            setSelectedCustomerId(null);
+            setSelectedServiceId(serviceId);
+          }}
+          onNavigateToWork={(workId) => {
+            setSelectedCustomerId(null);
+            setSelectedWork(workId);
+          }}
+        />
+      )}
+
+      {selectedServiceId && (
+        <ServiceDetails
+          serviceId={selectedServiceId}
+          onClose={() => setSelectedServiceId(null)}
+          onEdit={() => {}}
+          onNavigateToCustomer={(customerId) => {
+            setSelectedServiceId(null);
+            setSelectedCustomerId(customerId);
+          }}
+          onNavigateToWork={(workId) => {
+            setSelectedServiceId(null);
+            setSelectedWork(workId);
           }}
         />
       )}
