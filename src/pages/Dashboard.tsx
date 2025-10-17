@@ -809,69 +809,77 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <button
           onClick={() => onNavigate('leads')}
-          className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+          className="bg-white rounded-xl shadow-md border-l-4 border-emerald-400 p-6 hover:shadow-xl hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-3">
-            <Users className="w-10 h-10 opacity-80" />
+            <div className="p-3 bg-emerald-50 rounded-lg">
+              <Users className="w-8 h-8 text-emerald-600" />
+            </div>
             <div className="text-right">
-              <div className="text-3xl font-bold">{stats.totalLeads}</div>
-              <div className="text-emerald-100 text-sm">Total Leads</div>
+              <div className="text-3xl font-bold text-gray-900">{stats.totalLeads}</div>
+              <div className="text-gray-600 text-sm">Total Leads</div>
             </div>
           </div>
-          <div className="flex items-center justify-between pt-3 border-t border-emerald-400">
-            <span className="text-sm">Conversion Rate</span>
-            <span className="font-bold">{leadConversionRate}%</span>
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+            <span className="text-sm text-gray-600">Conversion Rate</span>
+            <span className="font-bold text-emerald-600">{leadConversionRate}%</span>
           </div>
         </button>
 
         <button
           onClick={() => onNavigate('customers')}
-          className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+          className="bg-white rounded-xl shadow-md border-l-4 border-blue-400 p-6 hover:shadow-xl hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-3">
-            <UserCog className="w-10 h-10 opacity-80" />
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <UserCog className="w-8 h-8 text-blue-600" />
+            </div>
             <div className="text-right">
-              <div className="text-3xl font-bold">{stats.totalCustomers}</div>
-              <div className="text-blue-100 text-sm">Active Customers</div>
+              <div className="text-3xl font-bold text-gray-900">{stats.totalCustomers}</div>
+              <div className="text-gray-600 text-sm">Active Customers</div>
             </div>
           </div>
-          <div className="flex items-center justify-between pt-3 border-t border-blue-400">
-            <span className="text-sm">Avg Revenue</span>
-            <span className="font-bold">₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString()}</span>
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+            <span className="text-sm text-gray-600">Avg Revenue</span>
+            <span className="font-bold text-blue-600">₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString()}</span>
           </div>
         </button>
 
         <button
           onClick={() => onNavigate('works')}
-          className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+          className="bg-white rounded-xl shadow-md border-l-4 border-amber-400 p-6 hover:shadow-xl hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-3">
-            <ClipboardList className="w-10 h-10 opacity-80" />
+            <div className="p-3 bg-amber-50 rounded-lg">
+              <ClipboardList className="w-8 h-8 text-amber-600" />
+            </div>
             <div className="text-right">
-              <div className="text-3xl font-bold">{stats.totalWorks}</div>
-              <div className="text-amber-100 text-sm">Total Works</div>
+              <div className="text-3xl font-bold text-gray-900">{stats.totalWorks}</div>
+              <div className="text-gray-600 text-sm">Total Works</div>
             </div>
           </div>
-          <div className="flex items-center justify-between pt-3 border-t border-amber-400">
-            <span className="text-sm">Completion Rate</span>
-            <span className="font-bold">{workCompletionRate}%</span>
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+            <span className="text-sm text-gray-600">Completion Rate</span>
+            <span className="font-bold text-amber-600">{workCompletionRate}%</span>
           </div>
         </button>
 
         <button
           onClick={() => onNavigate('invoices-list')}
-          className="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+          className="bg-white rounded-xl shadow-md border-l-4 border-teal-400 p-6 hover:shadow-xl hover:scale-105 transition-all cursor-pointer text-left"
         >
           <div className="flex items-center justify-between mb-3">
-            <DollarSign className="w-10 h-10 opacity-80" />
+            <div className="p-3 bg-teal-50 rounded-lg">
+              <DollarSign className="w-8 h-8 text-teal-600" />
+            </div>
             <div className="text-right">
-              <div className="text-3xl font-bold">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
-              <div className="text-rose-100 text-sm">Total Revenue</div>
+              <div className="text-3xl font-bold text-gray-900">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
+              <div className="text-gray-600 text-sm">Total Revenue</div>
             </div>
           </div>
-          <div className="flex items-center justify-between pt-3 border-t border-rose-400">
-            <span className="text-sm">Collection Rate</span>
-            <span className="font-bold">{invoiceCollectionRate}%</span>
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+            <span className="text-sm text-gray-600">Collection Rate</span>
+            <span className="font-bold text-teal-600">{invoiceCollectionRate}%</span>
           </div>
         </button>
       </div>
@@ -1011,42 +1019,50 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow border-l-4 border-l-green-600 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <Receipt className="w-7 h-7 text-green-700" />
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-green-400 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <Receipt className="w-6 h-6 text-green-600" />
+            </div>
+            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Avg Invoice Value</p>
           </div>
-          <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Avg Invoice Value</p>
-          <p className="text-2xl font-bold text-green-900 mt-1">
+          <p className="text-2xl font-bold text-gray-900 mt-1">
             ₹{Math.round(stats.avgInvoiceValue).toLocaleString('en-IN')}
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow border-l-4 border-l-amber-600 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <Wallet className="w-7 h-7 text-amber-700" />
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-amber-400 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-amber-50 rounded-lg">
+              <Wallet className="w-6 h-6 text-amber-600" />
+            </div>
+            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Pending Revenue</p>
           </div>
-          <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Pending Revenue</p>
-          <p className="text-2xl font-bold text-amber-900 mt-1">
+          <p className="text-2xl font-bold text-gray-900 mt-1">
             ₹{stats.pendingRevenue.toLocaleString('en-IN')}
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow border-l-4 border-l-blue-600 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <Target className="w-7 h-7 text-blue-700" />
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-blue-400 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <Target className="w-6 h-6 text-blue-600" />
+            </div>
+            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Avg Revenue/Customer</p>
           </div>
-          <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Avg Revenue/Customer</p>
-          <p className="text-2xl font-bold text-blue-900 mt-1">
+          <p className="text-2xl font-bold text-gray-900 mt-1">
             ₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString('en-IN')}
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg shadow border-l-4 border-l-cyan-600 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <CheckCircle className="w-7 h-7 text-cyan-700" />
+        <div className="bg-white rounded-lg shadow border-l-4 border-l-cyan-400 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-cyan-50 rounded-lg">
+              <CheckCircle className="w-6 h-6 text-cyan-600" />
+            </div>
+            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Tasks Completed</p>
           </div>
-          <p className="text-xs font-medium text-cyan-700 uppercase tracking-wide">Tasks Completed</p>
-          <p className="text-2xl font-bold text-cyan-900 mt-1">{stats.totalTasksCompleted}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalTasksCompleted}</p>
         </div>
       </div>
 

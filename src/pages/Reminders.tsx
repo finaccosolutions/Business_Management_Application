@@ -130,7 +130,7 @@ export default function Reminders() {
         });
       });
 
-      // 3. Fetch Pending/Overdue Works
+      // 3. Fetch Pending/Overdue Works (Non-recurring)
       const { data: worksData } = await supabase
         .from('works')
         .select(`
@@ -140,6 +140,7 @@ export default function Reminders() {
           staff_members (name)
         `)
         .eq('user_id', user?.id)
+        .eq('is_recurring', false)
         .in('status', ['pending', 'in_progress'])
         .order('due_date', { ascending: true });
 
@@ -176,6 +177,64 @@ export default function Reminders() {
             },
           });
         }
+      });
+
+      // 3b. Fetch Pending/Overdue Recurring Periods
+      const { data: periodsData } = await supabase
+        .from('work_recurring_instances')
+        .select(`
+          *,
+          works!work_id (
+            id,
+            title,
+            customers (name, email, phone),
+            services (name),
+            staff_members (name)
+          )
+        `)
+        .in('status', ['pending', 'in_progress', 'overdue'])
+        .order('period_end_date', { ascending: true });
+
+      (periodsData || []).forEach((period: any) => {
+        const work = period.works;
+        if (!work) return;
+
+        const periodEndDate = new Date(period.period_end_date);
+        const daysUntil = Math.ceil((periodEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        let urgency: 'critical' | 'high' | 'medium' | 'low' = 'low';
+        const isOverdue = period.status === 'overdue' || daysUntil < 0;
+
+        if (period.status === 'overdue' || daysUntil < -7) urgency = 'critical';
+        else if (daysUntil < 0) urgency = 'high';
+        else if (daysUntil === 0) urgency = 'high';
+        else if (daysUntil <= 3) urgency = 'medium';
+
+        const statusLabel = period.status === 'in_progress' ? 'In Progress' : period.status === 'overdue' ? 'Overdue' : 'Pending';
+        const taskStatus = period.total_tasks > 0
+          ? ` (${period.completed_tasks}/${period.total_tasks} tasks completed)`
+          : '';
+
+        alertsList.push({
+          id: period.id,
+          type: isOverdue ? 'overdue_work' : 'work',
+          title: `${statusLabel} Period: ${work.services?.name || 'Service'} - ${work.customers?.name || 'Customer'}`,
+          description: `${period.period_name}${taskStatus} - Due ${daysUntil < 0 ? Math.abs(daysUntil) + ' days overdue' : daysUntil === 0 ? 'today' : 'in ' + daysUntil + ' days'}`,
+          date: period.period_end_date,
+          urgency,
+          category: isOverdue ? 'Overdue Periods' : 'Recurring Work Periods',
+          metadata: {
+            period,
+            work,
+            customer: work.customers,
+            service: work.services,
+            status: period.status,
+            assigned_to: work.staff_members?.name,
+            days_overdue: isOverdue ? Math.abs(daysUntil) : 0,
+            total_tasks: period.total_tasks,
+            completed_tasks: period.completed_tasks,
+          },
+        });
       });
 
       // 4. Fetch Overdue Invoices
@@ -668,7 +727,7 @@ export default function Reminders() {
   const categoryGroups = {
     'Lead Management': ['Lead Follow-ups', 'Lead Management'],
     'Customer Relations': ['Customer Engagement', 'Data Quality'],
-    'Work & Projects': ['Works & Tasks', 'Work Scheduling', 'Overdue Works'],
+    'Work & Projects': ['Works & Tasks', 'Work Scheduling', 'Overdue Works', 'Recurring Work Periods', 'Overdue Periods'],
     'Financial': ['Payments & Invoices', 'Upcoming Payments', 'Billing Required', 'Overdue Payments'],
     'Staff & Team': ['Staff Performance', 'Staff Workload'],
     'General': ['Manual Reminders']

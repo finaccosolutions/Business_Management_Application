@@ -189,7 +189,13 @@ export default function Works() {
       const [worksResult, customersResult, servicesResult, staffResult, categoriesResult] = await Promise.all([
         supabase
           .from('works')
-          .select('*, customers(name), services!service_id(name, is_recurring), staff_members(name)')
+          .select(`
+            *,
+            customers(name),
+            services!service_id(name, is_recurring),
+            staff_members(name),
+            work_recurring_instances(status, all_tasks_completed)
+          `)
           .order('created_at', { ascending: false }),
         supabase.from('customers').select('id, name').order('name'),
         supabase.from('services').select('*').order('name'),
@@ -202,7 +208,28 @@ export default function Works() {
       if (servicesResult.error) throw servicesResult.error;
       if (staffResult.error) throw staffResult.error;
 
-      setWorks(worksResult.data || []);
+      // Calculate aggregated status for recurring works based on periods
+      const worksWithStatus = (worksResult.data || []).map((work: any) => {
+        if (work.is_recurring && work.work_recurring_instances && work.work_recurring_instances.length > 0) {
+          const periods = work.work_recurring_instances;
+          const hasPending = periods.some((p: any) => p.status === 'pending');
+          const hasInProgress = periods.some((p: any) => p.status === 'in_progress');
+          const hasOverdue = periods.some((p: any) => p.status === 'overdue');
+          const allCompleted = periods.every((p: any) => p.all_tasks_completed === true);
+
+          // Determine overall work status based on periods
+          let overallStatus = 'completed';
+          if (hasOverdue) overallStatus = 'overdue';
+          else if (hasInProgress) overallStatus = 'in_progress';
+          else if (hasPending) overallStatus = 'pending';
+          else if (!allCompleted) overallStatus = 'in_progress';
+
+          return { ...work, status: overallStatus };
+        }
+        return work;
+      });
+
+      setWorks(worksWithStatus);
       setCustomers(customersResult.data || []);
       setServices(servicesResult.data || []);
       setStaffMembers(staffResult.data || []);
