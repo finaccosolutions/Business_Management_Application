@@ -33,6 +33,8 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
   const { user } = useAuth();
   const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [ledgers, setLedgers] = useState<any[]>([]);
+  const [cashBankLedgerId, setCashBankLedgerId] = useState<string>('');
   const [formData, setFormData] = useState({
     voucher_type_id: selectedTypeId || '',
     voucher_number: '',
@@ -49,6 +51,7 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
 
   useEffect(() => {
     fetchAccounts();
+    fetchLedgersAndSettings();
   }, []);
 
   useEffect(() => {
@@ -70,6 +73,26 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
     } catch (error) {
       console.error('Error fetching accounts:', error);
       toast.error('Failed to load accounts');
+    }
+  };
+
+  const fetchLedgersAndSettings = async () => {
+    try {
+      const [ledgersResult, settingsResult] = await Promise.all([
+        supabase.from('ledgers').select('id, name').order('name'),
+        supabase.from('company_settings').select('default_cash_ledger_id, default_bank_ledger_id, default_payment_receipt_type').eq('user_id', user!.id).maybeSingle()
+      ]);
+
+      if (ledgersResult.data) setLedgers(ledgersResult.data);
+
+      if (settingsResult.data) {
+        const ledgerId = settingsResult.data.default_payment_receipt_type === 'bank'
+          ? settingsResult.data.default_bank_ledger_id
+          : settingsResult.data.default_cash_ledger_id;
+        if (ledgerId) setCashBankLedgerId(ledgerId);
+      }
+    } catch (error) {
+      console.error('Error fetching ledgers and settings:', error);
     }
   };
 
@@ -103,6 +126,16 @@ export default function VoucherModal({ onClose, voucherTypes, selectedTypeId }: 
     } catch (error) {
       console.error('Error generating voucher number:', error);
     }
+  };
+
+  const isPaymentVoucher = () => {
+    const type = voucherTypes.find(t => t.id === formData.voucher_type_id);
+    return type?.code === 'PAYMENT';
+  };
+
+  const isReceiptVoucher = () => {
+    const type = voucherTypes.find(t => t.id === formData.voucher_type_id);
+    return type?.code === 'RECEIPT';
   };
 
   const addEntry = () => {

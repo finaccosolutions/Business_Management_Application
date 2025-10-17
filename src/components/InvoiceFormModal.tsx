@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { X, Plus, FileText, Users, DollarSign, Trash2, AlertCircle, Briefcase, Eye } from 'lucide-react';
+import { X, Plus, FileText, Users, DollarSign, Trash2, AlertCircle, Briefcase, Eye, Landmark } from 'lucide-react';
 import { generateEnhancedInvoiceHTML, previewEnhancedInvoice } from '../lib/enhancedInvoicePDF';
 
 interface Customer {
@@ -16,6 +16,13 @@ interface Service {
   description: string;
   default_price: number;
   tax_rate?: number;
+  income_ledger_id?: string;
+}
+
+interface Ledger {
+  id: string;
+  name: string;
+  account_group_id: string;
 }
 
 interface Work {
@@ -40,6 +47,8 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [works, setWorks] = useState<Work[]>([]);
+  const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  const [defaultIncomeLedgerId, setDefaultIncomeLedgerId] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -52,6 +61,8 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
     payment_terms: 'net_30',
     notes: '',
     status: 'draft',
+    income_ledger_id: '',
+    customer_ledger_id: '',
   });
 
   const [lineItems, setLineItems] = useState([
@@ -64,22 +75,30 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
 
   const fetchData = async () => {
     try {
-      const [customersResult, servicesResult, worksResult] = await Promise.all([
-        supabase.from('customers').select('id, name').order('name'),
-        supabase.from('services').select('id, name, description, default_price, tax_rate').order('name'),
+      const [customersResult, servicesResult, worksResult, ledgersResult, settingsResult] = await Promise.all([
+        supabase.from('customers').select('id, name, ledger_id').order('name'),
+        supabase.from('services').select('id, name, description, default_price, tax_rate, income_ledger_id').order('name'),
         supabase.from('works')
-          .select('id, title, customer_id, service_id, status, billing_amount, customers(name), services!works_service_id_fkey(name, default_price, tax_rate)')
+          .select('id, title, customer_id, service_id, status, billing_amount, customers(name, ledger_id), services!works_service_id_fkey(name, default_price, tax_rate, income_ledger_id)')
           .eq('status', 'completed')
           .order('created_at', { ascending: false }),
+        supabase.from('ledgers').select('id, name, account_group_id').order('name'),
+        supabase.from('company_settings').select('default_income_ledger_id').eq('user_id', user!.id).maybeSingle(),
       ]);
 
       if (customersResult.error) throw customersResult.error;
       if (servicesResult.error) throw servicesResult.error;
       if (worksResult.error) throw worksResult.error;
+      if (ledgersResult.error) throw ledgersResult.error;
 
       setCustomers(customersResult.data || []);
       setServices(servicesResult.data || []);
       setWorks(worksResult.data || []);
+      setLedgers(ledgersResult.data || []);
+      if (settingsResult.data?.default_income_ledger_id) {
+        setDefaultIncomeLedgerId(settingsResult.data.default_income_ledger_id);
+        setFormData(prev => ({ ...prev, income_ledger_id: settingsResult.data.default_income_ledger_id }));
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -108,6 +127,8 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
         total_amount: totalAmount,
         status: formData.status,
         notes: formData.notes,
+        income_ledger_id: formData.income_ledger_id || null,
+        customer_ledger_id: formData.customer_ledger_id || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -170,6 +191,12 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
           tax_rate: service.tax_rate || 0,
           custom_description: '',
         };
+
+        if (service.income_ledger_id && !formData.income_ledger_id) {
+          setFormData(prev => ({ ...prev, income_ledger_id: service.income_ledger_id! }));
+        } else if (!service.income_ledger_id && defaultIncomeLedgerId && !formData.income_ledger_id) {
+          setFormData(prev => ({ ...prev, income_ledger_id: defaultIncomeLedgerId }));
+        }
       }
     } else {
       updated[index] = { ...updated[index], [field]: value };
@@ -202,6 +229,17 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
         rate: price,
         tax_rate: taxRate,
       }]);
+
+      if (service.income_ledger_id) {
+        setFormData(prev => ({ ...prev, income_ledger_id: service.income_ledger_id! }));
+      } else if (defaultIncomeLedgerId) {
+        setFormData(prev => ({ ...prev, income_ledger_id: defaultIncomeLedgerId }));
+      }
+
+      const customerLedgerId = (work.customers as any)?.ledger_id;
+      if (customerLedgerId) {
+        setFormData(prev => ({ ...prev, customer_ledger_id: customerLedgerId }));
+      }
 
       loadCustomerDetails(work.customer_id);
     } catch (error) {
@@ -238,7 +276,15 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
 
       const count = invoiceCount ? 1 : 0;
       const nextNumber = `INV-${String(count + 1).padStart(4, '0')}`;
-      setFormData(prev => ({ ...prev, invoice_number: nextNumber }));
+
+      const customer = customers.find(c => c.id === customerId);
+      const customerLedgerId = customer ? (customer as any).ledger_id : '';
+
+      setFormData(prev => ({
+        ...prev,
+        invoice_number: nextNumber,
+        customer_ledger_id: customerLedgerId || ''
+      }));
     } catch (error) {
       console.error('Error generating invoice number:', error);
     }
@@ -476,6 +522,50 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
                     <option value="net_60">Net 60 Days</option>
                     <option value="custom">Custom</option>
                   </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <Landmark size={20} className="text-blue-600" />
+                Accounting Ledgers
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Income Ledger (Credit)
+                  </label>
+                  <select
+                    value={formData.income_ledger_id}
+                    onChange={(e) => setFormData({ ...formData, income_ledger_id: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
+                  >
+                    <option value="">Auto-select from service/settings</option>
+                    {ledgers.map((ledger) => (
+                      <option key={ledger.id} value={ledger.id}>
+                        {ledger.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Auto-selected from service mapping or company default
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Customer Ledger (Debit)
+                  </label>
+                  <input
+                    type="text"
+                    value={ledgers.find(l => l.id === formData.customer_ledger_id)?.name || 'Auto-selected from customer'}
+                    disabled
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-600 text-gray-600 dark:text-gray-300"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Automatically linked to customer account
+                  </p>
                 </div>
               </div>
             </div>

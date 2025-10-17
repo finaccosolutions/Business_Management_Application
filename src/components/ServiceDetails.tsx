@@ -19,6 +19,7 @@ import {
   History,
   Upload,
   Repeat,
+  Landmark,
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
