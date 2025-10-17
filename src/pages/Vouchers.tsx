@@ -7,6 +7,7 @@ import { useConfirmation } from '../contexts/ConfirmationContext';
 import PaymentVoucherModal from '../components/accounting/PaymentVoucherModal';
 import ReceiptVoucherModal from '../components/accounting/ReceiptVoucherModal';
 import JournalVoucherModal from '../components/accounting/JournalVoucherModal';
+import ContraVoucherModal from '../components/accounting/ContraVoucherModal';
 import SetupVoucherTypes from '../components/accounting/SetupVoucherTypes';
 import InvoiceFormModal from '../components/InvoiceFormModal';
 import { formatDateDisplay } from '../lib/dateUtils';
@@ -373,7 +374,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
 
         {showModal && selectedVoucherType && (
           <>
-            {selectedVoucherType.code.toUpperCase() === 'PAYMENT' ? (
+            {selectedVoucherType.code.toUpperCase() === 'PV' ? (
               <PaymentVoucherModal
                 onClose={() => {
                   setShowModal(false);
@@ -382,8 +383,17 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
                 }}
                 voucherTypeId={selectedVoucherType.id}
               />
-            ) : selectedVoucherType.code.toUpperCase() === 'RECEIPT' ? (
+            ) : selectedVoucherType.code.toUpperCase() === 'RV' ? (
               <ReceiptVoucherModal
+                onClose={() => {
+                  setShowModal(false);
+                  setSelectedVoucherType(null);
+                  fetchData();
+                }}
+                voucherTypeId={selectedVoucherType.id}
+              />
+            ) : selectedVoucherType.code.toUpperCase() === 'CV' ? (
+              <ContraVoucherModal
                 onClose={() => {
                   setShowModal(false);
                   setSelectedVoucherType(null);

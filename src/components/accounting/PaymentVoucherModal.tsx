@@ -87,6 +87,15 @@ export default function PaymentVoucherModal({ onClose, voucherTypeId }: PaymentV
     }
   };
 
+  const getCashBankAccounts = () => {
+    return accounts.filter(acc => {
+      const code = acc.account_code.toLowerCase();
+      const name = acc.account_name.toLowerCase();
+      return code.includes('cash') || code.includes('bank') ||
+             name.includes('cash') || name.includes('bank');
+    });
+  };
+
   useEffect(() => {
     if (cashBankAccountId && accounts.length > 0) {
       const account = accounts.find(a => a.id === cashBankAccountId);
@@ -285,23 +294,35 @@ export default function PaymentVoucherModal({ onClose, voucherTypeId }: PaymentV
               </div>
             </div>
 
-            {cashBankAccountId && (
-              <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-red-900 mb-2">
-                      Payment Voucher
-                    </p>
-                    <p className="text-xs text-red-800 mb-2">
-                      Cash/Bank will be automatically <strong>CREDITED</strong> (money going out)
-                    </p>
-                    <p className="text-xs text-red-700 font-medium">
-                      Using: {cashBankAccountName} ({paymentReceiptType === 'cash' ? 'Cash' : 'Bank'})
-                    </p>
-                  </div>
-                </div>
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Credit Ledger (Cash/Bank Account)</h3>
+              <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-lg mb-4">
+                <p className="text-xs text-red-800 mb-1">
+                  <strong>Payment Voucher:</strong> Cash/Bank will be <strong>CREDITED</strong> (money going out)
+                </p>
               </div>
-            )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Cash/Bank Ledger *
+                </label>
+                <select
+                  value={cashBankAccountId}
+                  onChange={(e) => setCashBankAccountId(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select cash or bank ledger</option>
+                  {getCashBankAccounts().map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.account_code} - {account.account_name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select the cash or bank account from which payment will be made
+                </p>
+              </div>
+            </div>
 
             <div className="bg-white rounded-xl p-6 border border-gray-200">
               <div className="flex items-center justify-between mb-4">

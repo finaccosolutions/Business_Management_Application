@@ -12,8 +12,8 @@ interface Account {
 
 interface VoucherEntry {
   account_id: string;
-  debit_amount: string;
-  credit_amount: string;
+  amount: string;
+  type: 'debit' | 'credit';
   narration: string;
 }
 
@@ -36,8 +36,8 @@ export default function JournalVoucherModal({ onClose, voucherTypeId, voucherTyp
   });
 
   const [entries, setEntries] = useState<VoucherEntry[]>([
-    { account_id: '', debit_amount: '0', credit_amount: '0', narration: '' },
-    { account_id: '', debit_amount: '0', credit_amount: '0', narration: '' },
+    { account_id: '', amount: '', type: 'debit', narration: '' },
+    { account_id: '', amount: '', type: 'credit', narration: '' },
   ]);
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export default function JournalVoucherModal({ onClose, voucherTypeId, voucherTyp
   };
 
   const addEntry = () => {
-    setEntries([...entries, { account_id: '', debit_amount: '0', credit_amount: '0', narration: '' }]);
+    setEntries([...entries, { account_id: '', amount: '', type: 'debit', narration: '' }]);
   };
 
   const removeEntry = (index: number) => {
@@ -104,15 +104,19 @@ export default function JournalVoucherModal({ onClose, voucherTypeId, voucherTyp
   };
 
   const calculateTotals = () => {
-    const totalDebit = entries.reduce((sum, entry) => sum + parseFloat(entry.debit_amount || '0'), 0);
-    const totalCredit = entries.reduce((sum, entry) => sum + parseFloat(entry.credit_amount || '0'), 0);
+    const totalDebit = entries.reduce((sum, entry) => {
+      return sum + (entry.type === 'debit' ? parseFloat(entry.amount || '0') : 0);
+    }, 0);
+    const totalCredit = entries.reduce((sum, entry) => {
+      return sum + (entry.type === 'credit' ? parseFloat(entry.amount || '0') : 0);
+    }, 0);
     return { totalDebit, totalCredit, difference: totalDebit - totalCredit };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (entries.length === 0 || !entries.some(e => e.account_id && (parseFloat(e.debit_amount) > 0 || parseFloat(e.credit_amount) > 0))) {
+    if (entries.length === 0 || !entries.some(e => e.account_id && parseFloat(e.amount) > 0)) {
       toast.error('Please add at least one entry');
       return;
     }
@@ -131,11 +135,11 @@ export default function JournalVoucherModal({ onClose, voucherTypeId, voucherTyp
 
     try {
       const entriesData = entries
-        .filter((entry) => entry.account_id && (parseFloat(entry.debit_amount) > 0 || parseFloat(entry.credit_amount) > 0))
+        .filter((entry) => entry.account_id && parseFloat(entry.amount) > 0)
         .map((entry) => ({
           account_id: entry.account_id,
-          debit_amount: parseFloat(entry.debit_amount || '0'),
-          credit_amount: parseFloat(entry.credit_amount || '0'),
+          debit_amount: entry.type === 'debit' ? parseFloat(entry.amount) : 0,
+          credit_amount: entry.type === 'credit' ? parseFloat(entry.amount) : 0,
           narration: entry.narration,
         }));
 
@@ -296,31 +300,32 @@ export default function JournalVoucherModal({ onClose, voucherTypeId, voucherTyp
                         </select>
                       </div>
 
-                      <div className="col-span-10 md:col-span-3">
+                      <div className="col-span-5 md:col-span-2">
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Debit (₹)
+                          Type *
                         </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={entry.debit_amount}
-                          onChange={(e) => updateEntry(index, 'debit_amount', e.target.value)}
+                        <select
+                          value={entry.type}
+                          onChange={(e) => updateEntry(index, 'type', e.target.value as 'debit' | 'credit')}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                          placeholder="0.00"
-                        />
+                        >
+                          <option value="debit">Dr</option>
+                          <option value="credit">Cr</option>
+                        </select>
                       </div>
 
-                      <div className="col-span-10 md:col-span-3">
+                      <div className="col-span-5 md:col-span-3">
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Credit (₹)
+                          Amount (₹) *
                         </label>
                         <input
                           type="number"
                           step="0.01"
-                          value={entry.credit_amount}
-                          onChange={(e) => updateEntry(index, 'credit_amount', e.target.value)}
+                          value={entry.amount}
+                          onChange={(e) => updateEntry(index, 'amount', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                           placeholder="0.00"
+                          required
                         />
                       </div>
 
