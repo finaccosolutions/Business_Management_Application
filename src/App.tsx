@@ -77,7 +77,7 @@ function AppContent() {
       case 'reminders':
         return <Reminders />;
       case 'reports':
-        return <Reports />;
+        return <Reports onNavigate={setCurrentPage} />;
       case 'settings':
         return <Settings />;
       case 'profile':

@@ -44,18 +44,36 @@ export default function Ledger() {
   useEffect(() => {
     if (user) {
       fetchAccounts();
-      // Check URL parameters
-      const params = new URLSearchParams(window.location.search);
-      const accountParam = params.get('account');
-      const startParam = params.get('start');
-      const endParam = params.get('end');
 
-      if (startParam) setStartDate(startParam);
-      if (endParam) setEndDate(endParam);
+      // Check sessionStorage first (from Reports navigation)
+      const storedParams = sessionStorage.getItem('ledgerParams');
+      if (storedParams) {
+        try {
+          const params = JSON.parse(storedParams);
+          if (params.account) {
+            if (params.start) setStartDate(params.start);
+            if (params.end) setEndDate(params.end);
+            fetchAccountDetails(params.account);
+            // Clear after reading
+            sessionStorage.removeItem('ledgerParams');
+          }
+        } catch (e) {
+          console.error('Error parsing ledger params:', e);
+        }
+      } else {
+        // Fallback to URL parameters
+        const params = new URLSearchParams(window.location.search);
+        const accountParam = params.get('account');
+        const startParam = params.get('start');
+        const endParam = params.get('end');
 
-      if (accountParam) {
-        // Fetch specific account details
-        fetchAccountDetails(accountParam);
+        if (startParam) setStartDate(startParam);
+        if (endParam) setEndDate(endParam);
+
+        if (accountParam) {
+          // Fetch specific account details
+          fetchAccountDetails(accountParam);
+        }
       }
     }
   }, [user]);

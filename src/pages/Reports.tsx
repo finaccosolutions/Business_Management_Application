@@ -182,7 +182,11 @@ interface ProfitLossEntry {
   type: 'income' | 'expense';
 }
 
-export default function Reports() {
+interface ReportsProps {
+  onNavigate?: (page: string) => void;
+}
+
+export default function Reports({ onNavigate }: ReportsProps = {}) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -920,14 +924,16 @@ export default function Reports() {
   };
 
   const handleAccountClick = (accountId: string, startDate: string, endDate?: string) => {
-    const params = new URLSearchParams({
-      account: accountId,
-      start: startDate,
-    });
-    if (endDate) {
-      params.set('end', endDate);
+    if (onNavigate) {
+      // Store params in sessionStorage for the Ledger page to read
+      const params = {
+        account: accountId,
+        start: startDate,
+        end: endDate || '',
+      };
+      sessionStorage.setItem('ledgerParams', JSON.stringify(params));
+      onNavigate('ledger');
     }
-    window.location.href = `/ledger?${params.toString()}`;
   };
 
   const exportToCSV = (data: any[], filename: string) => {

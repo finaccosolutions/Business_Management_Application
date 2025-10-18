@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, ChevronRight, ArrowLeft, Grid3x3, List, Filter, Network } from 'lucide-react';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import AccountTreeView from '../components/AccountTreeView';
+import { formatDateDisplay } from '../lib/dateUtils';
 
 interface AccountGroup {
   id: string;
@@ -35,7 +36,8 @@ interface LedgerTransaction {
   credit: number;
   balance: number;
   narration: string;
-  vouchers: { voucher_number: string } | null;
+  particulars?: string;
+  vouchers: { voucher_number: string; voucher_types?: { name: string }; id?: string } | null;
 }
 
 const accountTypeColors = {
@@ -132,12 +134,54 @@ export default function ChartOfAccounts() {
     try {
       const { data, error } = await supabase
         .from('ledger_transactions')
-        .select('*, vouchers(voucher_number)')
+        .select(`
+          *,
+          vouchers(
+            voucher_number,
+            voucher_types(name),
+            id
+          )
+        `)
         .eq('account_id', accountId)
-        .order('transaction_date', { ascending: true });
+        .order('transaction_date', { ascending: true })
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setTransactions(data || []);
+
+      // Process entries to add counter-party account names and running balance
+      const processedEntries = [];
+      let runningBalance = 0;
+
+      for (const txn of (data || [])) {
+        runningBalance += (Number(txn.debit) || 0) - (Number(txn.credit) || 0);
+
+        let particularsName = txn.narration || '-';
+
+        if (txn.vouchers?.id) {
+          const { data: otherTxns } = await supabase
+            .from('ledger_transactions')
+            .select(`
+              account_id,
+              chart_of_accounts(account_name)
+            `)
+            .eq('voucher_id', txn.vouchers.id)
+            .neq('account_id', accountId)
+            .limit(1)
+            .maybeSingle();
+
+          if (otherTxns?.chart_of_accounts?.account_name) {
+            particularsName = otherTxns.chart_of_accounts.account_name;
+          }
+        }
+
+        processedEntries.push({
+          ...txn,
+          particulars: particularsName,
+          balance: runningBalance,
+        });
+      }
+
+      setTransactions(processedEntries);
     } catch (error) {
       console.error('Error fetching transactions:', error);
       toast.error('Failed to load transactions');
@@ -423,48 +467,78 @@ export default function ChartOfAccounts() {
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200 dark:border-slate-600">
+              <thead className="bg-gradient-to-r from-slate-700 to-slate-600 text-white sticky top-0 z-10">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                    Voucher
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                    Voucher No.
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                    Narration
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                    Particulars (Ledger Name)
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                    Debit
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">
+                    Debit (₹)
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                    Credit
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">
+                    Credit (₹)
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                    Balance
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">
+                    Balance (₹)
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {transactions.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {new Date(txn.transaction_date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-blue-600 dark:text-blue-400">
-                      {txn.vouchers?.voucher_number || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{txn.narration || '-'}</td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap text-sm font-semibold text-blue-600 dark:text-blue-400">
-                      {txn.debit > 0 ? `₹${txn.debit.toLocaleString('en-IN')}` : '-'}
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap text-sm font-semibold text-red-600 dark:text-red-400">
-                      {txn.credit > 0 ? `₹${txn.credit.toLocaleString('en-IN')}` : '-'}
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
-                      ₹{txn.balance.toLocaleString('en-IN')}
-                    </td>
-                  </tr>
+                    <tr key={txn.id} className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {formatDateDisplay(txn.transaction_date)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="font-mono text-sm text-blue-600 dark:text-blue-400 font-medium">
+                            {txn.vouchers?.voucher_number || 'N/A'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{txn.particulars || '-'}</span>
+                          {txn.narration && txn.narration !== '-' && txn.narration !== txn.particulars && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{txn.narration}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        {txn.debit > 0 ? (
+                          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                            ₹{txn.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        {txn.credit > 0 ? (
+                          <span className="text-sm font-semibold text-red-600 dark:text-red-400">
+                            ₹{txn.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <span className={`text-sm font-bold ${
+                          txn.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          ₹{Math.abs(txn.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          <span className="text-xs ml-1">{txn.balance >= 0 ? 'Dr' : 'Cr'}</span>
+                        </span>
+                      </td>
+                    </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-slate-700 border-t-2 border-gray-300 dark:border-slate-600">
