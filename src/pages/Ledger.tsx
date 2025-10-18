@@ -21,6 +21,7 @@ interface LedgerEntry {
   debit: number;
   credit: number;
   balance: number;
+  narration: string;
 }
 
 export default function Ledger() {
@@ -135,7 +136,8 @@ export default function Ledger() {
           *,
           vouchers(
             voucher_number,
-            voucher_types(name)
+            voucher_types(name),
+            id
           )
         `)
         .eq('account_id', selectedAccount.id)
@@ -153,24 +155,46 @@ export default function Ledger() {
 
       if (error) throw error;
 
+      const processedEntries = [];
       let runningBalance = 0;
-      const processedEntries = (data || []).map((txn: any) => {
+
+      for (const txn of (data || [])) {
         runningBalance += (Number(txn.debit) || 0) - (Number(txn.credit) || 0);
-        return {
+
+        let particularsName = txn.narration || '-';
+
+        if (txn.vouchers?.id) {
+          const { data: otherTxns } = await supabase
+            .from('ledger_transactions')
+            .select(`
+              account_id,
+              chart_of_accounts(account_name)
+            `)
+            .eq('voucher_id', txn.vouchers.id)
+            .neq('account_id', selectedAccount.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (otherTxns?.chart_of_accounts?.account_name) {
+            particularsName = otherTxns.chart_of_accounts.account_name;
+          }
+        }
+
+        processedEntries.push({
           id: txn.id,
           transaction_date: txn.transaction_date,
           voucher_number: txn.vouchers?.voucher_number || 'N/A',
           voucher_type: txn.vouchers?.voucher_types?.name || 'Unknown',
-          particulars: txn.narration || '-',
+          particulars: particularsName,
+          narration: txn.narration || '-',
           debit: Number(txn.debit) || 0,
           credit: Number(txn.credit) || 0,
           balance: runningBalance,
-        };
-      });
+        });
+      }
 
       setEntries(processedEntries);
 
-      // Extract unique voucher types for filter
       const types = Array.from(new Set(processedEntries.map(e => e.voucher_type)));
       setVoucherTypes(types);
     } catch (error) {
@@ -584,7 +608,12 @@ export default function Ledger() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-gray-900">{entry.particulars}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-900">{entry.particulars}</span>
+                          {entry.narration && entry.narration !== '-' && (
+                            <span className="text-xs text-gray-500 mt-0.5">{entry.narration}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
                         {entry.debit > 0 ? (

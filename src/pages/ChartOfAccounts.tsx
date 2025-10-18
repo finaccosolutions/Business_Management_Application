@@ -75,6 +75,7 @@ export default function ChartOfAccounts() {
   const [groupFilterType, setGroupFilterType] = useState('all');
   const [groupViewMode, setGroupViewMode] = useState<'table' | 'cards' | 'tree'>('table');
   const [groupSearchTerm, setGroupSearchTerm] = useState('');
+  const [ledgerViewMode, setLedgerViewMode] = useState<'table' | 'cards'>('table');
 
   const [formData, setFormData] = useState({
     account_code: '',
@@ -852,9 +853,34 @@ export default function ChartOfAccounts() {
                 <option value="expense">Expenses</option>
                 <option value="equity">Equity</option>
               </select>
+              <div className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-1">
+                <button
+                  onClick={() => setLedgerViewMode('table')}
+                  className={`p-2 rounded-lg transition-colors ${
+                    ledgerViewMode === 'table'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                  }`}
+                  title="Table View"
+                >
+                  <List className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setLedgerViewMode('cards')}
+                  className={`p-2 rounded-lg transition-colors ${
+                    ledgerViewMode === 'cards'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                  }`}
+                  title="Card View"
+                >
+                  <Grid3x3 className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           )}
 
+          {ledgerViewMode === 'table' ? (
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -978,6 +1004,110 @@ export default function ChartOfAccounts() {
               )}
             </div>
           </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredAccounts.map((account) => (
+                <div
+                  key={account.id}
+                  onClick={() => handleAccountClick(account)}
+                  className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 hover:shadow-lg transition-all cursor-pointer transform hover:scale-[1.02]"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400">
+                          {account.account_code}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-1">
+                        {account.account_name}
+                      </h3>
+                      {account.description && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{account.description}</p>
+                      )}
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                      <span className="text-xs text-gray-600 dark:text-gray-400">Group</span>
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs font-medium text-gray-900 dark:text-white">
+                          {account.account_groups.name}
+                        </span>
+                        <span
+                          className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full mt-1 ${
+                            accountTypeColors[
+                              account.account_groups.account_type as keyof typeof accountTypeColors
+                            ]
+                          }`}
+                        >
+                          {account.account_groups.account_type.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="py-2 px-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <p className="text-xs text-blue-600 dark:text-blue-400">Opening</p>
+                        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                          ₹{account.opening_balance.toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                      <div className="py-2 px-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <p className="text-xs text-green-600 dark:text-green-400">Current</p>
+                        <p className="text-sm font-bold text-green-700 dark:text-green-300">
+                          ₹{account.current_balance.toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(account);
+                      }}
+                      className="flex-1 py-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors font-medium flex items-center justify-center gap-1"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(account.id);
+                      }}
+                      className="flex-1 py-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors font-medium flex items-center justify-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {filteredAccounts.length === 0 && (
+                <div className="col-span-full text-center py-12">
+                  <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No ledgers found</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    {selectedGroup
+                      ? 'No ledgers in this group. Create your first ledger.'
+                      : 'Create your first ledger to get started'}
+                  </p>
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span>Add Ledger</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
