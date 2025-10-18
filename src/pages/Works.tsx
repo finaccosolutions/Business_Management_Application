@@ -1053,7 +1053,7 @@ const filteredWorks = works.filter((work) => {
                     </div>
                   )}
 
-                  <div className={!editingWork ? '' : 'md:col-span-2'}>
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Customer *
                     </label>
@@ -1072,7 +1072,7 @@ const filteredWorks = works.filter((work) => {
                     </select>
                   </div>
 
-                  <div className={!editingWork ? 'md:col-span-2' : ''}>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Service *
                     </label>

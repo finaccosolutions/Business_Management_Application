@@ -287,7 +287,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
       const generatedCode = formData.service_code || await generateServiceCode();
 
-      const customFields = { ...formData.custom_fields };
+      const customFields: any = { ...formData.custom_fields };
 
       if (formData.is_recurring) {
         customFields.period_calculation_type = formData.period_calculation_type;
