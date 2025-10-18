@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Plus, FileText, Search, Filter, X, Eye, Edit2, Trash2, Calendar } from 'lucide-react';
+import { Plus, FileText, Search, Filter, X, Eye, Edit2, Trash2, Calendar, Printer, Download, CheckCircle, XCircle } from 'lucide-react';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import PaymentVoucherModal from '../components/accounting/PaymentVoucherModal';
 import ReceiptVoucherModal from '../components/accounting/ReceiptVoucherModal';
@@ -128,10 +128,10 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, voucherNumber: string) => {
     showConfirmation({
       title: 'Delete Voucher',
-      message: 'Are you sure you want to delete this voucher? This action cannot be undone.',
+      message: `Are you sure you want to delete voucher ${voucherNumber}? This will also remove all related ledger entries. This action cannot be undone.`,
       confirmText: 'Delete',
       cancelText: 'Cancel',
       confirmColor: 'red',
@@ -139,7 +139,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
         try {
           const { error } = await supabase.from('vouchers').delete().eq('id', id);
           if (error) throw error;
-          toast.success('Voucher deleted successfully');
+          toast.success('Voucher and all related records deleted successfully');
           fetchData();
         } catch (error: any) {
           console.error('Error deleting voucher:', error);
@@ -149,10 +149,10 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
     });
   };
 
-  const handlePost = async (id: string) => {
+  const handlePost = async (id: string, voucherNumber: string) => {
     showConfirmation({
       title: 'Post Voucher',
-      message: 'Are you sure you want to post this voucher? Once posted, it will create ledger entries.',
+      message: `Are you sure you want to post voucher ${voucherNumber}? Once posted, it will create ledger entries.`,
       confirmText: 'Post',
       cancelText: 'Cancel',
       confirmColor: 'green',
@@ -169,6 +169,43 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
         } catch (error: any) {
           console.error('Error posting voucher:', error);
           toast.error(error.message || 'Failed to post voucher');
+        }
+      },
+    });
+  };
+
+  const handleEdit = async (voucher: Voucher) => {
+    toast.info('Edit functionality coming soon');
+  };
+
+  const handleView = async (voucher: Voucher) => {
+    setSelectedVoucher(voucher);
+  };
+
+  const handlePrint = async (voucher: Voucher) => {
+    toast.info('Print functionality coming soon');
+  };
+
+  const handleCancel = async (id: string, voucherNumber: string) => {
+    showConfirmation({
+      title: 'Cancel Voucher',
+      message: `Are you sure you want to cancel voucher ${voucherNumber}? This will reverse all ledger entries.`,
+      confirmText: 'Cancel Voucher',
+      cancelText: 'Go Back',
+      confirmColor: 'red',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('vouchers')
+            .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+            .eq('id', id);
+
+          if (error) throw error;
+          toast.success('Voucher cancelled successfully');
+          fetchData();
+        } catch (error: any) {
+          console.error('Error cancelling voucher:', error);
+          toast.error(error.message || 'Failed to cancel voucher');
         }
       },
     });
@@ -270,103 +307,163 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filteredVouchers.map((voucher) => (
             <div
               key={voucher.id}
-              className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5 hover:shadow-md transition-all"
+              className="bg-white dark:bg-slate-800 rounded-xl shadow-md border-2 border-gray-200 dark:border-slate-700 hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="p-3 bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-lg flex-shrink-0">
-                    <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{voucher.voucher_number}</h3>
-                      <span
-                        className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                          statusColors[voucher.status as keyof typeof statusColors]
-                        }`}
-                      >
-                        {voucher.status.toUpperCase()}
-                      </span>
+              <div className="p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  {/* Left Section - Voucher Info */}
+                  <div className="flex items-start gap-4 flex-1">
+                    <div className={`p-4 bg-gradient-to-br rounded-xl flex-shrink-0 shadow-sm ${
+                      voucher.status === 'posted'
+                        ? 'from-green-100 to-emerald-200 dark:from-green-900/40 dark:to-emerald-900/40'
+                        : voucher.status === 'cancelled'
+                        ? 'from-red-100 to-rose-200 dark:from-red-900/40 dark:to-rose-900/40'
+                        : 'from-blue-100 to-cyan-200 dark:from-blue-900/40 dark:to-cyan-900/40'
+                    }`}>
+                      <FileText className={`w-7 h-7 ${
+                        voucher.status === 'posted'
+                          ? 'text-green-700 dark:text-green-300'
+                          : voucher.status === 'cancelled'
+                          ? 'text-red-700 dark:text-red-300'
+                          : 'text-blue-700 dark:text-blue-300'
+                      }`} />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Date</p>
-                        <p className="font-medium text-gray-900 dark:text-white flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                          {formatDateDisplay(voucher.voucher_date)}
-                        </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-3 flex-wrap">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{voucher.voucher_number}</h3>
+                        <span
+                          className={`px-3 py-1.5 text-xs font-bold rounded-full shadow-sm flex items-center gap-1.5 ${
+                            statusColors[voucher.status as keyof typeof statusColors]
+                          }`}
+                        >
+                          {voucher.status === 'posted' && <CheckCircle className="w-3.5 h-3.5" />}
+                          {voucher.status === 'cancelled' && <XCircle className="w-3.5 h-3.5" />}
+                          {voucher.status.toUpperCase()}
+                        </span>
+                        <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300">
+                          {voucher.voucher_types.name}
+                        </span>
                       </div>
-                      {voucher.reference_number && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Reference</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{voucher.reference_number}</p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                        <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Voucher Date</p>
+                          <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            {formatDateDisplay(voucher.voucher_date)}
+                          </p>
+                        </div>
+                        {voucher.reference_number && (
+                          <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Reference No.</p>
+                            <p className="font-semibold text-gray-900 dark:text-white truncate">{voucher.reference_number}</p>
+                          </div>
+                        )}
+                        <div className="bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-lg p-3">
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 font-medium">Total Amount</p>
+                          <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                            ₹{voucher.total_amount.toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Type Code</p>
+                          <p className="font-mono font-bold text-gray-900 dark:text-white">{voucher.voucher_types.code}</p>
+                        </div>
+                      </div>
+
+                      {voucher.narration && (
+                        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                          <p className="text-xs text-amber-700 dark:text-amber-400 font-medium mb-1">Narration</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{voucher.narration}</p>
                         </div>
                       )}
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Amount</p>
-                        <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                          ₹{voucher.total_amount.toLocaleString('en-IN')}
-                        </p>
-                      </div>
                     </div>
-
-                    {voucher.narration && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{voucher.narration}</p>
-                    )}
                   </div>
-                </div>
 
-                <div className="flex gap-2 flex-shrink-0">
-                  {voucher.status === 'draft' && (
-                    <button
-                      onClick={() => handlePost(voucher.id)}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors text-xs font-medium"
-                      title="Post Voucher"
-                    >
-                      Post
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setSelectedVoucher(voucher)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-xs font-medium"
-                    title="View Details"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  {voucher.status === 'draft' && (
-                    <button
-                      onClick={() => handleDelete(voucher.id)}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors text-xs font-medium"
-                      title="Delete Voucher"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  {/* Right Section - Actions */}
+                  <div className="flex flex-col gap-2 lg:flex-shrink-0 lg:ml-auto">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleView(voucher)}
+                        className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>View</span>
+                      </button>
+                      {voucher.status === 'draft' && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(voucher)}
+                            className="flex items-center gap-1.5 px-4 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
+                            title="Edit Voucher"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => handlePost(voucher.id, voucher.voucher_number)}
+                            className="flex items-center gap-1.5 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
+                            title="Post Voucher"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Post</span>
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => handlePrint(voucher)}
+                        className="flex items-center gap-1.5 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
+                        title="Print Voucher"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span>Print</span>
+                      </button>
+                      {voucher.status === 'posted' && (
+                        <button
+                          onClick={() => handleCancel(voucher.id, voucher.voucher_number)}
+                          className="flex items-center gap-1.5 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
+                          title="Cancel Voucher"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          <span>Cancel</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(voucher.id, voucher.voucher_number)}
+                        className="flex items-center gap-1.5 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
+                        title="Delete Voucher"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           ))}
 
           {filteredVouchers.length === 0 && (
-            <div className="text-center py-12 bg-gray-50 dark:bg-slate-800 rounded-xl">
-              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No vouchers found</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">Create your first voucher to get started</p>
+            <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-slate-800 dark:to-slate-700 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-600">
+              <FileText className="w-20 h-20 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No vouchers found</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">Create your first voucher to get started</p>
               <button
                 onClick={() => {
                   const selectedType = voucherTypes.find(t => t.id === selectedTypeId);
                   setSelectedVoucherType(selectedType || null);
                   setShowModal(true);
                 }}
-                className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-8 py-4 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <Plus className="w-5 h-5" />
-                <span>New Voucher</span>
+                <span>Create New Voucher</span>
               </button>
             </div>
           )}
