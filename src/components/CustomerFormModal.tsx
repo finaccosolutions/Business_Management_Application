@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 interface CustomerFormData {
+  customer_id: string;
   name: string;
   email: string;
   phone: string;
@@ -90,6 +91,7 @@ export default function CustomerFormModal({
   const countryConfig = getCountryConfig(customerCountry);
 
   const [formData, setFormData] = useState<CustomerFormData>({
+    customer_id: initialData.customer_id || '',
     name: initialData.name || '',
     email: initialData.email || '',
     phone: initialData.phone || '',
@@ -121,6 +123,32 @@ export default function CustomerFormModal({
     bank_branch: initialData.bank_branch || '',
     notes: initialData.notes || '',
   });
+
+  const generateCustomerId = async () => {
+    try {
+      const { data, error } = await supabase.rpc('generate_next_id', {
+        p_user_id: user!.id,
+        p_id_type: 'customer_id'
+      });
+
+      if (error) {
+        console.error('Error generating customer ID:', error);
+        return;
+      }
+
+      if (data) {
+        setFormData(prev => ({ ...prev, customer_id: data }));
+      }
+    } catch (error) {
+      console.error('Error in generateCustomerId:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (mode === 'create' && !initialData.customer_id) {
+      generateCustomerId();
+    }
+  }, [mode]);
 
   const tabs: Array<{ id: TabType; label: string; icon: any }> = [
     { id: 'basic', label: 'Basic Info', icon: User },
@@ -333,18 +361,37 @@ export default function CustomerFormModal({
           {/* Tab Content */}
           {activeTab === 'basic' && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Customer Name / Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="ABC Company"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Customer ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.customer_id}
+                    onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50"
+                    placeholder="Auto-generated"
+                    readOnly={mode === 'create'}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {mode === 'create' ? 'Auto-generated based on settings' : 'Customer identifier'}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Customer Name / Company Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="ABC Company"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

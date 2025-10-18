@@ -126,6 +126,7 @@ export default function Works() {
 
 
   const [formData, setFormData] = useState({
+    work_number: '',
     customer_id: '',
     service_id: '',
     assigned_to: '',
@@ -159,6 +160,35 @@ export default function Works() {
       fetchData();
     }
   }, [user]);
+
+  const generateWorkNumber = async () => {
+    try {
+      const { data, error } = await supabase.rpc('generate_next_id', {
+        p_user_id: user!.id,
+        p_id_type: 'work_id'
+      });
+
+      if (error) {
+        console.error('Error generating work number:', error);
+        return '';
+      }
+
+      return data || '';
+    } catch (error) {
+      console.error('Error in generateWorkNumber:', error);
+      return '';
+    }
+  };
+
+  useEffect(() => {
+    if (showModal && !editingWork && !formData.work_number) {
+      generateWorkNumber().then(workNumber => {
+        if (workNumber) {
+          setFormData(prev => ({ ...prev, work_number: workNumber }));
+        }
+      });
+    }
+  }, [showModal, editingWork]);
 
   useEffect(() => {
     if (filterCategory) {
@@ -346,6 +376,10 @@ export default function Works() {
 
       if (!editingWork) {
         workData.user_id = user!.id;
+        const workNumber = formData.work_number || await generateWorkNumber();
+        if (workNumber) {
+          workData.work_number = workNumber;
+        }
       }
 
       if (formData.assigned_to && !editingWork) {
@@ -511,6 +545,7 @@ export default function Works() {
       .then(({ data }) => {
         if (data) {
           setFormData({
+            work_number: data.work_number || '',
             customer_id: data.customer_id,
             service_id: data.service_id,
             assigned_to: data.assigned_to || '',
@@ -546,6 +581,7 @@ export default function Works() {
 
   const resetForm = () => {
     setFormData({
+      work_number: '',
       customer_id: '',
       service_id: '',
       assigned_to: '',
@@ -1000,8 +1036,24 @@ const filteredWorks = works.filter((work) => {
                   Basic Information
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {!editingWork && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Work ID
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.work_number}
+                        readOnly
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                        placeholder="Auto-generated"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Auto-generated based on settings</p>
+                    </div>
+                  )}
+
+                  <div className={!editingWork ? '' : 'md:col-span-2'}>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Customer *
                     </label>
@@ -1020,7 +1072,7 @@ const filteredWorks = works.filter((work) => {
                     </select>
                   </div>
 
-                  <div>
+                  <div className={!editingWork ? 'md:col-span-2' : ''}>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Service *
                     </label>

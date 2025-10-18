@@ -97,6 +97,17 @@ export default function UnifiedIDConfig({ settings, onUpdateSettings }: UnifiedI
       description: 'Debit note numbers for supplier returns',
     },
     {
+      type: 'customer_id',
+      label: 'Customer ID',
+      icon: Users,
+      prefix: settings.customer_id_prefix || 'CUST',
+      suffix: settings.customer_id_suffix || '',
+      width: settings.customer_id_number_width || 4,
+      prefixZero: settings.customer_id_prefix_zero !== false,
+      startingNumber: settings.customer_id_starting_number || 1,
+      description: 'Auto-generated customer identification numbers',
+    },
+    {
       type: 'employee_id',
       label: 'Employee ID',
       icon: Users,
@@ -162,7 +173,7 @@ export default function UnifiedIDConfig({ settings, onUpdateSettings }: UnifiedI
     ['invoice', 'receipt', 'payment', 'journal', 'contra', 'credit_note', 'debit_note'].includes(t.type)
   );
   const entityIDTypes = idTypes.filter((t) =>
-    ['employee_id', 'service_code', 'work_id'].includes(t.type)
+    ['customer_id', 'employee_id', 'service_code', 'work_id'].includes(t.type)
   );
 
   return (
@@ -303,7 +314,7 @@ export default function UnifiedIDConfig({ settings, onUpdateSettings }: UnifiedI
 
       {renderSectionHeader(
         'Entity ID Numbers',
-        'Configure auto-generated IDs for employees, services, and work instances'
+        'Configure auto-generated IDs for customers, employees, services, and work instances'
       )}
 
       {entityIDTypes.map((config) => {
@@ -436,7 +447,7 @@ export default function UnifiedIDConfig({ settings, onUpdateSettings }: UnifiedI
           <li>Starting number is the first number that will be used for new entries</li>
           <li>Prefix Zero fills numbers with leading zeros (e.g., 0001 instead of 1)</li>
           <li>Changes take effect for new IDs only, existing IDs are not affected</li>
-          <li>Employee IDs, Service Codes, and Work IDs are auto-generated when creating new entries</li>
+          <li>Customer IDs, Employee IDs, Service Codes, and Work IDs are auto-generated when creating new entries</li>
         </ul>
       </div>
     </div>
