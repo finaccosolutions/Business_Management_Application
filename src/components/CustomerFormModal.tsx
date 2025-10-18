@@ -124,31 +124,32 @@ export default function CustomerFormModal({
     notes: initialData.notes || '',
   });
 
-  const generateCustomerId = async () => {
-    try {
-      const { data, error } = await supabase.rpc('generate_next_id', {
-        p_user_id: user!.id,
-        p_id_type: 'customer_id'
-      });
-
-      if (error) {
-        console.error('Error generating customer ID:', error);
-        return;
-      }
-
-      if (data) {
-        setFormData(prev => ({ ...prev, customer_id: data }));
-      }
-    } catch (error) {
-      console.error('Error in generateCustomerId:', error);
-    }
-  };
-
   useEffect(() => {
-    if (mode === 'create' && !initialData.customer_id) {
-      generateCustomerId();
-    }
-  }, [mode]);
+    const generateAndSetId = async () => {
+      if (mode === 'create' && !initialData.customer_id && user) {
+        try {
+          const { data, error } = await supabase.rpc('generate_next_id', {
+            p_user_id: user.id,
+            p_id_type: 'customer_id'
+          });
+
+          if (error) {
+            console.error('Error generating customer ID:', error);
+            return;
+          }
+
+          if (data) {
+            console.log('Generated customer ID:', data);
+            setFormData(prev => ({ ...prev, customer_id: data }));
+          }
+        } catch (error) {
+          console.error('Error in generateCustomerId:', error);
+        }
+      }
+    };
+
+    generateAndSetId();
+  }, [mode, user]);
 
   const tabs: Array<{ id: TabType; label: string; icon: any }> = [
     { id: 'basic', label: 'Basic Info', icon: User },

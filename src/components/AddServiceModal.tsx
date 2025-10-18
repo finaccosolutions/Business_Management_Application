@@ -87,15 +87,34 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
   useEffect(() => {
     loadCategories();
-    if (!editingService) {
-      generateAndSetServiceCode();
-    }
   }, []);
 
-  const generateAndSetServiceCode = async () => {
-    const code = await generateServiceCode();
-    setFormData(prev => ({ ...prev, service_code: code }));
-  };
+  useEffect(() => {
+    const generateAndSetServiceCode = async () => {
+      if (!editingService && user) {
+        try {
+          const { data, error } = await supabase.rpc('generate_next_id', {
+            p_user_id: user.id,
+            p_id_type: 'service_code'
+          });
+
+          if (error) {
+            console.error('Error generating service code:', error);
+            return;
+          }
+
+          if (data) {
+            console.log('Generated service code:', data);
+            setFormData(prev => ({ ...prev, service_code: data }));
+          }
+        } catch (error) {
+          console.error('Error in generateServiceCode:', error);
+        }
+      }
+    };
+
+    generateAndSetServiceCode();
+  }, [editingService, user]);
 
   useEffect(() => {
     if (editingService) {
@@ -232,23 +251,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
         return data;
       }
 
-      const { data: existingServices } = await supabase
-        .from('services')
-        .select('service_code')
-        .not('service_code', 'is', null)
-        .order('created_at', { ascending: false})
-        .limit(1);
-
-      let nextNumber = 1;
-      if (existingServices && existingServices.length > 0) {
-        const lastCode = existingServices[0].service_code;
-        const match = lastCode?.match(/SRV-(\d+)/);
-        if (match) {
-          nextNumber = parseInt(match[1]) + 1;
-        }
-      }
-
-      return `SRV-${nextNumber.toString().padStart(3, '0')}`;
+      return `SRV-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
     } catch (error) {
       console.error('Error generating service code:', error);
       return `SRV-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;

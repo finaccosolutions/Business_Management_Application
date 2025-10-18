@@ -64,31 +64,32 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
   const [newCert, setNewCert] = useState({ name: '', issued_by: '', year: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const generateEmployeeId = async () => {
-    try {
-      const { data, error } = await supabase.rpc('generate_next_id', {
-        p_user_id: user!.id,
-        p_id_type: 'employee_id'
-      });
-
-      if (error) {
-        console.error('Error generating employee ID:', error);
-        return;
-      }
-
-      if (data) {
-        setFormData(prev => ({ ...prev, employee_id: data }));
-      }
-    } catch (error) {
-      console.error('Error in generateEmployeeId:', error);
-    }
-  };
-
   useEffect(() => {
-    if (!editingStaff) {
-      generateEmployeeId();
-    }
-  }, [editingStaff]);
+    const generateAndSetId = async () => {
+      if (!editingStaff && user) {
+        try {
+          const { data, error } = await supabase.rpc('generate_next_id', {
+            p_user_id: user.id,
+            p_id_type: 'employee_id'
+          });
+
+          if (error) {
+            console.error('Error generating employee ID:', error);
+            return;
+          }
+
+          if (data) {
+            console.log('Generated employee ID:', data);
+            setFormData(prev => ({ ...prev, employee_id: data }));
+          }
+        } catch (error) {
+          console.error('Error in generateEmployeeId:', error);
+        }
+      }
+    };
+
+    generateAndSetId();
+  }, [editingStaff, user]);
 
   useEffect(() => {
     if (editingStaff) {
