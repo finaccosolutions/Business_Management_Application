@@ -63,6 +63,21 @@ interface CompanySettings {
   invoice_logo_position?: string;
   invoice_show_bank_details?: boolean;
   invoice_show_notes?: boolean;
+  invoice_show_company_details?: boolean;
+  invoice_show_logo?: boolean;
+  invoice_show_tax_number?: boolean;
+  invoice_header_color?: string;
+  invoice_accent_color?: string;
+  invoice_text_color?: string;
+  invoice_font_family?: string;
+  invoice_font_size?: string;
+  invoice_logo_size?: string;
+  invoice_notes?: string;
+  invoice_terms?: string;
+  invoice_footer_text?: string;
+  invoice_watermark_text?: string;
+  invoice_include_item_numbers?: boolean;
+  invoice_show_item_tax?: boolean;
   currency_symbol?: string;
 }
 
@@ -124,7 +139,21 @@ export function generateEnhancedInvoiceHTML(
   const showNotes = companySettings.invoice_show_notes !== false;
   const showBuyerSection = companySettings.invoice_show_buyer_section !== false;
   const showSupplierSection = companySettings.invoice_show_supplier_section !== false;
+  const showLogo = companySettings.invoice_show_logo !== false;
+  const showCompanyDetails = companySettings.invoice_show_company_details !== false;
+  const showTaxNumber = companySettings.invoice_show_tax_number !== false;
+  const showItemNumbers = companySettings.invoice_include_item_numbers !== false;
+  const showItemTax = companySettings.invoice_show_item_tax !== false;
   const numberPosition = companySettings.invoice_number_position || 'right';
+  const logoPosition = companySettings.invoice_logo_position || 'left';
+  const logoSize = companySettings.invoice_logo_size || 'medium';
+  const headerColor = companySettings.invoice_header_color || '#1e40af';
+  const accentColor = companySettings.invoice_accent_color || '#0ea5e9';
+  const textColor = companySettings.invoice_text_color || '#000';
+  const fontFamily = companySettings.invoice_font_family || 'Inter';
+  const fontSize = companySettings.invoice_font_size === 'small' ? '9pt' :
+                   companySettings.invoice_font_size === 'large' ? '11pt' : '10pt';
+  const logoSizePx = logoSize === 'small' ? '80px' : logoSize === 'large' ? '160px' : '120px';
 
   const supplierState = companySettings.state || '';
   const customerState = invoice.customers.state || '';
@@ -175,10 +204,10 @@ export function generateEnhancedInvoiceHTML(
         }
 
         body {
-          font-family: 'Inter', Arial, sans-serif;
-          font-size: 10pt;
+          font-family: '${fontFamily}', Arial, sans-serif;
+          font-size: ${fontSize};
           line-height: 1.4;
-          color: #000;
+          color: ${textColor};
           background: white;
           padding: 10px;
         }
@@ -410,14 +439,43 @@ export function generateEnhancedInvoiceHTML(
     </head>
     <body>
       <div class="invoice-container">
-        <div class="invoice-header">
-          <div class="invoice-title">Invoice</div>
+        <div class="invoice-header" style="background-color: ${headerColor}; color: white; display: flex; align-items: center; justify-content: ${logoPosition === 'center' ? 'center' : logoPosition === 'right' ? 'flex-end' : 'flex-start'}; gap: 15px;">
+          ${showLogo && companySettings.company_logo_url ? `
+            <img src="${companySettings.company_logo_url}" alt="Company Logo" style="max-width: ${logoSizePx}; max-height: ${logoSizePx}; object-fit: contain; background: white; padding: 8px; border-radius: 8px;" />
+          ` : ''}
+          ${showCompanyDetails ? `
+            <div style="text-align: ${logoPosition === 'center' ? 'center' : logoPosition === 'right' ? 'right' : 'left'};">
+              <div style="font-size: 18pt; font-weight: 700; margin-bottom: 5px;">${companySettings.company_name || ''}</div>
+              ${companySettings.mobile ? `<div style="font-size: 9pt;">Mobile: ${companySettings.mobile}</div>` : ''}
+              ${companySettings.email ? `<div style="font-size: 9pt;">Email: ${companySettings.email}</div>` : ''}
+              ${companySettings.phone ? `<div style="font-size: 9pt;">Phone: ${companySettings.phone}</div>` : ''}
+            </div>
+          ` : `
+            <div class="invoice-title">Invoice</div>
+          `}
         </div>
 
-        ${showBuyerSection ? `
+        ${showBuyerSection || showSupplierSection ? `
         <div class="party-section">
+          ${showSupplierSection ? `
           <div class="party-box">
-            <div class="party-label">Party:</div>
+            <div class="party-label">Supplier (From):</div>
+            <div class="party-name">${companySettings.company_name || ''}</div>
+            <div class="party-details">
+              ${companySettings.address_line1 ? `${companySettings.address_line1}<br>` : ''}
+              ${companySettings.address_line2 ? `${companySettings.address_line2}<br>` : ''}
+              ${companySettings.city ? `${companySettings.city}${companySettings.state ? ', ' + companySettings.state : ''}${companySettings.postal_code ? ' - ' + companySettings.postal_code : ''}<br>` : ''}
+              ${companySettings.state ? `State Name: ${companySettings.state}, Code: ${companySettings.state_code || ''}<br>` : ''}
+              ${companySettings.mobile ? `Mobile: ${companySettings.mobile}<br>` : ''}
+              ${companySettings.phone ? `Phone: ${companySettings.phone}<br>` : ''}
+              ${companySettings.email ? `Email: ${companySettings.email}<br>` : ''}
+              ${showTaxNumber && companySettings.tax_registration_number ? `<strong>${companySettings.tax_label || 'GSTIN'}:</strong> ${companySettings.tax_registration_number}` : ''}
+            </div>
+          </div>
+          ` : ''}
+          ${showBuyerSection ? `
+          <div class="party-box">
+            <div class="party-label">Party (Buyer):</div>
             <div class="party-name">${invoice.customers.name}</div>
             <div class="party-details">
               ${invoice.customers.address ? `${invoice.customers.address}<br>` : ''}
@@ -427,12 +485,15 @@ export function generateEnhancedInvoiceHTML(
               ${invoice.customers.gstin ? `<strong>GSTIN:</strong> ${invoice.customers.gstin}` : ''}
             </div>
           </div>
+          ` : ''}
+          ${!showSupplierSection && showBuyerSection ? `
           <div class="party-box">
             <div class="meta-label">Date</div>
             <div class="meta-value">${formatDateDisplay(invoice.invoice_date)}</div>
             <div class="meta-label" style="margin-top: 8px;">Invoice No.</div>
             <div class="meta-value">${invoice.invoice_number}</div>
           </div>
+          ` : ''}
         </div>
         ` : `
         <div class="party-section">
@@ -451,20 +512,37 @@ export function generateEnhancedInvoiceHTML(
         </div>
         `}
 
+        ${showSupplierSection && showBuyerSection ? `
+        <div class="invoice-meta">
+          <div class="meta-cell" style="width: 33.33%;">
+            <div class="meta-label">Date</div>
+            <div class="meta-value">${formatDateDisplay(invoice.invoice_date)}</div>
+          </div>
+          <div class="meta-cell" style="width: 33.33%;">
+            <div class="meta-label">Invoice No.</div>
+            <div class="meta-value">${invoice.invoice_number}</div>
+          </div>
+          <div class="meta-cell" style="width: 33.33%;">
+            <div class="meta-label">Due Date</div>
+            <div class="meta-value">${formatDateDisplay(invoice.due_date)}</div>
+          </div>
+        </div>
+        ` : ''}
+
         <table class="items-table">
           <thead>
             <tr>
-              <th style="width: 8%;">Sl.<br>No.</th>
-              <th style="width: 37%;">Particulars</th>
+              ${showItemNumbers ? '<th style="width: 8%;">Sl.<br>No.</th>' : ''}
+              <th style="width: ${showItemNumbers ? '37%' : '45%'};">Particulars</th>
               <th style="width: 12%;">HSN/SAC</th>
               <th style="width: 8%;">Qty</th>
               <th style="width: 10%;">Rate</th>
               <th style="width: 12%;">Taxable<br>Value</th>
-              ${splitGST ? `
+              ${showItemTax ? (splitGST ? `
                 <th style="width: 7%;">GST<br>Amount</th>
               ` : `
                 <th style="width: 7%;">Tax<br>Amount</th>
-              `}
+              `) : ''}
               <th style="width: 13%;">Total Amount<br>(in ${currencySymbol})</th>
             </tr>
           </thead>
@@ -475,21 +553,21 @@ export function generateEnhancedInvoiceHTML(
               const itemTotal = item.amount + itemTax;
               return `
                 <tr>
-                  <td class="center">${index + 1}</td>
+                  ${showItemNumbers ? `<td class="center">${index + 1}</td>` : ''}
                   <td>${item.description}</td>
                   <td class="center">${item.hsn_sac || '-'}</td>
                   <td class="center">${item.quantity}</td>
                   <td class="right">${item.unit_price.toFixed(2)}</td>
                   <td class="right">${item.amount.toFixed(2)}</td>
-                  <td class="right">${itemTax > 0 ? itemTax.toFixed(2) : '-'}</td>
+                  ${showItemTax ? `<td class="right">${itemTax > 0 ? itemTax.toFixed(2) : '-'}</td>` : ''}
                   <td class="right">${itemTotal.toFixed(2)}</td>
                 </tr>
               `;
             }).join('')}
             <tr>
-              <td colspan="5" class="right" style="font-weight: 700;">Total</td>
+              <td colspan="${showItemNumbers ? '5' : '4'}" class="right" style="font-weight: 700;">Total</td>
               <td class="right" style="font-weight: 700;">${invoice.subtotal.toFixed(2)}</td>
-              <td class="right" style="font-weight: 700;">${invoice.tax_amount > 0 ? invoice.tax_amount.toFixed(2) : '-'}</td>
+              ${showItemTax ? `<td class="right" style="font-weight: 700;">${invoice.tax_amount > 0 ? invoice.tax_amount.toFixed(2) : '-'}</td>` : ''}
               <td class="right" style="font-weight: 700;">${invoice.total_amount.toFixed(2)}</td>
             </tr>
           </tbody>
@@ -535,6 +613,20 @@ export function generateEnhancedInvoiceHTML(
           <div class="amount-words-value">${totalInWords}</div>
         </div>
 
+        ${showNotes && (invoice.notes || companySettings.invoice_notes) ? `
+          <div class="amount-in-words" style="border-bottom: 1px solid #000;">
+            <div class="amount-words-label">Notes:</div>
+            <div style="font-size: 9pt; line-height: 1.5;">${invoice.notes || companySettings.invoice_notes || ''}</div>
+          </div>
+        ` : ''}
+
+        ${showPaymentTerms && companySettings.invoice_terms ? `
+          <div class="amount-in-words" style="border-bottom: 1px solid #000;">
+            <div class="amount-words-label">Terms & Conditions:</div>
+            <div style="font-size: 9pt; line-height: 1.5;">${companySettings.invoice_terms}</div>
+          </div>
+        ` : ''}
+
         ${showBankDetails && companySettings.bank_name ? `
           <div class="bank-details">
             <div class="bank-details-title">Bank Details${companySettings.company_name ? ` For ${companySettings.company_name}` : ''}</div>
@@ -553,7 +645,7 @@ export function generateEnhancedInvoiceHTML(
               ` : ''}
               ${companySettings.bank_ifsc_code ? `
                 <div class="bank-detail-item">
-                  <span class="bank-detail-label">Bank IFC Code:</span>
+                  <span class="bank-detail-label">Bank IFSC Code:</span>
                   <span>${companySettings.bank_ifsc_code}</span>
                 </div>
               ` : ''}
@@ -586,6 +678,18 @@ export function generateEnhancedInvoiceHTML(
             <div class="signature-line">Authorised Signatory</div>
           </div>
         </div>
+
+        ${companySettings.invoice_footer_text ? `
+          <div style="text-align: center; padding: 8px; border-top: 1px solid #000; font-size: 8pt; color: #666;">
+            ${companySettings.invoice_footer_text}
+          </div>
+        ` : ''}
+
+        ${companySettings.invoice_watermark_text ? `
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 72pt; font-weight: 700; color: ${accentColor}; opacity: 0.1; pointer-events: none; white-space: nowrap;">
+            ${companySettings.invoice_watermark_text}
+          </div>
+        ` : ''}
       </div>
     </body>
     </html>

@@ -39,12 +39,47 @@ interface InvoiceTemplateSettings {
 interface CompanySettings {
   company_name?: string;
   address?: string;
+  address_line1?: string;
+  address_line2?: string;
   city?: string;
   state?: string;
   postal_code?: string;
   phone?: string;
+  mobile?: string;
   email?: string;
   gstin?: string;
+  tax_registration_number?: string;
+  tax_label?: string;
+  company_logo_url?: string;
+  invoice_show_logo?: boolean;
+  invoice_show_company_details?: boolean;
+  invoice_show_tax_number?: boolean;
+  invoice_show_bank_details?: boolean;
+  invoice_show_payment_terms?: boolean;
+  invoice_show_notes?: boolean;
+  invoice_header_color?: string;
+  invoice_accent_color?: string;
+  invoice_text_color?: string;
+  invoice_font_family?: string;
+  invoice_font_size?: string;
+  invoice_logo_position?: string;
+  invoice_logo_size?: string;
+  invoice_page_size?: string;
+  invoice_page_margin?: string;
+  currency_symbol?: string;
+  currency?: string;
+  invoice_notes?: string;
+  invoice_terms?: string;
+  invoice_include_item_numbers?: boolean;
+  invoice_show_item_tax?: boolean;
+  invoice_footer_text?: string;
+  invoice_watermark_text?: string;
+  invoice_show_supplier_section?: boolean;
+  invoice_show_buyer_section?: boolean;
+  invoice_supplier_position?: string;
+  invoice_buyer_position?: string;
+  invoice_number_position?: string;
+  invoice_split_gst?: boolean;
 }
 
 interface InvoiceTemplateSettingsProps {
@@ -57,6 +92,7 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [logoUrl, setLogoUrl] = useState(settings.company_logo_url || '');
+  const [previewKey, setPreviewKey] = useState(0);
   const [companySettings, setCompanySettings] = useState<CompanySettings>(settings);
 
   const [templateSettings, setTemplateSettings] = useState<InvoiceTemplateSettings>({
@@ -94,6 +130,8 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
 
   useEffect(() => {
     setCompanySettings(settings);
+    setLogoUrl(settings.company_logo_url || '');
+    setPreviewKey(prev => prev + 1);
   }, [settings]);
 
   useEffect(() => {
@@ -131,6 +169,7 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
       company_logo_url: logoUrl,
     };
     onUpdateSettings(updates);
+    setPreviewKey(prev => prev + 1);
   }, [templateSettings, logoUrl]);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -624,7 +663,8 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
           </div>
 
           <div
-            className="bg-white rounded-lg shadow-lg overflow-hidden"
+            key={previewKey}
+            className="bg-white rounded-lg shadow-lg overflow-hidden relative"
             style={{
               fontFamily: templateSettings.font_family,
               fontSize: fontSizeMap[templateSettings.font_size],
@@ -635,13 +675,13 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
               className="p-6"
               style={{ backgroundColor: templateSettings.header_color }}
             >
-              <div className={`flex items-center ${
+              <div className={`flex items-center gap-4 ${
                 templateSettings.logo_position === 'center' ? 'justify-center' :
                 templateSettings.logo_position === 'right' ? 'justify-end' : 'justify-start'
               }`}>
-                {templateSettings.show_logo && (
+                {templateSettings.show_logo && logoUrl && (
                   <div
-                    className="bg-white rounded-lg p-3"
+                    className="bg-white rounded-lg p-2 flex items-center justify-center overflow-hidden"
                     style={{
                       width: templateSettings.logo_size === 'small' ? '80px' :
                              templateSettings.logo_size === 'large' ? '160px' : '120px',
@@ -649,9 +689,15 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
                               templateSettings.logo_size === 'large' ? '160px' : '120px',
                     }}
                   >
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                      LOGO
-                    </div>
+                    <img src={logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                  </div>
+                )}
+                {templateSettings.show_company_details && (
+                  <div className="text-white">
+                    <div className="text-lg font-bold">{companySettings?.company_name || 'Your Company'}</div>
+                    {companySettings?.mobile && <div className="text-xs mt-1">Mobile: {companySettings.mobile}</div>}
+                    {companySettings?.email && <div className="text-xs">Email: {companySettings.email}</div>}
+                    {companySettings?.phone && <div className="text-xs">Phone: {companySettings.phone}</div>}
                   </div>
                 )}
               </div>
@@ -665,11 +711,15 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
                       <div className="text-xs font-bold text-gray-600 uppercase mb-1">Supplier (From):</div>
                       <div className="font-bold text-sm mb-1">{companySettings?.company_name || 'Your Company'}</div>
                       <div className="text-xs text-gray-600">
-                        <div>{companySettings?.address || '123 Business Street'}</div>
+                        <div>{companySettings?.address_line1 || '123 Business Street'}</div>
+                        {companySettings?.address_line2 && <div>{companySettings.address_line2}</div>}
                         <div>{companySettings?.city || 'City'}, {companySettings?.state || 'State'} - {companySettings?.postal_code || '12345'}</div>
-                        <div>Phone: {companySettings?.phone || '+91 1234567890'}</div>
-                        <div>Email: {companySettings?.email || 'info@company.com'}</div>
-                        {companySettings?.gstin && <div className="font-semibold">GSTIN: {companySettings.gstin}</div>}
+                        {companySettings?.mobile && <div>Mobile: {companySettings.mobile}</div>}
+                        {companySettings?.phone && <div>Phone: {companySettings.phone}</div>}
+                        {companySettings?.email && <div>Email: {companySettings.email}</div>}
+                        {templateSettings.show_tax_number && companySettings?.tax_registration_number && (
+                          <div className="font-semibold mt-1">{companySettings.tax_label || 'GSTIN'}: {companySettings.tax_registration_number}</div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -808,18 +858,38 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
                 </div>
               )}
 
+              {templateSettings.show_notes && templateSettings.invoice_notes && (
+                <div className="border-t pt-3 mt-3 text-xs">
+                  <div className="font-semibold mb-1">Notes:</div>
+                  <div>{templateSettings.invoice_notes}</div>
+                </div>
+              )}
+
+              {templateSettings.show_payment_terms && templateSettings.invoice_terms && (
+                <div className="border-t pt-3 mt-3 text-xs">
+                  <div className="font-semibold mb-1">Terms & Conditions:</div>
+                  <div className="text-gray-600">{templateSettings.invoice_terms}</div>
+                </div>
+              )}
+
               <div className="border-t pt-3 mt-3">
                 <div className="flex justify-between items-end text-xs">
                   <div className="w-3/5">
-                    <div className="font-semibold mb-1">For Company Name</div>
-                    <div className="text-gray-500">+91 1234567890</div>
-                    <div className="text-gray-500">info@company.com</div>
+                    <div className="font-semibold mb-1">For {companySettings?.company_name || 'Company Name'}</div>
+                    {companySettings?.mobile && <div className="text-gray-500">{companySettings.mobile}</div>}
+                    {companySettings?.email && <div className="text-gray-500">{companySettings.email}</div>}
                   </div>
                   <div className="w-2/5 text-right">
                     <div className="mt-8 pt-2 border-t border-gray-400 font-semibold">Authorised Signatory</div>
                   </div>
                 </div>
               </div>
+
+              {templateSettings.footer_text && (
+                <div className="border-t pt-2 mt-2 text-center text-xs text-gray-500">
+                  {templateSettings.footer_text}
+                </div>
+              )}
 
             </div>
 
