@@ -21,6 +21,10 @@ import {
   Wallet,
   ArrowUpDown,
 } from 'lucide-react';
+import TrialBalanceReport from '../components/reports/TrialBalanceReport';
+import BalanceSheetReport from '../components/reports/BalanceSheetReport';
+import ProfitLossReport from '../components/reports/ProfitLossReport';
+import ReportFilters from '../components/reports/ReportFilters';
 
 interface ReportCategory {
   id: string;
@@ -148,6 +152,7 @@ interface RevenueReport {
 }
 
 interface TrialBalanceEntry {
+  account_id: string;
   account_code: string;
   account_name: string;
   group_name: string;
@@ -158,19 +163,23 @@ interface TrialBalanceEntry {
 interface BalanceSheetEntry {
   category: string;
   accounts: Array<{
+    account_id: string;
     account_name: string;
     amount: number;
   }>;
   total: number;
+  type: 'asset' | 'liability' | 'equity';
 }
 
 interface ProfitLossEntry {
   category: string;
   accounts: Array<{
+    account_id: string;
     account_name: string;
     amount: number;
   }>;
   total: number;
+  type: 'income' | 'expense';
 }
 
 export default function Reports() {
@@ -735,6 +744,7 @@ export default function Reports() {
         }
 
         return {
+          account_id: account.id,
           account_code: account.account_code,
           account_name: account.account_name,
           group_name: account.account_groups?.name || 'Uncategorized',
@@ -781,7 +791,7 @@ export default function Reports() {
       const liabilities: BalanceSheetEntry[] = [];
       const equity: BalanceSheetEntry[] = [];
 
-      const grouped = new Map<string, Array<{ account_name: string; amount: number }>>();
+      const grouped = new Map<string, Array<{ account_id: string; account_name: string; amount: number; type: string }>>();
 
       accounts.forEach((account: any) => {
         const balance = balances.get(account.id) || 0;
@@ -793,21 +803,35 @@ export default function Reports() {
         }
 
         grouped.get(groupName)!.push({
+          account_id: account.id,
           account_name: account.account_name,
           amount: balance,
+          type: accountType,
         });
       });
 
       grouped.forEach((accounts, category) => {
         const total = accounts.reduce((sum, acc) => sum + acc.amount, 0);
-        const entry = { category, accounts, total };
+        const accountType = accounts[0]?.type;
 
-        const accountType = accounts[0]?.account_name;
-        if (category.toLowerCase().includes('asset')) {
+        let type: 'asset' | 'liability' | 'equity' = 'asset';
+        if (accountType === 'liability') type = 'liability';
+        else if (accountType === 'equity') type = 'equity';
+        else if (category.toLowerCase().includes('liability')) type = 'liability';
+        else if (category.toLowerCase().includes('equity') || category.toLowerCase().includes('capital')) type = 'equity';
+
+        const entry = {
+          category,
+          accounts: accounts.map(({ account_id, account_name, amount }) => ({ account_id, account_name, amount })),
+          total,
+          type
+        };
+
+        if (type === 'asset') {
           assets.push(entry);
-        } else if (category.toLowerCase().includes('liability')) {
+        } else if (type === 'liability') {
           liabilities.push(entry);
-        } else if (category.toLowerCase().includes('equity') || category.toLowerCase().includes('capital')) {
+        } else {
           equity.push(entry);
         }
       });
@@ -846,7 +870,7 @@ export default function Reports() {
       const income: ProfitLossEntry[] = [];
       const expenses: ProfitLossEntry[] = [];
 
-      const grouped = new Map<string, Array<{ account_name: string; amount: number }>>();
+      const grouped = new Map<string, Array<{ account_id: string; account_name: string; amount: number; type: string }>>();
 
       accounts.forEach((account: any) => {
         const balance = balances.get(account.id) || 0;
@@ -860,18 +884,29 @@ export default function Reports() {
         }
 
         grouped.get(groupName)!.push({
+          account_id: account.id,
           account_name: account.account_name,
           amount: Math.abs(balance),
+          type: accountType,
         });
       });
 
       grouped.forEach((accounts, category) => {
         const total = accounts.reduce((sum, acc) => sum + acc.amount, 0);
-        const entry = { category, accounts, total };
+        const accountType = accounts[0]?.type;
 
-        if (category.toLowerCase().includes('income') || category.toLowerCase().includes('revenue')) {
+        const type: 'income' | 'expense' = accountType === 'income' ? 'income' : 'expense';
+
+        const entry = {
+          category,
+          accounts: accounts.map(({ account_id, account_name, amount }) => ({ account_id, account_name, amount })),
+          total,
+          type
+        };
+
+        if (type === 'income') {
           income.push(entry);
-        } else if (category.toLowerCase().includes('expense') || category.toLowerCase().includes('cost')) {
+        } else {
           expenses.push(entry);
         }
       });
@@ -882,6 +917,17 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAccountClick = (accountId: string, startDate: string, endDate?: string) => {
+    const params = new URLSearchParams({
+      account: accountId,
+      start: startDate,
+    });
+    if (endDate) {
+      params.set('end', endDate);
+    }
+    window.location.href = `/ledger?${params.toString()}`;
   };
 
   const exportToCSV = (data: any[], filename: string) => {
@@ -1097,272 +1143,32 @@ export default function Reports() {
         </div>
 
         {activeReport === 'trial_balance' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Trial Balance</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Period: {new Date(dateRange.start).toLocaleDateString()} - {new Date(dateRange.end).toLocaleDateString()}
-                </p>
-              </div>
-              <button
-                onClick={() => exportToCSV(trialBalance, 'trial_balance')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export CSV</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Group</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Debit</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Credit</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {trialBalance.map((entry, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-mono text-gray-900">{entry.account_code}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{entry.account_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{entry.group_name}</td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                          {entry.debit > 0 ? `₹${entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                          {entry.credit > 0 ? `₹${entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                    {trialBalance.length > 0 && (
-                      <tr className="bg-gray-100 font-bold">
-                        <td colSpan={3} className="px-4 py-3 text-sm text-gray-900">TOTAL</td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">
-                          ₹{trialBalance.reduce((sum, e) => sum + e.debit, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">
-                          ₹{trialBalance.reduce((sum, e) => sum + e.credit, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    )}
-                    {trialBalance.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                          No transactions found for the selected period
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <TrialBalanceReport
+            data={trialBalance}
+            startDate={dateRange.start}
+            endDate={dateRange.end}
+            onExport={() => exportToCSV(trialBalance, 'trial_balance')}
+            onAccountClick={handleAccountClick}
+          />
         )}
 
         {activeReport === 'balance_sheet' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Balance Sheet</h2>
-                <p className="text-sm text-gray-600 mt-1">As on {new Date(dateRange.end).toLocaleDateString()}</p>
-              </div>
-              <button
-                onClick={() => exportToCSV(balanceSheet.flatMap(bs => bs.accounts.map(a => ({ category: bs.category, ...a }))), 'balance_sheet')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export CSV</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Assets</h3>
-                {balanceSheet
-                  .filter(entry => entry.category.toLowerCase().includes('asset'))
-                  .map((entry, index) => (
-                    <div key={index} className="mb-4">
-                      <h4 className="font-semibold text-gray-800 mb-2">{entry.category}</h4>
-                      {entry.accounts.map((account, idx) => (
-                        <div key={idx} className="flex justify-between py-1 text-sm">
-                          <span className="text-gray-600">{account.account_name}</span>
-                          <span className="font-medium text-gray-900">
-                            ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between py-2 border-t border-gray-200 mt-2">
-                        <span className="font-semibold text-gray-800">Total {entry.category}</span>
-                        <span className="font-bold text-gray-900">
-                          ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Liabilities & Equity</h3>
-                {balanceSheet
-                  .filter(entry => !entry.category.toLowerCase().includes('asset'))
-                  .map((entry, index) => (
-                    <div key={index} className="mb-4">
-                      <h4 className="font-semibold text-gray-800 mb-2">{entry.category}</h4>
-                      {entry.accounts.map((account, idx) => (
-                        <div key={idx} className="flex justify-between py-1 text-sm">
-                          <span className="text-gray-600">{account.account_name}</span>
-                          <span className="font-medium text-gray-900">
-                            ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between py-2 border-t border-gray-200 mt-2">
-                        <span className="font-semibold text-gray-800">Total {entry.category}</span>
-                        <span className="font-bold text-gray-900">
-                          ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {balanceSheet.length === 0 && (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No balance sheet data available</p>
-              </div>
-            )}
-          </div>
+          <BalanceSheetReport
+            data={balanceSheet}
+            asOnDate={dateRange.end}
+            onExport={() => exportToCSV(balanceSheet.flatMap(bs => bs.accounts.map(a => ({ category: bs.category, ...a }))), 'balance_sheet')}
+            onAccountClick={(accountId, asOnDate) => handleAccountClick(accountId, '', asOnDate)}
+          />
         )}
 
         {activeReport === 'profit_loss' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Profit & Loss Statement</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Period: {new Date(dateRange.start).toLocaleDateString()} - {new Date(dateRange.end).toLocaleDateString()}
-                </p>
-              </div>
-              <button
-                onClick={() => exportToCSV(profitLoss.flatMap(pl => pl.accounts.map(a => ({ category: pl.category, ...a }))), 'profit_loss')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export CSV</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-bold text-green-600 mb-4">Income</h3>
-                  {profitLoss
-                    .filter(entry => entry.category.toLowerCase().includes('income') || entry.category.toLowerCase().includes('revenue'))
-                    .map((entry, index) => (
-                      <div key={index} className="mb-4">
-                        <h4 className="font-semibold text-gray-800 mb-2">{entry.category}</h4>
-                        {entry.accounts.map((account, idx) => (
-                          <div key={idx} className="flex justify-between py-1 text-sm">
-                            <span className="text-gray-600 ml-4">{account.account_name}</span>
-                            <span className="font-medium text-gray-900">
-                              ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between py-2 border-t border-gray-200 mt-2">
-                          <span className="font-semibold text-gray-800">Total {entry.category}</span>
-                          <span className="font-bold text-green-600">
-                            ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  <div className="flex justify-between py-3 border-t-2 border-gray-300">
-                    <span className="font-bold text-gray-900">Total Income</span>
-                    <span className="font-bold text-green-600 text-lg">
-                      ₹{profitLoss
-                        .filter(e => e.category.toLowerCase().includes('income') || e.category.toLowerCase().includes('revenue'))
-                        .reduce((sum, e) => sum + e.total, 0)
-                        .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-bold text-red-600 mb-4">Expenses</h3>
-                  {profitLoss
-                    .filter(entry => entry.category.toLowerCase().includes('expense') || entry.category.toLowerCase().includes('cost'))
-                    .map((entry, index) => (
-                      <div key={index} className="mb-4">
-                        <h4 className="font-semibold text-gray-800 mb-2">{entry.category}</h4>
-                        {entry.accounts.map((account, idx) => (
-                          <div key={idx} className="flex justify-between py-1 text-sm">
-                            <span className="text-gray-600 ml-4">{account.account_name}</span>
-                            <span className="font-medium text-gray-900">
-                              ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between py-2 border-t border-gray-200 mt-2">
-                          <span className="font-semibold text-gray-800">Total {entry.category}</span>
-                          <span className="font-bold text-red-600">
-                            ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  <div className="flex justify-between py-3 border-t-2 border-gray-300">
-                    <span className="font-bold text-gray-900">Total Expenses</span>
-                    <span className="font-bold text-red-600 text-lg">
-                      ₹{profitLoss
-                        .filter(e => e.category.toLowerCase().includes('expense') || e.category.toLowerCase().includes('cost'))
-                        .reduce((sum, e) => sum + e.total, 0)
-                        .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-lg p-4 border-2 border-gray-300">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-gray-900 text-lg">Net Profit / Loss</span>
-                    <span className={`font-bold text-2xl ${
-                      (profitLoss
-                        .filter(e => e.category.toLowerCase().includes('income') || e.category.toLowerCase().includes('revenue'))
-                        .reduce((sum, e) => sum + e.total, 0) -
-                      profitLoss
-                        .filter(e => e.category.toLowerCase().includes('expense') || e.category.toLowerCase().includes('cost'))
-                        .reduce((sum, e) => sum + e.total, 0)) >= 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}>
-                      ₹{(profitLoss
-                        .filter(e => e.category.toLowerCase().includes('income') || e.category.toLowerCase().includes('revenue'))
-                        .reduce((sum, e) => sum + e.total, 0) -
-                      profitLoss
-                        .filter(e => e.category.toLowerCase().includes('expense') || e.category.toLowerCase().includes('cost'))
-                        .reduce((sum, e) => sum + e.total, 0))
-                        .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {profitLoss.length === 0 && (
-                <div className="text-center py-12">
-                  <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-600">No profit & loss data available for the selected period</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <ProfitLossReport
+            data={profitLoss}
+            startDate={dateRange.start}
+            endDate={dateRange.end}
+            onExport={() => exportToCSV(profitLoss.flatMap(pl => pl.accounts.map(a => ({ category: pl.category, ...a }))), 'profit_loss')}
+            onAccountClick={handleAccountClick}
+          />
         )}
 
         {activeReport === 'customer' && customerReports.length > 0 && (
