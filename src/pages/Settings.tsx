@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import VoucherNumberConfig from '../components/VoucherNumberConfig';
 import InvoiceTemplateSettings from '../components/InvoiceTemplateSettings';
+import { COUNTRIES_WITH_STATES, getStatesByCountryCode } from '../config/countriesStates';
+import { getCountryConfig } from '../config/countryConfig';
 import {
   Building2,
   Mail,
@@ -11,11 +13,9 @@ import {
   Globe,
   MapPin,
   FileText,
-  CreditCard,
   Save,
   Upload,
   Image as ImageIcon,
-  DollarSign,
   Hash,
   Landmark,
   Palette,
@@ -36,6 +36,22 @@ interface CompanySettings {
   website: string;
   tax_registration_number: string;
   tax_label: string;
+  pan_number: string;
+  tan_number: string;
+  ein_number: string;
+  vat_number: string;
+  abn_number: string;
+  acn_number: string;
+  business_registration_number: string;
+  trade_license_number: string;
+  msme_number: string;
+  uen_number: string;
+  sst_number: string;
+  nzbn_number: string;
+  german_tax_number: string;
+  siret_number: string;
+  canadian_business_number: string;
+  uk_company_number: string;
   bank_name: string;
   bank_account_number: string;
   bank_ifsc_code: string;
@@ -82,12 +98,28 @@ export default function Settings() {
     city: '',
     state: '',
     postal_code: '',
-    country: 'India',
+    country: 'IN',
     phone: '',
     email: '',
     website: '',
     tax_registration_number: '',
     tax_label: 'GST',
+    pan_number: '',
+    tan_number: '',
+    ein_number: '',
+    vat_number: '',
+    abn_number: '',
+    acn_number: '',
+    business_registration_number: '',
+    trade_license_number: '',
+    msme_number: '',
+    uen_number: '',
+    sst_number: '',
+    nzbn_number: '',
+    german_tax_number: '',
+    siret_number: '',
+    canadian_business_number: '',
+    uk_company_number: '',
     bank_name: '',
     bank_account_number: '',
     bank_ifsc_code: '',
@@ -433,17 +465,6 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
-                    <input
-                      type="text"
-                      value={settings.state}
-                      onChange={(e) => setSettings({ ...settings, state: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="State/Province"
-                    />
-                  </div>
-
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Postal Code
                     </label>
@@ -457,14 +478,45 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
-                    <input
-                      type="text"
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Country *</label>
+                    <select
                       value={settings.country}
-                      onChange={(e) => setSettings({ ...settings, country: e.target.value })}
+                      onChange={(e) => {
+                        const countryCode = e.target.value;
+                        const countryConfig = getCountryConfig(countryCode);
+                        setSettings({
+                          ...settings,
+                          country: countryCode,
+                          state: '',
+                          currency: countryConfig.currency,
+                          currency_symbol: countryConfig.currencySymbol,
+                          tax_label: countryConfig.taxName,
+                        });
+                      }}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Country"
-                    />
+                    >
+                      {COUNTRIES_WITH_STATES.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">State/Province</label>
+                    <select
+                      value={settings.state}
+                      onChange={(e) => setSettings({ ...settings, state: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">-- Select State --</option>
+                      {getStatesByCountryCode(settings.country).map((state) => (
+                        <option key={state} value={state}>
+                          {state}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -473,8 +525,11 @@ export default function Settings() {
               <div className="bg-white rounded-xl p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <FileText size={20} className="text-blue-600" />
-                  Tax Registration
+                  Tax Registration & Statutory Details
                 </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Country: <span className="font-semibold">{COUNTRIES_WITH_STATES.find(c => c.code === settings.country)?.name}</span>
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -494,7 +549,7 @@ export default function Settings() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tax Registration Number
+                      Primary Tax Registration Number
                     </label>
                     <input
                       type="text"
@@ -506,9 +561,261 @@ export default function Settings() {
                       placeholder="29AAACT1234A1Z5"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Your GSTIN, VAT number, or tax ID
+                      Your {settings.tax_label} registration number
                     </p>
                   </div>
+
+                  {/* Country-specific fields */}
+                  {settings.country === 'IN' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          PAN Number
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.pan_number}
+                          onChange={(e) => setSettings({ ...settings, pan_number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="AAAAA0000A"
+                          maxLength={10}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Permanent Account Number</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          TAN Number
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.tan_number}
+                          onChange={(e) => setSettings({ ...settings, tan_number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="AAAA00000A"
+                          maxLength={10}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Tax Deduction Account Number</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          MSME/Udyam Number
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.msme_number}
+                          onChange={(e) => setSettings({ ...settings, msme_number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="UDYAM-XX-00-0000000"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">MSME Registration Number</p>
+                      </div>
+                    </>
+                  )}
+
+                  {settings.country === 'US' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          EIN (Employer Identification Number)
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.ein_number}
+                          onChange={(e) => setSettings({ ...settings, ein_number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="12-3456789"
+                          maxLength={10}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Federal Tax ID</p>
+                      </div>
+                    </>
+                  )}
+
+                  {(settings.country === 'GB' || settings.country === 'AE' || settings.country === 'DE' || settings.country === 'FR') && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          VAT Number
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.vat_number}
+                          onChange={(e) => setSettings({ ...settings, vat_number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder={settings.country === 'GB' ? 'GB123456789' : settings.country === 'DE' ? 'DE123456789' : settings.country === 'FR' ? 'FR12345678901' : '100000000000003'}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">VAT Registration Number</p>
+                      </div>
+                    </>
+                  )}
+
+                  {settings.country === 'GB' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Company Registration Number
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.uk_company_number}
+                        onChange={(e) => setSettings({ ...settings, uk_company_number: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="12345678"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Companies House Number</p>
+                    </div>
+                  )}
+
+                  {settings.country === 'AU' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          ABN (Australian Business Number)
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.abn_number}
+                          onChange={(e) => setSettings({ ...settings, abn_number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="12 345 678 901"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          ACN (Australian Company Number)
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.acn_number}
+                          onChange={(e) => setSettings({ ...settings, acn_number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="123 456 789"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {settings.country === 'AE' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Trade License Number
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.trade_license_number}
+                        onChange={(e) => setSettings({ ...settings, trade_license_number: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter trade license number"
+                      />
+                    </div>
+                  )}
+
+                  {settings.country === 'SG' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        UEN (Unique Entity Number)
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.uen_number}
+                        onChange={(e) => setSettings({ ...settings, uen_number: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="123456789A"
+                      />
+                    </div>
+                  )}
+
+                  {settings.country === 'MY' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          SST Registration Number
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.sst_number}
+                          onChange={(e) => setSettings({ ...settings, sst_number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="A01-2345-67890123"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Business Registration Number
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.business_registration_number}
+                          onChange={(e) => setSettings({ ...settings, business_registration_number: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="123456-X"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {settings.country === 'NZ' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        NZBN (New Zealand Business Number)
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.nzbn_number}
+                        onChange={(e) => setSettings({ ...settings, nzbn_number: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="1234567890123"
+                      />
+                    </div>
+                  )}
+
+                  {settings.country === 'CA' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Business Number
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.canadian_business_number}
+                        onChange={(e) => setSettings({ ...settings, canadian_business_number: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="123456789"
+                      />
+                    </div>
+                  )}
+
+                  {settings.country === 'DE' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tax Number (Steuernummer)
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.german_tax_number}
+                        onChange={(e) => setSettings({ ...settings, german_tax_number: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="12/345/67890"
+                      />
+                    </div>
+                  )}
+
+                  {settings.country === 'FR' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        SIRET Number
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.siret_number}
+                        onChange={(e) => setSettings({ ...settings, siret_number: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="12345678901234"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
