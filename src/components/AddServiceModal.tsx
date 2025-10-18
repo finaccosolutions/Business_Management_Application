@@ -469,9 +469,13 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                   required
                   value={formData.service_code}
                   onChange={(e) => setFormData({ ...formData, service_code: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                  placeholder="SRV-001"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white"
+                  placeholder="Auto-generated"
+                  readOnly={!editingService}
                 />
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                  {editingService ? 'Service identifier' : 'Auto-generated based on settings'}
+                </p>
               </div>
 
               <div>

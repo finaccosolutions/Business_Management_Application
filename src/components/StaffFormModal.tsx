@@ -249,9 +249,13 @@ export default function StaffFormModal({ onClose, onSuccess, editingStaff }: Sta
                   type="text"
                   value={formData.employee_id}
                   onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="EMP-001"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-gray-50"
+                  placeholder="Auto-generated"
+                  readOnly={!editingStaff}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {editingStaff ? 'Employee identifier' : 'Auto-generated based on settings'}
+                </p>
               </div>
 
               <div>
