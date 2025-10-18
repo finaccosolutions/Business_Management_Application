@@ -36,8 +36,19 @@ interface InvoiceTemplateSettings {
   split_gst: boolean;
 }
 
+interface CompanySettings {
+  company_name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  phone?: string;
+  email?: string;
+  gstin?: string;
+}
+
 interface InvoiceTemplateSettingsProps {
-  settings: any;
+  settings: CompanySettings;
   onUpdateSettings: (updates: any) => void;
 }
 
@@ -46,6 +57,7 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [logoUrl, setLogoUrl] = useState(settings.company_logo_url || '');
+  const [companySettings, setCompanySettings] = useState<CompanySettings>(settings);
 
   const [templateSettings, setTemplateSettings] = useState<InvoiceTemplateSettings>({
     show_logo: settings.invoice_show_logo !== false,
@@ -79,6 +91,10 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
     number_position: settings.invoice_number_position || 'right',
     split_gst: settings.invoice_split_gst !== false,
   });
+
+  useEffect(() => {
+    setCompanySettings(settings);
+  }, [settings]);
 
   useEffect(() => {
     const updates: any = {
@@ -642,16 +658,34 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
             </div>
 
             <div className="p-6 space-y-4">
-              {templateSettings.show_buyer_section && (
-                <div className="border rounded-lg p-3 bg-gray-50">
-                  <div className="text-xs font-bold text-gray-600 uppercase mb-1">Party:</div>
-                  <div className="font-bold text-sm mb-1">Customer Name</div>
-                  <div className="text-xs text-gray-600">
-                    <div>123 Business Street</div>
-                    <div>City, State - 12345</div>
-                    <div>Phone: +91 1234567890</div>
-                    <div className="font-semibold">GSTIN: 29AAACT1234A1Z5</div>
-                  </div>
+              {(templateSettings.show_supplier_section || templateSettings.show_buyer_section) && (
+                <div className={`grid ${templateSettings.show_supplier_section && templateSettings.show_buyer_section ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                  {templateSettings.show_supplier_section && (
+                    <div className={`border rounded-lg p-3 bg-gray-50 ${templateSettings.supplier_position === 'right' && templateSettings.show_buyer_section ? 'order-2' : 'order-1'}`}>
+                      <div className="text-xs font-bold text-gray-600 uppercase mb-1">Supplier (From):</div>
+                      <div className="font-bold text-sm mb-1">{companySettings?.company_name || 'Your Company'}</div>
+                      <div className="text-xs text-gray-600">
+                        <div>{companySettings?.address || '123 Business Street'}</div>
+                        <div>{companySettings?.city || 'City'}, {companySettings?.state || 'State'} - {companySettings?.postal_code || '12345'}</div>
+                        <div>Phone: {companySettings?.phone || '+91 1234567890'}</div>
+                        <div>Email: {companySettings?.email || 'info@company.com'}</div>
+                        {companySettings?.gstin && <div className="font-semibold">GSTIN: {companySettings.gstin}</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {templateSettings.show_buyer_section && (
+                    <div className={`border rounded-lg p-3 bg-gray-50 ${templateSettings.buyer_position === 'right' && templateSettings.show_supplier_section ? 'order-2' : 'order-1'}`}>
+                      <div className="text-xs font-bold text-gray-600 uppercase mb-1">Party (Buyer):</div>
+                      <div className="font-bold text-sm mb-1">Customer Name</div>
+                      <div className="text-xs text-gray-600">
+                        <div>123 Customer Street</div>
+                        <div>City, State - 12345</div>
+                        <div>Phone: +91 9876543210</div>
+                        <div className="font-semibold">GSTIN: 29AAACT1234A1Z5</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

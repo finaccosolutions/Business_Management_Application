@@ -18,6 +18,7 @@ interface Service {
   default_price: number;
   tax_rate?: number;
   income_account_id?: string;
+  hsn_code?: string;
 }
 
 interface Account {
@@ -67,7 +68,7 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
   });
 
   const [lineItems, setLineItems] = useState([
-    { service_id: '', description: '', custom_description: '', quantity: 1, rate: 0, tax_rate: 0 }
+    { service_id: '', description: '', custom_description: '', quantity: 1, rate: 0, tax_rate: 0, hsn_sac: '' }
   ]);
 
   useEffect(() => {
@@ -78,7 +79,7 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
     try {
       const [customersResult, servicesResult, worksResult, accountsResult, settingsResult] = await Promise.all([
         supabase.from('customers').select('id, name, account_id').order('name'),
-        supabase.from('services').select('id, name, description, default_price, tax_rate, income_account_id').order('name'),
+        supabase.from('services').select('id, name, description, default_price, tax_rate, income_account_id, hsn_code').order('name'),
         supabase.from('works')
           .select('id, title, customer_id, service_id, status, billing_amount, customers(name, account_id), services!works_service_id_fkey(name, default_price, tax_rate, income_account_id)')
           .eq('status', 'completed')
@@ -155,6 +156,7 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
           unit_price: parseFloat(item.rate.toString()),
           amount: parseFloat(item.quantity.toString()) * parseFloat(item.rate.toString()),
           tax_rate: parseFloat(item.tax_rate?.toString() || '0'),
+          hsn_sac: item.hsn_sac || null,
         };
       });
 
@@ -174,7 +176,7 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { service_id: '', description: '', custom_description: '', quantity: 1, rate: 0, tax_rate: 0 }]);
+    setLineItems([...lineItems, { service_id: '', description: '', custom_description: '', quantity: 1, rate: 0, tax_rate: 0, hsn_sac: '' }]);
   };
 
   const removeLineItem = (index: number) => {
@@ -192,6 +194,7 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
           description: service.description || service.name,
           rate: service.default_price || 0,
           tax_rate: service.tax_rate || 0,
+          hsn_sac: service.hsn_code || '',
           custom_description: '',
         };
 
@@ -231,6 +234,7 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
         quantity: 1,
         rate: price,
         tax_rate: taxRate,
+        hsn_sac: service.hsn_code || '',
       }]);
 
       if (service.income_account_id) {

@@ -53,6 +53,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
     subcategory_id: '',
     description: '',
     image_url: '',
+    hsn_code: '',
     estimated_duration_hours: 0,
     estimated_duration_minutes: 0,
     estimated_duration_value: 0,
@@ -115,6 +116,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
         subcategory_id: editingService.subcategory_id || '',
         description: editingService.description || '',
         image_url: editingService.image_url || '',
+        hsn_code: editingService.hsn_code || '',
         estimated_duration_hours: editingService.estimated_duration_hours || 0,
         estimated_duration_minutes: editingService.estimated_duration_minutes || 0,
         estimated_duration_value: editingService.estimated_duration_value || 0,
@@ -295,6 +297,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
         subcategory_id: formData.subcategory_id || null,
         description: formData.description || null,
         image_url: imageUrl || null,
+        hsn_code: formData.hsn_code || null,
         estimated_duration_hours: formData.estimated_duration_hours,
         estimated_duration_minutes: formData.estimated_duration_minutes,
         estimated_duration_value: formData.estimated_duration_value,
@@ -516,6 +519,19 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  HSN/SAC Code
+                </label>
+                <input
+                  type="text"
+                  value={formData.hsn_code}
+                  onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  placeholder="e.g., 998314"
+                />
               </div>
             </div>
 
