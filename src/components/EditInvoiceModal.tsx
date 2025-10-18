@@ -29,6 +29,7 @@ interface InvoiceItem {
   unit_price: number;
   amount: number;
   tax_rate?: number;
+  service_id?: string;
 }
 
 interface Service {
@@ -96,9 +97,9 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
   const [lineItems, setLineItems] = useState(
     items.map((item) => ({
       id: item.id,
-      service_id: '',
+      service_id: item.service_id || '',
       description: item.description,
-      custom_description: item.description,
+      custom_description: '',
       quantity: item.quantity,
       rate: item.unit_price,
       tax_rate: item.tax_rate || 0,
@@ -296,6 +297,7 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
         const finalDescription = item.custom_description || item.description;
         const itemData = {
           invoice_id: invoice.id,
+          service_id: item.service_id || null,
           description: finalDescription,
           quantity: parseFloat(item.quantity.toString()),
           unit_price: parseFloat(item.rate.toString()),

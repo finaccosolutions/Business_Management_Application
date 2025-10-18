@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import VoucherNumberConfig from '../components/VoucherNumberConfig';
 import {
   Building2,
   Mail,
@@ -16,6 +17,7 @@ import {
   DollarSign,
   Hash,
   Landmark,
+  Palette,
 } from 'lucide-react';
 
 interface CompanySettings {
@@ -68,7 +70,7 @@ export default function Settings() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'company' | 'bank' | 'invoice' | 'ledgers'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'bank' | 'invoice' | 'template' | 'ledgers'>('company');
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [ledgerSearchTerm, setLedgerSearchTerm] = useState('');
   const [settings, setSettings] = useState<CompanySettings>({
@@ -244,8 +246,19 @@ export default function Settings() {
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <FileText size={20} />
-            Voucher Settings
+            <Hash size={20} />
+            Voucher Numbers
+          </button>
+          <button
+            onClick={() => setActiveTab('template')}
+            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+              activeTab === 'template'
+                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Palette size={20} />
+            Invoice Template
           </button>
           <button
             onClick={() => setActiveTab('ledgers')}
@@ -581,137 +594,30 @@ export default function Settings() {
           )}
 
           {activeTab === 'invoice' && (
+            <VoucherNumberConfig
+              settings={settings}
+              onUpdateSettings={(updates) => setSettings({ ...settings, ...updates })}
+            />
+          )}
+
+          {activeTab === 'template' && (
             <div className="space-y-6">
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Hash size={20} className="text-blue-600" />
-                  Voucher Number Prefixes
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border-2 border-blue-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <Palette size={20} className="text-blue-600" />
+                  Invoice Template Configuration
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Configure prefixes for all voucher types
+                <p className="text-sm text-gray-700">
+                  Customize the appearance and layout of your invoice documents. Changes will apply to all newly generated invoices.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Invoice Prefix
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.invoice_prefix}
-                      onChange={(e) => setSettings({ ...settings, invoice_prefix: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="INV"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Example: {settings.invoice_prefix}-000001
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Receipt Prefix
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.receipt_prefix}
-                      onChange={(e) => setSettings({ ...settings, receipt_prefix: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="RCT"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Example: {settings.receipt_prefix}-000001
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Prefix
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.payment_prefix}
-                      onChange={(e) => setSettings({ ...settings, payment_prefix: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="PAY"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Example: {settings.payment_prefix}-000001
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Journal Prefix
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.journal_prefix}
-                      onChange={(e) => setSettings({ ...settings, journal_prefix: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="JV"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Example: {settings.journal_prefix}-000001
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Contra Prefix
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.contra_prefix}
-                      onChange={(e) => setSettings({ ...settings, contra_prefix: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="CNT"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Example: {settings.contra_prefix}-000001
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Credit Note Prefix
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.credit_note_prefix}
-                      onChange={(e) => setSettings({ ...settings, credit_note_prefix: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="CN"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Example: {settings.credit_note_prefix}-000001
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Debit Note Prefix
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.debit_note_prefix}
-                      onChange={(e) => setSettings({ ...settings, debit_note_prefix: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="DN"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Example: {settings.debit_note_prefix}-000001
-                    </p>
-                  </div>
-                </div>
               </div>
 
               <div className="bg-white rounded-xl p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <FileText size={20} className="text-blue-600" />
-                  Invoice Configuration
+                  Basic Invoice Settings
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
                       <DollarSign size={14} />
@@ -763,6 +669,19 @@ export default function Settings() {
                     />
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-900 font-medium mb-2">Coming Soon:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
+                  <li>Color customization (header, accent, text colors)</li>
+                  <li>Font family and size configuration</li>
+                  <li>Logo positioning and sizing options</li>
+                  <li>Custom layout templates with real-time preview</li>
+                  <li>Show/hide optional fields (bank details, payment terms, etc.)</li>
+                  <li>Custom footer text and watermark options</li>
+                  <li>Page margin configuration</li>
+                </ul>
               </div>
             </div>
           )}

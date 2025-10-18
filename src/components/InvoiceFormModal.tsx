@@ -148,10 +148,12 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
         const finalDescription = item.custom_description || item.description;
         return {
           invoice_id: invoice.id,
+          service_id: item.service_id || null,
           description: finalDescription,
           quantity: parseFloat(item.quantity.toString()),
           unit_price: parseFloat(item.rate.toString()),
-          amount: calculateItemTotal(item),
+          amount: parseFloat(item.quantity.toString()) * parseFloat(item.rate.toString()),
+          tax_rate: parseFloat(item.tax_rate?.toString() || '0'),
         };
       });
 
