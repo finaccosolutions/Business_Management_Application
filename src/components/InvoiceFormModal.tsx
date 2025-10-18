@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { X, Plus, FileText, Users, DollarSign, Trash2, AlertCircle, Briefcase, Eye, Landmark } from 'lucide-react';
 import { generateEnhancedInvoiceHTML, previewEnhancedInvoice } from '../lib/enhancedInvoicePDF';
+import { getNextVoucherNumber } from '../lib/voucherNumberGenerator';
 
 interface Customer {
   id: string;
@@ -271,13 +272,12 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
 
   const loadCustomerDetails = async (customerId: string) => {
     try {
-      const { data: invoiceCount } = await supabase
-        .from('invoices')
-        .select('invoice_number', { count: 'exact', head: true })
-        .eq('user_id', user!.id);
-
-      const count = invoiceCount ? 1 : 0;
-      const nextNumber = `INV-${String(count + 1).padStart(4, '0')}`;
+      const nextNumber = await getNextVoucherNumber(
+        supabase,
+        user!.id,
+        'invoice',
+        'invoices'
+      );
 
       const customer = customers.find(c => c.id === customerId);
       const customerAccountId = customer ? (customer as any).account_id : '';
@@ -289,6 +289,7 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
       }));
     } catch (error) {
       console.error('Error generating invoice number:', error);
+      toast.error('Failed to generate invoice number');
     }
   };
 
@@ -543,7 +544,7 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
                     onChange={(e) => setFormData({ ...formData, income_account_id: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                   >
-                    <option value="">Auto-select from service/settings</option>
+                    <option value="">Select income account</option>
                     {accounts.map((account) => (
                       <option key={account.id} value={account.id}>
                         {account.account_code} - {account.account_name}
@@ -551,7 +552,9 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
                     ))}
                   </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Auto-selected from service mapping or company default
+                    {formData.income_account_id
+                      ? `Selected: ${accounts.find(a => a.id === formData.income_account_id)?.account_name || ''}`
+                      : 'Auto-selected from service mapping or company default'}
                   </p>
                 </div>
 
@@ -561,12 +564,16 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
                   </label>
                   <input
                     type="text"
-                    value={accounts.find(a => a.id === formData.customer_account_id)?.account_name || 'Auto-selected from customer'}
+                    value={
+                      formData.customer_account_id && accounts.find(a => a.id === formData.customer_account_id)
+                        ? `${accounts.find(a => a.id === formData.customer_account_id)?.account_code} - ${accounts.find(a => a.id === formData.customer_account_id)?.account_name}`
+                        : 'Select customer to auto-fill'
+                    }
                     disabled
                     className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-600 text-gray-600 dark:text-gray-300"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Automatically linked to customer account
+                    Automatically linked from customer's account
                   </p>
                 </div>
               </div>

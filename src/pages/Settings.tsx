@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import VoucherNumberConfig from '../components/VoucherNumberConfig';
+import InvoiceTemplateSettings from '../components/InvoiceTemplateSettings';
 import {
   Building2,
   Mail,
@@ -608,81 +609,14 @@ export default function Settings() {
                   Invoice Template Configuration
                 </h3>
                 <p className="text-sm text-gray-700">
-                  Customize the appearance and layout of your invoice documents. Changes will apply to all newly generated invoices.
+                  Customize the appearance and layout of your invoice documents. Changes will apply to all newly generated invoices and reflect in real-time preview.
                 </p>
               </div>
 
-              <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText size={20} className="text-blue-600" />
-                  Basic Invoice Settings
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                      <DollarSign size={14} />
-                      Currency
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={settings.currency}
-                        onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="INR"
-                      />
-                      <input
-                        type="text"
-                        value={settings.currency_symbol}
-                        onChange={(e) =>
-                          setSettings({ ...settings, currency_symbol: e.target.value })
-                        }
-                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="₹"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Default Invoice Notes
-                    </label>
-                    <textarea
-                      value={settings.invoice_notes}
-                      onChange={(e) => setSettings({ ...settings, invoice_notes: e.target.value })}
-                      rows={3}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Thank you for your business!"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Terms & Conditions
-                    </label>
-                    <textarea
-                      value={settings.invoice_terms}
-                      onChange={(e) => setSettings({ ...settings, invoice_terms: e.target.value })}
-                      rows={4}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Payment due within 30 days. Late fees may apply."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
-                <p className="text-sm text-amber-900 font-medium mb-2">Coming Soon:</p>
-                <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
-                  <li>Color customization (header, accent, text colors)</li>
-                  <li>Font family and size configuration</li>
-                  <li>Logo positioning and sizing options</li>
-                  <li>Custom layout templates with real-time preview</li>
-                  <li>Show/hide optional fields (bank details, payment terms, etc.)</li>
-                  <li>Custom footer text and watermark options</li>
-                  <li>Page margin configuration</li>
-                </ul>
-              </div>
+              <InvoiceTemplateSettings
+                settings={settings}
+                onUpdateSettings={(updates) => setSettings({ ...settings, ...updates })}
+              />
             </div>
           )}
 
