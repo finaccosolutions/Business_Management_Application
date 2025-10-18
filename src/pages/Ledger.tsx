@@ -30,10 +30,19 @@ export default function Ledger() {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [viewMode, setViewMode] = useState<'standard' | 'detailed'>('standard');
 
   useEffect(() => {
     if (user) {
       fetchAccounts();
+      const params = new URLSearchParams(window.location.search);
+      const accountParam = params.get('account');
+      const startParam = params.get('start');
+      const endParam = params.get('end');
+
+      if (accountParam) setSelectedAccount(accountParam);
+      if (startParam) setStartDate(startParam);
+      if (endParam) setEndDate(endParam);
     }
   }, [user]);
 
@@ -109,6 +118,28 @@ export default function Ledger() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Account Ledger</h1>
           <p className="text-gray-600 mt-1">View detailed account transactions</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setViewMode('standard')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              viewMode === 'standard'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Standard View
+          </button>
+          <button
+            onClick={() => setViewMode('detailed')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              viewMode === 'detailed'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Detailed View
+          </button>
         </div>
       </div>
 

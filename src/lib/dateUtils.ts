@@ -1,4 +1,4 @@
-// Format date to DD-MM-YYYY for display
+// Format date to DD/MM/YYYY for display
 export function formatDateDisplay(dateString: string | null | undefined): string {
   if (!dateString) return '';
 
@@ -7,7 +7,7 @@ export function formatDateDisplay(dateString: string | null | undefined): string
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
 
-  return `${day}-${month}-${year}`;
+  return `${day}/${month}/${year}`;
 }
 
 // Format date with full month name (e.g., "15 January 2025")

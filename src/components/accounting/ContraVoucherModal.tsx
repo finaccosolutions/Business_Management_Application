@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { X, FileText, ArrowRightLeft } from 'lucide-react';
+import { generateNextVoucherNumber } from '../../lib/voucherNumberHelper';
 
 interface Account {
   id: string;
@@ -53,14 +54,8 @@ export default function ContraVoucherModal({ onClose, voucherTypeId }: ContraVou
 
   const generateVoucherNumber = async () => {
     try {
-      const { count } = await supabase
-        .from('vouchers')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user!.id)
-        .eq('voucher_type_id', voucherTypeId);
-
-      const nextNumber = `CV-${String((count || 0) + 1).padStart(5, '0')}`;
-      setFormData((prev) => ({ ...prev, voucher_number: nextNumber }));
+      const voucherNumber = await generateNextVoucherNumber(user!.id, voucherTypeId, 'contra');
+      setFormData((prev) => ({ ...prev, voucher_number: voucherNumber }));
     } catch (error) {
       console.error('Error generating voucher number:', error);
     }
