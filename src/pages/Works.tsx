@@ -161,6 +161,19 @@ export default function Works() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const autoGenerateWorkNumber = async () => {
+      if (!editingWork && showModal && !formData.work_number && user) {
+        const workNum = await generateWorkNumber();
+        if (workNum) {
+          setFormData(prev => ({ ...prev, work_number: workNum }));
+        }
+      }
+    };
+
+    autoGenerateWorkNumber();
+  }, [showModal, editingWork, user]);
+
   const generateWorkNumber = async () => {
     try {
       const { data, error } = await supabase.rpc('generate_next_id', {
