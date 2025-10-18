@@ -25,6 +25,9 @@ interface Invoice {
     phone?: string;
     address?: string;
     gstin?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
   };
 }
 
@@ -37,6 +40,7 @@ interface CompanySettings {
   postal_code?: string;
   country?: string;
   phone?: string;
+  mobile?: string;
   email?: string;
   website?: string;
   tax_registration_number?: string;
@@ -46,6 +50,61 @@ interface CompanySettings {
   bank_ifsc_code?: string;
   bank_branch?: string;
   company_logo_url?: string;
+  invoice_split_gst?: boolean;
+  invoice_show_payment_terms?: boolean;
+  invoice_show_supplier_section?: boolean;
+  invoice_show_buyer_section?: boolean;
+  invoice_supplier_position?: string;
+  invoice_buyer_position?: string;
+  invoice_number_position?: string;
+  invoice_logo_position?: string;
+  currency_symbol?: string;
+}
+
+function numberToWords(num: number): string {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+
+  if (num === 0) return 'Zero';
+
+  let words = '';
+
+  if (num >= 10000000) {
+    words += numberToWords(Math.floor(num / 10000000)) + ' Crore ';
+    num %= 10000000;
+  }
+
+  if (num >= 100000) {
+    words += numberToWords(Math.floor(num / 100000)) + ' Lakh ';
+    num %= 100000;
+  }
+
+  if (num >= 1000) {
+    words += numberToWords(Math.floor(num / 1000)) + ' Thousand ';
+    num %= 1000;
+  }
+
+  if (num >= 100) {
+    words += ones[Math.floor(num / 100)] + ' Hundred ';
+    num %= 100;
+  }
+
+  if (num >= 20) {
+    words += tens[Math.floor(num / 10)] + ' ';
+    num %= 10;
+  }
+
+  if (num >= 10 && num < 20) {
+    words += teens[num - 10] + ' ';
+    num = 0;
+  }
+
+  if (num > 0) {
+    words += ones[num] + ' ';
+  }
+
+  return words.trim();
 }
 
 export function generateEnhancedInvoiceHTML(
@@ -53,9 +112,13 @@ export function generateEnhancedInvoiceHTML(
   items: InvoiceItem[],
   companySettings: CompanySettings
 ): string {
-  const isIndia = companySettings.country === 'India';
-  const cgst = isIndia ? invoice.tax_amount / 2 : 0;
-  const sgst = isIndia ? invoice.tax_amount / 2 : 0;
+  const isIndia = companySettings.country === 'India' || companySettings.country === 'IN';
+  const splitGST = companySettings.invoice_split_gst !== false && isIndia;
+  const showPaymentTerms = companySettings.invoice_show_payment_terms !== false;
+
+  const taxRate = invoice.subtotal > 0 ? (invoice.tax_amount / invoice.subtotal) * 100 : 0;
+  const cgst = splitGST ? invoice.tax_amount / 2 : 0;
+  const sgst = splitGST ? invoice.tax_amount / 2 : 0;
 
   const statusColors = {
     draft: '#6b7280',
@@ -66,6 +129,9 @@ export function generateEnhancedInvoiceHTML(
   };
 
   const statusColor = statusColors[invoice.status as keyof typeof statusColors] || '#6b7280';
+  const currencySymbol = companySettings.currency_symbol || '₹';
+
+  const totalInWords = numberToWords(Math.floor(invoice.total_amount)) + ' Rupees Only';
 
   return `
     <!DOCTYPE html>
@@ -75,7 +141,7 @@ export function generateEnhancedInvoiceHTML(
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Invoice ${invoice.invoice_number}</title>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
         * {
           margin: 0;
@@ -84,522 +150,389 @@ export function generateEnhancedInvoiceHTML(
         }
 
         body {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-family: 'Inter', Arial, sans-serif;
           font-size: 10pt;
-          line-height: 1.6;
-          color: #1f2937;
+          line-height: 1.4;
+          color: #000;
           background: white;
-          padding: 20px;
+          padding: 10px;
         }
 
         .invoice-container {
           max-width: 800px;
           margin: 0 auto;
           background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          overflow: hidden;
+          border: 2px solid #000;
         }
 
         .invoice-header {
-          background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
-          color: white;
-          padding: 30px 40px;
-          position: relative;
-        }
-
-        .invoice-header-content {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-        }
-
-        .company-info h1 {
-          font-size: 26pt;
-          font-weight: 800;
-          margin-bottom: 8px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .company-details {
-          font-size: 9pt;
-          line-height: 1.5;
-          opacity: 0.95;
-        }
-
-        .invoice-title-box {
-          text-align: right;
+          text-align: center;
+          padding: 15px;
+          border-bottom: 2px solid #000;
         }
 
         .invoice-title {
-          font-size: 32pt;
-          font-weight: 800;
-          margin-bottom: 8px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-
-        .invoice-number {
-          font-size: 13pt;
-          font-weight: 600;
-          background: rgba(255, 255, 255, 0.2);
-          padding: 6px 16px;
-          border-radius: 20px;
-          display: inline-block;
-        }
-
-        .status-badge {
-          position: absolute;
-          top: 30px;
-          right: 40px;
-          background: ${statusColor};
-          color: white;
-          padding: 8px 20px;
-          border-radius: 20px;
+          font-size: 20pt;
           font-weight: 700;
-          font-size: 10pt;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+          margin-bottom: 5px;
         }
 
-        .invoice-body {
-          padding: 40px;
+        .party-section {
+          display: table;
+          width: 100%;
+          border-bottom: 2px solid #000;
         }
 
-        .info-section {
-          display: flex;
-          justify-between;
-          margin-bottom: 35px;
-          gap: 40px;
+        .party-box {
+          display: table-cell;
+          width: 50%;
+          padding: 12px;
+          vertical-align: top;
+          border-right: 1px solid #000;
         }
 
-        .info-block {
-          flex: 1;
+        .party-box:last-child {
+          border-right: none;
         }
 
-        .info-block h3 {
-          font-size: 10pt;
-          font-weight: 700;
-          color: #6b7280;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 12px;
-          border-bottom: 2px solid #0ea5e9;
-          padding-bottom: 6px;
-        }
-
-        .info-block p {
-          font-size: 10pt;
-          line-height: 1.7;
-          color: #374151;
-        }
-
-        .info-block strong {
-          color: #111827;
-          font-weight: 600;
-        }
-
-        .dates-section {
-          display: flex;
-          gap: 30px;
-          background: #f9fafb;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 35px;
-          border-left: 4px solid #0ea5e9;
-        }
-
-        .date-item {
-          flex: 1;
-        }
-
-        .date-label {
+        .party-label {
           font-size: 9pt;
-          color: #6b7280;
-          font-weight: 600;
+          font-weight: 700;
+          margin-bottom: 5px;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 4px;
         }
 
-        .date-value {
+        .party-name {
+          font-weight: 700;
           font-size: 11pt;
-          color: #111827;
+          margin-bottom: 3px;
+        }
+
+        .party-details {
+          font-size: 9pt;
+          line-height: 1.5;
+        }
+
+        .invoice-meta {
+          display: table;
+          width: 100%;
+          border-bottom: 2px solid #000;
+        }
+
+        .meta-cell {
+          display: table-cell;
+          padding: 8px 12px;
+          border-right: 1px solid #000;
+          font-size: 9pt;
+        }
+
+        .meta-cell:last-child {
+          border-right: none;
+        }
+
+        .meta-label {
+          font-weight: 600;
+          margin-bottom: 2px;
+        }
+
+        .meta-value {
           font-weight: 700;
         }
 
         .items-table {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 30px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-          border-radius: 8px;
-          overflow: hidden;
-        }
-
-        .items-table thead {
-          background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
-          color: white;
         }
 
         .items-table th {
-          padding: 14px 12px;
-          text-align: left;
+          background: #f3f4f6;
+          border: 1px solid #000;
+          padding: 8px 6px;
+          text-align: center;
           font-weight: 700;
           font-size: 9pt;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .items-table th:last-child,
-        .items-table td:last-child {
-          text-align: right;
-        }
-
-        .items-table tbody tr {
-          border-bottom: 1px solid #e5e7eb;
-        }
-
-        .items-table tbody tr:last-child {
-          border-bottom: none;
-        }
-
-        .items-table tbody tr:hover {
-          background: #f9fafb;
         }
 
         .items-table td {
-          padding: 14px 12px;
-          font-size: 10pt;
-          color: #374151;
+          border: 1px solid #000;
+          padding: 8px 6px;
+          font-size: 9pt;
+          vertical-align: top;
         }
 
-        .items-table td.description {
-          font-weight: 500;
-          color: #111827;
+        .items-table td.center {
+          text-align: center;
         }
 
-        .items-table td.amount {
-          font-weight: 700;
-          color: #0ea5e9;
+        .items-table td.right {
+          text-align: right;
         }
 
         .totals-section {
-          display: flex;
-          justify-content: flex-end;
-          margin-bottom: 35px;
+          display: table;
+          width: 100%;
         }
 
-        .totals-table {
-          width: 350px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          overflow: hidden;
+        .totals-left {
+          display: table-cell;
+          width: 50%;
+          padding: 12px;
+          border-right: 1px solid #000;
+          border-bottom: 2px solid #000;
+          vertical-align: top;
         }
 
-        .totals-row {
+        .totals-right {
+          display: table-cell;
+          width: 50%;
+          border-bottom: 2px solid #000;
+        }
+
+        .total-row {
           display: flex;
           justify-content: space-between;
-          padding: 12px 20px;
-          border-bottom: 1px solid #e5e7eb;
+          padding: 6px 12px;
+          border-bottom: 1px solid #000;
+          font-size: 9pt;
         }
 
-        .totals-row:last-child {
+        .total-row:last-child {
           border-bottom: none;
         }
 
-        .totals-row.subtotal {
-          background: #f9fafb;
-        }
-
-        .totals-row.tax {
-          background: #fef3c7;
-        }
-
-        .totals-row.total {
-          background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
-          color: white;
-          font-weight: 800;
-          font-size: 14pt;
-        }
-
-        .totals-label {
-          font-weight: 600;
+        .total-row.highlight {
+          background: #f3f4f6;
+          font-weight: 700;
           font-size: 10pt;
         }
 
-        .totals-value {
-          font-weight: 700;
-          font-size: 11pt;
-        }
-
-        .totals-row.total .totals-label,
-        .totals-row.total .totals-value {
-          font-size: 14pt;
-        }
-
-        .notes-section {
-          background: #fffbeb;
-          border-left: 4px solid #f59e0b;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 30px;
-        }
-
-        .notes-section h3 {
-          font-size: 10pt;
-          font-weight: 700;
-          color: #92400e;
-          margin-bottom: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .notes-section p {
+        .amount-in-words {
+          padding: 12px;
+          border-bottom: 2px solid #000;
           font-size: 9pt;
-          color: #78350f;
-          line-height: 1.6;
-          white-space: pre-line;
+        }
+
+        .amount-words-label {
+          font-weight: 600;
+          margin-bottom: 3px;
+        }
+
+        .amount-words-value {
+          font-weight: 700;
         }
 
         .bank-details {
-          background: #f0f9ff;
-          border: 2px solid #0ea5e9;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 30px;
+          padding: 12px;
+          border-bottom: 2px solid #000;
+          font-size: 9pt;
         }
 
-        .bank-details h3 {
-          font-size: 11pt;
+        .bank-details-title {
           font-weight: 700;
-          color: #0c4a6e;
-          margin-bottom: 12px;
+          margin-bottom: 8px;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
         }
 
         .bank-details-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
+          gap: 8px;
         }
 
         .bank-detail-item {
-          font-size: 9pt;
+          display: flex;
+          gap: 5px;
         }
 
         .bank-detail-label {
-          color: #475569;
           font-weight: 600;
-          margin-bottom: 2px;
         }
 
-        .bank-detail-value {
-          color: #0f172a;
-          font-weight: 700;
+        .footer-section {
+          display: table;
+          width: 100%;
         }
 
-        .invoice-footer {
-          border-top: 2px solid #e5e7eb;
-          padding: 25px 40px;
-          background: #f9fafb;
-          text-align: center;
-          font-size: 9pt;
-          color: #6b7280;
+        .footer-left {
+          display: table-cell;
+          width: 60%;
+          padding: 12px;
+          border-right: 1px solid #000;
+          vertical-align: top;
         }
 
-        .invoice-footer strong {
-          color: #111827;
-          font-weight: 700;
+        .footer-right {
+          display: table-cell;
+          width: 40%;
+          padding: 12px;
+          text-align: right;
+          vertical-align: bottom;
         }
 
-        .tax-breakdown {
-          background: #fef3c7;
-          padding: 4px 12px;
-          border-radius: 4px;
-          font-size: 8pt;
-          color: #78350f;
+        .signature-line {
+          margin-top: 40px;
+          padding-top: 8px;
+          border-top: 1px solid #000;
           font-weight: 600;
         }
 
         @media print {
-          body {
-            padding: 0;
-          }
-          .invoice-container {
-            border: none;
-            box-shadow: none;
-          }
+          body { padding: 0; }
+          .invoice-container { border: 2px solid #000; }
         }
       </style>
     </head>
     <body>
       <div class="invoice-container">
         <div class="invoice-header">
-          <div class="invoice-header-content">
-            <div class="company-info">
-              <h1>${companySettings.company_name || 'Your Company'}</h1>
-              <div class="company-details">
-                ${companySettings.address_line1 ? `${companySettings.address_line1}<br>` : ''}
-                ${companySettings.address_line2 ? `${companySettings.address_line2}<br>` : ''}
-                ${companySettings.city || ''} ${companySettings.state || ''} ${companySettings.postal_code || ''}<br>
-                ${companySettings.phone ? `Phone: ${companySettings.phone}<br>` : ''}
-                ${companySettings.email ? `Email: ${companySettings.email}<br>` : ''}
-                ${companySettings.tax_registration_number ? `${companySettings.tax_label || 'GSTIN'}: ${companySettings.tax_registration_number}` : ''}
-              </div>
-            </div>
-            <div class="invoice-title-box">
-              <div class="invoice-title">INVOICE</div>
-            </div>
-          </div>
-          <div class="status-badge">${invoice.status.toUpperCase()}</div>
+          <div class="invoice-title">Invoice</div>
         </div>
 
-        <div class="invoice-body">
-          <div class="dates-section">
-            <div class="date-item">
-              <div class="date-label">Invoice Number</div>
-              <div class="date-value">${invoice.invoice_number}</div>
-            </div>
-            <div class="date-item">
-              <div class="date-label">Invoice Date</div>
-              <div class="date-value">${formatDateDisplay(invoice.invoice_date)}</div>
-            </div>
-            <div class="date-item">
-              <div class="date-label">Due Date</div>
-              <div class="date-value">${formatDateDisplay(invoice.due_date)}</div>
+        <div class="party-section">
+          <div class="party-box">
+            <div class="party-label">Party:</div>
+            <div class="party-name">${invoice.customers.name}</div>
+            <div class="party-details">
+              ${invoice.customers.address || ''}<br>
+              ${invoice.customers.city || ''}, ${invoice.customers.state || ''} ${invoice.customers.postal_code || ''}<br>
+              ${invoice.customers.phone ? `Phone: ${invoice.customers.phone}<br>` : ''}
+              ${invoice.customers.gstin ? `<strong>GSTIN:</strong> ${invoice.customers.gstin}` : ''}
             </div>
           </div>
-
-          <div class="info-section">
-            <div class="info-block">
-              <h3>Bill To</h3>
-              <p>
-                <strong style="font-size: 12pt;">${invoice.customers.name}</strong><br>
-                ${invoice.customers.address ? `${invoice.customers.address}<br>` : ''}
-                ${invoice.customers.phone ? `Phone: ${invoice.customers.phone}<br>` : ''}
-                ${invoice.customers.email ? `Email: ${invoice.customers.email}<br>` : ''}
-                ${invoice.customers.gstin ? `<strong>GSTIN:</strong> ${invoice.customers.gstin}` : ''}
-              </p>
-            </div>
-            <div class="info-block">
-              <h3>From</h3>
-              <p>
-                <strong style="font-size: 12pt;">${companySettings.company_name || 'Your Company'}</strong><br>
-                ${companySettings.address_line1 || ''}<br>
-                ${companySettings.city || ''}, ${companySettings.state || ''} ${companySettings.postal_code || ''}<br>
-                ${companySettings.phone ? `Phone: ${companySettings.phone}<br>` : ''}
-                ${companySettings.email ? `Email: ${companySettings.email}` : ''}
-              </p>
-            </div>
+          <div class="party-box">
+            <div class="meta-label">Date</div>
+            <div class="meta-value">${formatDateDisplay(invoice.invoice_date)}</div>
+            <div class="meta-label" style="margin-top: 8px;">Invoice No.</div>
+            <div class="meta-value">${invoice.invoice_number}</div>
           </div>
+        </div>
 
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th style="width: 10%;">#</th>
-                <th style="width: 45%;">Description</th>
-                <th style="width: 10%; text-align: center;">Qty</th>
-                <th style="width: 15%; text-align: right;">Rate</th>
-                <th style="width: 20%; text-align: right;">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items.map((item, index) => `
-                <tr>
-                  <td style="text-align: center; font-weight: 600;">${index + 1}</td>
-                  <td class="description">${item.description}</td>
-                  <td style="text-align: center; font-weight: 600;">${item.quantity}</td>
-                  <td style="text-align: right;">₹${item.unit_price.toFixed(2)}</td>
-                  <td class="amount">₹${item.amount.toFixed(2)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-
-          <div class="totals-section">
-            <div class="totals-table">
-              <div class="totals-row subtotal">
-                <div class="totals-label">Subtotal</div>
-                <div class="totals-value">₹${invoice.subtotal.toFixed(2)}</div>
-              </div>
-              ${isIndia ? `
-                <div class="totals-row tax">
-                  <div class="totals-label">
-                    CGST @ ${((cgst / invoice.subtotal) * 100).toFixed(2)}%
-                    <span class="tax-breakdown">₹${cgst.toFixed(2)}</span>
-                  </div>
-                  <div class="totals-value">₹${cgst.toFixed(2)}</div>
-                </div>
-                <div class="totals-row tax">
-                  <div class="totals-label">
-                    SGST @ ${((sgst / invoice.subtotal) * 100).toFixed(2)}%
-                    <span class="tax-breakdown">₹${sgst.toFixed(2)}</span>
-                  </div>
-                  <div class="totals-value">₹${sgst.toFixed(2)}</div>
-                </div>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 8%;">Sl.<br>No.</th>
+              <th style="width: 37%;">Particulars</th>
+              <th style="width: 12%;">HSN/SAC</th>
+              <th style="width: 8%;">Qty</th>
+              <th style="width: 10%;">Rate</th>
+              <th style="width: 12%;">Taxable<br>Value</th>
+              ${splitGST ? `
+                <th style="width: 7%;">GST<br>Amount</th>
               ` : `
-                <div class="totals-row tax">
-                  <div class="totals-label">Tax</div>
-                  <div class="totals-value">₹${invoice.tax_amount.toFixed(2)}</div>
-                </div>
+                <th style="width: 7%;">Tax</th>
               `}
-              <div class="totals-row total">
-                <div class="totals-label">INVOICE AMOUNT</div>
-                <div class="totals-value">₹${invoice.total_amount.toFixed(2)}</div>
+              <th style="width: 13%;">Total Amount<br>(in ${companySettings.currency_symbol || 'Rs.'})</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map((item, index) => {
+              const itemTax = item.tax_rate ? (item.amount * item.tax_rate / 100) : 0;
+              return `
+                <tr>
+                  <td class="center">${index + 1}</td>
+                  <td>${item.description}</td>
+                  <td class="center">-</td>
+                  <td class="center">${item.quantity}</td>
+                  <td class="right">${item.unit_price.toFixed(2)}</td>
+                  <td class="right">${item.amount.toFixed(2)}</td>
+                  <td class="right">${itemTax > 0 ? itemTax.toFixed(2) : '-'}</td>
+                  <td class="right">${(item.amount + itemTax).toFixed(2)}</td>
+                </tr>
+              `;
+            }).join('')}
+            <tr>
+              <td colspan="5" class="right" style="font-weight: 700;">Total</td>
+              <td class="right" style="font-weight: 700;">${invoice.subtotal.toFixed(2)}</td>
+              <td class="right" style="font-weight: 700;">${invoice.tax_amount > 0 ? invoice.tax_amount.toFixed(2) : '-'}</td>
+              <td class="right" style="font-weight: 700;">${invoice.total_amount.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="totals-section">
+          <div class="totals-left">
+            <div class="amount-words-label">Taxable Amount</div>
+            <div class="amount-words-value">${invoice.subtotal.toFixed(2)}</div>
+          </div>
+          <div class="totals-right">
+            ${splitGST ? `
+              <div class="total-row">
+                <span>Add: CGST @ ${(taxRate / 2).toFixed(2)}%</span>
+                <span>${cgst.toFixed(2)}</span>
               </div>
+              <div class="total-row">
+                <span>Add: SGST @ ${(taxRate / 2).toFixed(2)}%</span>
+                <span>${sgst.toFixed(2)}</span>
+              </div>
+            ` : `
+              <div class="total-row">
+                <span>Add: ${companySettings.tax_label || 'Tax'} @ ${taxRate.toFixed(2)}%</span>
+                <span>${invoice.tax_amount.toFixed(2)}</span>
+              </div>
+            `}
+            <div class="total-row highlight">
+              <span>Invoice Value</span>
+              <span>${currencySymbol}${invoice.total_amount.toFixed(2)}</span>
             </div>
           </div>
-
-          ${invoice.notes ? `
-            <div class="notes-section">
-              <h3>Notes / Terms & Conditions</h3>
-              <p>${invoice.notes}</p>
-            </div>
-          ` : ''}
-
-          ${companySettings.bank_name ? `
-            <div class="bank-details">
-              <h3>Bank Details for Payment</h3>
-              <div class="bank-details-grid">
-                ${companySettings.bank_name ? `
-                  <div class="bank-detail-item">
-                    <div class="bank-detail-label">Bank Name</div>
-                    <div class="bank-detail-value">${companySettings.bank_name}</div>
-                  </div>
-                ` : ''}
-                ${companySettings.bank_account_number ? `
-                  <div class="bank-detail-item">
-                    <div class="bank-detail-label">Account Number</div>
-                    <div class="bank-detail-value">${companySettings.bank_account_number}</div>
-                  </div>
-                ` : ''}
-                ${companySettings.bank_ifsc_code ? `
-                  <div class="bank-detail-item">
-                    <div class="bank-detail-label">IFSC Code</div>
-                    <div class="bank-detail-value">${companySettings.bank_ifsc_code}</div>
-                  </div>
-                ` : ''}
-                ${companySettings.bank_branch ? `
-                  <div class="bank-detail-item">
-                    <div class="bank-detail-label">Branch</div>
-                    <div class="bank-detail-value">${companySettings.bank_branch}</div>
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-          ` : ''}
         </div>
 
-        <div class="invoice-footer">
-          <p>
-            <strong>Thank you for your business!</strong><br>
-            This is a computer-generated invoice and requires no signature.
-            ${companySettings.website ? `<br>Visit us at: ${companySettings.website}` : ''}
-          </p>
+        <div class="amount-in-words">
+          <div class="amount-words-label">Amount in Words</div>
+          <div class="amount-words-value">${totalInWords}</div>
+        </div>
+
+        ${companySettings.bank_name ? `
+          <div class="bank-details">
+            <div class="bank-details-title">Bank Details</div>
+            <div class="bank-details-grid">
+              ${companySettings.bank_name ? `
+                <div class="bank-detail-item">
+                  <span class="bank-detail-label">Bank Name:</span>
+                  <span>${companySettings.bank_name}</span>
+                </div>
+              ` : ''}
+              ${companySettings.bank_account_number ? `
+                <div class="bank-detail-item">
+                  <span class="bank-detail-label">Bank Account Number:</span>
+                  <span>${companySettings.bank_account_number}</span>
+                </div>
+              ` : ''}
+              ${companySettings.bank_ifsc_code ? `
+                <div class="bank-detail-item">
+                  <span class="bank-detail-label">Bank IFC Code:</span>
+                  <span>${companySettings.bank_ifsc_code}</span>
+                </div>
+              ` : ''}
+              ${companySettings.bank_branch ? `
+                <div class="bank-detail-item">
+                  <span class="bank-detail-label">Account Holder's Name:</span>
+                  <span>${companySettings.company_name || ''}</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="footer-section">
+          <div class="footer-left">
+            ${companySettings.company_name ? `
+              <div style="font-weight: 600; margin-bottom: 5px;">For ${companySettings.company_name}</div>
+            ` : ''}
+            ${companySettings.mobile ? `
+              <div style="font-size: 8pt;">${companySettings.mobile}</div>
+            ` : ''}
+            ${companySettings.email ? `
+              <div style="font-size: 8pt;">${companySettings.email}</div>
+            ` : ''}
+            ${companySettings.website ? `
+              <div style="font-size: 8pt;">${companySettings.website}</div>
+            ` : ''}
+          </div>
+          <div class="footer-right">
+            <div class="signature-line">Authorised Signatory</div>
+          </div>
         </div>
       </div>
     </body>

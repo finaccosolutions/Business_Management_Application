@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Palette, Eye, FileText, DollarSign, Type, Layout, Image as ImageIcon } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Palette, Eye, FileText, DollarSign, Type, Layout, Image as ImageIcon, Upload } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useToast } from '../contexts/ToastContext';
 
 interface InvoiceTemplateSettings {
   show_logo: boolean;
@@ -26,6 +28,12 @@ interface InvoiceTemplateSettings {
   show_item_tax: boolean;
   footer_text: string;
   watermark_text: string;
+  show_supplier_section: boolean;
+  show_buyer_section: boolean;
+  supplier_position: 'left' | 'right';
+  buyer_position: 'left' | 'right';
+  number_position: 'left' | 'right' | 'top';
+  split_gst: boolean;
 }
 
 interface InvoiceTemplateSettingsProps {
@@ -34,6 +42,11 @@ interface InvoiceTemplateSettingsProps {
 }
 
 export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: InvoiceTemplateSettingsProps) {
+  const toast = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(settings.company_logo_url || '');
+
   const [templateSettings, setTemplateSettings] = useState<InvoiceTemplateSettings>({
     show_logo: settings.invoice_show_logo !== false,
     show_company_details: settings.invoice_show_company_details !== false,
@@ -59,6 +72,12 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
     show_item_tax: settings.invoice_show_item_tax !== false,
     footer_text: settings.invoice_footer_text || '',
     watermark_text: settings.invoice_watermark_text || '',
+    show_supplier_section: settings.invoice_show_supplier_section !== false,
+    show_buyer_section: settings.invoice_show_buyer_section !== false,
+    supplier_position: settings.invoice_supplier_position || 'left',
+    buyer_position: settings.invoice_buyer_position || 'left',
+    number_position: settings.invoice_number_position || 'right',
+    split_gst: settings.invoice_split_gst !== false,
   });
 
   useEffect(() => {
@@ -87,9 +106,56 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
       invoice_show_item_tax: templateSettings.show_item_tax,
       invoice_footer_text: templateSettings.footer_text,
       invoice_watermark_text: templateSettings.watermark_text,
+      invoice_show_supplier_section: templateSettings.show_supplier_section,
+      invoice_show_buyer_section: templateSettings.show_buyer_section,
+      invoice_supplier_position: templateSettings.supplier_position,
+      invoice_buyer_position: templateSettings.buyer_position,
+      invoice_number_position: templateSettings.number_position,
+      invoice_split_gst: templateSettings.split_gst,
+      company_logo_url: logoUrl,
     };
     onUpdateSettings(updates);
-  }, [templateSettings]);
+  }, [templateSettings, logoUrl]);
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size must be less than 2MB');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const filePath = `logos/${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('company-assets')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-assets')
+        .getPublicUrl(filePath);
+
+      setLogoUrl(publicUrl);
+      toast.success('Logo uploaded successfully');
+    } catch (error: any) {
+      console.error('Error uploading logo:', error);
+      toast.error('Failed to upload logo: ' + (error.message || 'Unknown error'));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const updateSetting = <K extends keyof InvoiceTemplateSettings>(
     key: K,
@@ -226,6 +292,40 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Company Logo
+              </label>
+              <div className="flex items-center gap-4">
+                {logoUrl && (
+                  <div className="w-24 h-24 border-2 border-gray-200 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50">
+                    <img src={logoUrl} alt="Company Logo" className="max-w-full max-h-full object-contain" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+                  >
+                    <Upload size={18} />
+                    {uploading ? 'Uploading...' : 'Upload Logo'}
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Recommended: PNG or JPG, max 2MB
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Logo Position
               </label>
               <div className="flex gap-2">
@@ -296,6 +396,72 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Supplier Details Position
+              </label>
+              <div className="flex gap-2">
+                {['left', 'right'].map((pos) => (
+                  <button
+                    key={pos}
+                    type="button"
+                    onClick={() => updateSetting('supplier_position', pos as any)}
+                    className={`flex-1 px-4 py-2 rounded-lg border-2 transition-colors capitalize ${
+                      templateSettings.supplier_position === pos
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    {pos}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Buyer Details Position
+              </label>
+              <div className="flex gap-2">
+                {['left', 'right'].map((pos) => (
+                  <button
+                    key={pos}
+                    type="button"
+                    onClick={() => updateSetting('buyer_position', pos as any)}
+                    className={`flex-1 px-4 py-2 rounded-lg border-2 transition-colors capitalize ${
+                      templateSettings.buyer_position === pos
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    {pos}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Invoice Number Position
+              </label>
+              <div className="flex gap-2">
+                {['left', 'right', 'top'].map((pos) => (
+                  <button
+                    key={pos}
+                    type="button"
+                    onClick={() => updateSetting('number_position', pos as any)}
+                    className={`flex-1 px-4 py-2 rounded-lg border-2 transition-colors capitalize ${
+                      templateSettings.number_position === pos
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    {pos}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -308,12 +474,15 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
             {[
               { key: 'show_logo', label: 'Show Company Logo' },
               { key: 'show_company_details', label: 'Show Company Details' },
+              { key: 'show_supplier_section', label: 'Show Supplier Details Section' },
+              { key: 'show_buyer_section', label: 'Show Buyer Details Section' },
               { key: 'show_tax_number', label: 'Show Tax Registration Number' },
               { key: 'show_bank_details', label: 'Show Bank Details' },
               { key: 'show_payment_terms', label: 'Show Payment Terms' },
               { key: 'show_notes', label: 'Show Notes' },
               { key: 'include_item_numbers', label: 'Include Item Numbers' },
               { key: 'show_item_tax', label: 'Show Tax on Each Item' },
+              { key: 'split_gst', label: 'Split GST into CGST/SGST/IGST' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center gap-3 cursor-pointer">
                 <input

@@ -134,6 +134,58 @@ export const COUNTRIES_WITH_STATES: CountryData[] = [
       'Occitanie', 'Pays de la Loire', 'Provence-Alpes-Côte d\'Azur',
     ],
   },
+  {
+    code: 'SA',
+    name: 'Saudi Arabia',
+    states: [
+      'Al Bahah', 'Al Jawf', 'Al Madinah', 'Al-Qassim', 'Asir', 'Eastern Province', 'Ha\'il',
+      'Jazan', 'Makkah', 'Najran', 'Northern Borders', 'Riyadh', 'Tabuk',
+    ],
+  },
+  {
+    code: 'QA',
+    name: 'Qatar',
+    states: [
+      'Al Daayen', 'Al Khor', 'Al Rayyan', 'Al Wakrah', 'Al-Shahaniya', 'Doha', 'Umm Salal',
+    ],
+  },
+  {
+    code: 'OM',
+    name: 'Oman',
+    states: [
+      'Ad Dakhiliyah', 'Ad Dhahirah', 'Al Batinah North', 'Al Batinah South', 'Al Buraimi',
+      'Al Wusta', 'Ash Sharqiyah North', 'Ash Sharqiyah South', 'Dhofar', 'Muscat', 'Musandam',
+    ],
+  },
+  {
+    code: 'KW',
+    name: 'Kuwait',
+    states: [
+      'Al Ahmadi', 'Al Farwaniyah', 'Al Jahra', 'Capital', 'Hawalli', 'Mubarak Al-Kabeer',
+    ],
+  },
+  {
+    code: 'BH',
+    name: 'Bahrain',
+    states: [
+      'Capital', 'Central', 'Muharraq', 'Northern', 'Southern',
+    ],
+  },
+  {
+    code: 'JO',
+    name: 'Jordan',
+    states: [
+      'Ajloun', 'Amman', 'Aqaba', 'Balqa', 'Irbid', 'Jarash', 'Karak', 'Ma\'an', 'Madaba',
+      'Mafraq', 'Tafilah', 'Zarqa',
+    ],
+  },
+  {
+    code: 'LB',
+    name: 'Lebanon',
+    states: [
+      'Akkar', 'Baalbek-Hermel', 'Beirut', 'Beqaa', 'Mount Lebanon', 'Nabatieh', 'North', 'South',
+    ],
+  },
 ];
 
 export function getCountryByCode(code: string): CountryData | undefined {
