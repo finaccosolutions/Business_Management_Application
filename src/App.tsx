@@ -14,6 +14,7 @@ import Reminders from './pages/Reminders';
 import Staff from './pages/Staff';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
 import ChartOfAccounts from './pages/ChartOfAccounts';
 import Vouchers from './pages/Vouchers';
 import Ledger from './pages/Ledger';
@@ -79,6 +80,8 @@ function AppContent() {
         return <Reports />;
       case 'settings':
         return <Settings />;
+      case 'profile':
+        return <Profile />;
       default:
         return <Dashboard onNavigate={setCurrentPage} />;
     }

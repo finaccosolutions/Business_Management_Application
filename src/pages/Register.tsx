@@ -1,7 +1,7 @@
 // src/pages/Register.tsx
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Eye, EyeOff, Check, X, Globe } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, Check, X, Phone } from 'lucide-react';
 import { COUNTRY_LIST } from '../config/countryConfig';
 
 export default function Register({ onToggle }: { onToggle: () => void }) {
@@ -9,12 +9,15 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [country, setCountry] = useState('IN'); // Default to India
+  const [country, setCountry] = useState('IN');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
+
+  const selectedCountry = COUNTRY_LIST.find(c => c.code === country) || COUNTRY_LIST[0];
 
   const passwordRequirements = {
     minLength: password.length >= 6,
@@ -41,7 +44,7 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
     }
 
     try {
-      await signUp(email, password, fullName, country);
+      await signUp(email, password, fullName, country, mobileNumber);
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
     } finally {
@@ -98,26 +101,38 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
               />
             </div>
 
-            {/* Country Selection */}
             <div className="space-y-2">
-              <label htmlFor="country" className="block text-sm font-medium text-gray-700">
-                Country
+              <label htmlFor="mobile" className="block text-sm font-medium text-gray-700 flex items-center gap-1">
+                <Phone size={14} />
+                Mobile Number
               </label>
-              <div className="relative">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <select
-                  id="country"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
-                >
-                  {COUNTRY_LIST.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex gap-2">
+                <div className="relative w-32">
+                  <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none cursor-pointer text-sm"
+                  >
+                    {COUNTRY_LIST.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.phoneCode}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <input
+                  id="mobile"
+                  type="tel"
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="1234567890"
+                  maxLength={15}
+                />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Selected: {selectedCountry.flag} {selectedCountry.name} ({selectedCountry.phoneCode})
+              </p>
             </div>
 
             <div className="space-y-2">

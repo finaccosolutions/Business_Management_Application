@@ -1,13 +1,14 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { getPhoneCode } from '../config/countryConfig';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   userCountry: string | null;
-  signUp: (email: string, password: string, fullName: string, country: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, country: string, mobileNumber?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string, country: string) => {
+  const signUp = async (email: string, password: string, fullName: string, country: string, mobileNumber?: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -66,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data: {
           full_name: fullName,
           country: country,
+          mobile_number: mobileNumber,
         },
       },
     });
@@ -77,13 +79,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Please check your email to confirm your account');
     }
 
-    // Create profile with country
+    // Create profile with country and mobile number
     if (data.user) {
+      const phoneCode = getPhoneCode(country);
       await supabase.from('profiles').insert({
         id: data.user.id,
         email: email,
         full_name: fullName,
         country: country,
+        phone_country_code: phoneCode,
+        mobile_number: mobileNumber || '',
       });
     }
   };

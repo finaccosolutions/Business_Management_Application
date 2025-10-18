@@ -11,21 +11,35 @@ export interface TaxField {
 export interface CountryConfig {
   code: string;
   name: string;
+  flag: string;
+  phoneCode: string;
   currency: string;
   currencySymbol: string;
-  taxName: string; // GST, VAT, etc.
+  taxName: string;
   taxFields: TaxField[];
   registrationTypes: Array<{ value: string; label: string }>;
   otherStatutoryFields?: TaxField[];
+  dateFormat: string;
+  numberFormat: {
+    decimal: string;
+    thousands: string;
+  };
 }
 
 export const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
   IN: {
     code: 'IN',
     name: 'India',
+    flag: '🇮🇳',
+    phoneCode: '+91',
     currency: 'INR',
     currencySymbol: '₹',
     taxName: 'GST',
+    dateFormat: 'DD/MM/YYYY',
+    numberFormat: {
+      decimal: '.',
+      thousands: ',',
+    },
     taxFields: [
       {
         name: 'gstin',
@@ -65,9 +79,16 @@ export const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
   AE: {
     code: 'AE',
     name: 'United Arab Emirates',
+    flag: '🇦🇪',
+    phoneCode: '+971',
     currency: 'AED',
     currencySymbol: 'د.إ',
     taxName: 'VAT',
+    dateFormat: 'DD/MM/YYYY',
+    numberFormat: {
+      decimal: '.',
+      thousands: ',',
+    },
     taxFields: [
       {
         name: 'vat_number',
@@ -91,9 +112,16 @@ export const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
   US: {
     code: 'US',
     name: 'United States',
+    flag: '🇺🇸',
+    phoneCode: '+1',
     currency: 'USD',
     currencySymbol: '$',
     taxName: 'Tax ID',
+    dateFormat: 'MM/DD/YYYY',
+    numberFormat: {
+      decimal: '.',
+      thousands: ',',
+    },
     taxFields: [
       {
         name: 'ein',
@@ -120,9 +148,16 @@ export const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
   GB: {
     code: 'GB',
     name: 'United Kingdom',
+    flag: '🇬🇧',
+    phoneCode: '+44',
     currency: 'GBP',
     currencySymbol: '£',
     taxName: 'VAT',
+    dateFormat: 'DD/MM/YYYY',
+    numberFormat: {
+      decimal: '.',
+      thousands: ',',
+    },
     taxFields: [
       {
         name: 'vat_number',
@@ -144,15 +179,249 @@ export const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
       },
     ],
   },
+  CA: {
+    code: 'CA',
+    name: 'Canada',
+    flag: '🇨🇦',
+    phoneCode: '+1',
+    currency: 'CAD',
+    currencySymbol: '$',
+    taxName: 'GST/HST',
+    dateFormat: 'DD/MM/YYYY',
+    numberFormat: {
+      decimal: '.',
+      thousands: ',',
+    },
+    taxFields: [
+      {
+        name: 'gst_number',
+        label: 'GST/HST Number',
+        placeholder: '123456789RT0001',
+        maxLength: 15,
+      },
+    ],
+    registrationTypes: [
+      { value: 'registered', label: 'GST/HST Registered' },
+      { value: 'unregistered', label: 'Unregistered' },
+    ],
+    otherStatutoryFields: [
+      {
+        name: 'business_number',
+        label: 'Business Number',
+        placeholder: '123456789',
+      },
+    ],
+  },
+  AU: {
+    code: 'AU',
+    name: 'Australia',
+    flag: '🇦🇺',
+    phoneCode: '+61',
+    currency: 'AUD',
+    currencySymbol: '$',
+    taxName: 'GST',
+    dateFormat: 'DD/MM/YYYY',
+    numberFormat: {
+      decimal: '.',
+      thousands: ',',
+    },
+    taxFields: [
+      {
+        name: 'abn',
+        label: 'ABN (Australian Business Number)',
+        placeholder: '12 345 678 901',
+        maxLength: 14,
+      },
+    ],
+    registrationTypes: [
+      { value: 'registered', label: 'GST Registered' },
+      { value: 'unregistered', label: 'Unregistered' },
+    ],
+    otherStatutoryFields: [
+      {
+        name: 'acn',
+        label: 'ACN (Australian Company Number)',
+        placeholder: '123 456 789',
+      },
+    ],
+  },
+  SG: {
+    code: 'SG',
+    name: 'Singapore',
+    flag: '🇸🇬',
+    phoneCode: '+65',
+    currency: 'SGD',
+    currencySymbol: '$',
+    taxName: 'GST',
+    dateFormat: 'DD/MM/YYYY',
+    numberFormat: {
+      decimal: '.',
+      thousands: ',',
+    },
+    taxFields: [
+      {
+        name: 'gst_number',
+        label: 'GST Registration Number',
+        placeholder: 'M12345678X',
+        maxLength: 10,
+      },
+    ],
+    registrationTypes: [
+      { value: 'registered', label: 'GST Registered' },
+      { value: 'unregistered', label: 'Unregistered' },
+    ],
+    otherStatutoryFields: [
+      {
+        name: 'uen',
+        label: 'UEN (Unique Entity Number)',
+        placeholder: '123456789A',
+      },
+    ],
+  },
+  MY: {
+    code: 'MY',
+    name: 'Malaysia',
+    flag: '🇲🇾',
+    phoneCode: '+60',
+    currency: 'MYR',
+    currencySymbol: 'RM',
+    taxName: 'SST',
+    dateFormat: 'DD/MM/YYYY',
+    numberFormat: {
+      decimal: '.',
+      thousands: ',',
+    },
+    taxFields: [
+      {
+        name: 'sst_number',
+        label: 'SST Registration Number',
+        placeholder: 'A01-2345-67890123',
+      },
+    ],
+    registrationTypes: [
+      { value: 'registered', label: 'SST Registered' },
+      { value: 'unregistered', label: 'Unregistered' },
+    ],
+    otherStatutoryFields: [
+      {
+        name: 'business_number',
+        label: 'Business Registration Number',
+        placeholder: '123456-X',
+      },
+    ],
+  },
+  NZ: {
+    code: 'NZ',
+    name: 'New Zealand',
+    flag: '🇳🇿',
+    phoneCode: '+64',
+    currency: 'NZD',
+    currencySymbol: '$',
+    taxName: 'GST',
+    dateFormat: 'DD/MM/YYYY',
+    numberFormat: {
+      decimal: '.',
+      thousands: ',',
+    },
+    taxFields: [
+      {
+        name: 'gst_number',
+        label: 'GST Number',
+        placeholder: '123-456-789',
+        maxLength: 11,
+      },
+    ],
+    registrationTypes: [
+      { value: 'registered', label: 'GST Registered' },
+      { value: 'unregistered', label: 'Unregistered' },
+    ],
+    otherStatutoryFields: [
+      {
+        name: 'nzbn',
+        label: 'NZBN (New Zealand Business Number)',
+        placeholder: '1234567890123',
+      },
+    ],
+  },
+  DE: {
+    code: 'DE',
+    name: 'Germany',
+    flag: '🇩🇪',
+    phoneCode: '+49',
+    currency: 'EUR',
+    currencySymbol: '€',
+    taxName: 'VAT',
+    dateFormat: 'DD.MM.YYYY',
+    numberFormat: {
+      decimal: ',',
+      thousands: '.',
+    },
+    taxFields: [
+      {
+        name: 'vat_number',
+        label: 'VAT ID (Umsatzsteuer-ID)',
+        placeholder: 'DE123456789',
+        pattern: '^DE[0-9]{9}$',
+        maxLength: 11,
+      },
+    ],
+    registrationTypes: [
+      { value: 'registered', label: 'VAT Registered' },
+      { value: 'unregistered', label: 'Unregistered' },
+    ],
+    otherStatutoryFields: [
+      {
+        name: 'tax_number',
+        label: 'Tax Number (Steuernummer)',
+        placeholder: '12/345/67890',
+      },
+    ],
+  },
+  FR: {
+    code: 'FR',
+    name: 'France',
+    flag: '🇫🇷',
+    phoneCode: '+33',
+    currency: 'EUR',
+    currencySymbol: '€',
+    taxName: 'VAT',
+    dateFormat: 'DD/MM/YYYY',
+    numberFormat: {
+      decimal: ',',
+      thousands: ' ',
+    },
+    taxFields: [
+      {
+        name: 'vat_number',
+        label: 'VAT Number (Numéro de TVA)',
+        placeholder: 'FR12345678901',
+        pattern: '^FR[0-9]{11}$',
+        maxLength: 13,
+      },
+    ],
+    registrationTypes: [
+      { value: 'registered', label: 'VAT Registered' },
+      { value: 'unregistered', label: 'Unregistered' },
+    ],
+    otherStatutoryFields: [
+      {
+        name: 'siret',
+        label: 'SIRET Number',
+        placeholder: '12345678901234',
+      },
+    ],
+  },
 };
 
 export const COUNTRY_LIST = Object.values(COUNTRY_CONFIGS).map((config) => ({
   code: config.code,
   name: config.name,
+  flag: config.flag,
+  phoneCode: config.phoneCode,
 }));
 
 export function getCountryConfig(countryCode: string): CountryConfig {
-  return COUNTRY_CONFIGS[countryCode] || COUNTRY_CONFIGS.IN; // Default to India
+  return COUNTRY_CONFIGS[countryCode] || COUNTRY_CONFIGS.IN;
 }
 
 export function getTaxFieldName(countryCode: string): string {
@@ -161,4 +430,20 @@ export function getTaxFieldName(countryCode: string): string {
 
 export function getCurrencySymbol(countryCode: string): string {
   return getCountryConfig(countryCode).currencySymbol;
+}
+
+export function getPhoneCode(countryCode: string): string {
+  return getCountryConfig(countryCode).phoneCode;
+}
+
+export function getCountryFlag(countryCode: string): string {
+  return getCountryConfig(countryCode).flag;
+}
+
+export function getDateFormat(countryCode: string): string {
+  return getCountryConfig(countryCode).dateFormat;
+}
+
+export function getNumberFormat(countryCode: string) {
+  return getCountryConfig(countryCode).numberFormat;
 }
