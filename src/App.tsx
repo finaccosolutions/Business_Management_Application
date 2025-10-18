@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import EmailVerified from './pages/EmailVerified';
 import Dashboard from './pages/Dashboard';
 import Services from './pages/Services';
 import Leads from './pages/Leads';
@@ -39,10 +41,17 @@ function AppContent() {
   }
 
   if (!user) {
-    return showRegister ? (
-      <Register onToggle={() => setShowRegister(false)} />
-    ) : (
-      <Login onToggle={() => setShowRegister(true)} />
+    return (
+      <Routes>
+        <Route path="/email-verified" element={<EmailVerified />} />
+        <Route path="*" element={
+          showRegister ? (
+            <Register onToggle={() => setShowRegister(false)} />
+          ) : (
+            <Login onToggle={() => setShowRegister(true)} />
+          )
+        } />
+      </Routes>
     );
   }
 
@@ -88,23 +97,30 @@ function AppContent() {
   };
 
   return (
-    <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
-      {renderPage()}
-    </Layout>
+    <Routes>
+      <Route path="/email-verified" element={<Navigate to="/" replace />} />
+      <Route path="*" element={
+        <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
+          {renderPage()}
+        </Layout>
+      } />
+    </Routes>
   );
 }
 
 function App() {
   return (
-  <ConfirmationProvider>
-  <ToastProvider>
-    <AuthProvider>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
-    </AuthProvider>
-  </ToastProvider>
-</ConfirmationProvider>
+    <BrowserRouter>
+      <ConfirmationProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <AppContent />
+            </ThemeProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </ConfirmationProvider>
+    </BrowserRouter>
   );
 }
 

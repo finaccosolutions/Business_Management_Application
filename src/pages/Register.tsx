@@ -14,6 +14,7 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
 
@@ -29,6 +30,7 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     if (!isPasswordValid) {
@@ -45,8 +47,13 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
 
     try {
       await signUp(email, password, fullName, country, mobileNumber);
+      setSuccess(`Verification link sent to ${email}`);
     } catch (err: any) {
-      setError(err.message || 'Failed to create account');
+      if (err.message.includes('email to confirm')) {
+        setSuccess(`Verification link sent to ${email}`);
+      } else {
+        setError(err.message || 'Failed to create account');
+      }
     } finally {
       setLoading(false);
     }
@@ -68,6 +75,15 @@ export default function Register({ onToggle }: { onToggle: () => void }) {
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                <div className="flex items-center gap-2">
+                  <Check size={16} className="flex-shrink-0" />
+                  <span>{success}</span>
+                </div>
               </div>
             )}
 
