@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { getPhoneCode } from '../config/countryConfig';
 
 interface AuthContextType {
   user: User | null;
@@ -67,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data: {
           full_name: fullName,
           country: country,
-          mobile_number: mobileNumber,
+          mobile_number: mobileNumber || '',
         },
       },
     });
@@ -79,18 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Please check your email to confirm your account');
     }
 
-    // Create profile with country and mobile number
-    if (data.user) {
-      const phoneCode = getPhoneCode(country);
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        email: email,
-        full_name: fullName,
-        country: country,
-        phone_country_code: phoneCode,
-        mobile_number: mobileNumber || '',
-      });
-    }
+    // Profile is now created automatically by database trigger
+    // No need to manually insert into profiles table
   };
 
   const signIn = async (email: string, password: string) => {
