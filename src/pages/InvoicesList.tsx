@@ -22,7 +22,7 @@ interface Invoice {
   work_id?: string;
   notes?: string;
   paid_at?: string;
-  customers: { name: string; email?: string; phone?: string; address?: string; gstin?: string };
+  customers: { name: string; email?: string; phone?: string; address?: string; gstin?: string; city?: string; state?: string; state_code?: string; postal_code?: string };
 }
 
 interface InvoiceItem {
@@ -94,7 +94,7 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
     try {
       const { data, error } = await supabase
         .from('invoices')
-        .select('*, customers(name, email, phone, address, gstin)')
+        .select('*, customers(name, email, phone, address, gstin, city, state, state_code, postal_code)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;

@@ -642,115 +642,151 @@ export default function InvoiceTemplateSettings({ settings, onUpdateSettings }: 
             </div>
 
             <div className="p-6 space-y-4">
-              {templateSettings.show_company_details && (
-                <div>
-                  <h1 className="text-xl font-bold" style={{ color: templateSettings.accent_color }}>
-                    Your Company Name
-                  </h1>
-                  <p className="text-sm text-gray-600">123 Business Street, City, State 12345</p>
-                  <p className="text-sm text-gray-600">Email: info@company.com | Phone: +91 1234567890</p>
-                  {templateSettings.show_tax_number && (
-                    <p className="text-sm text-gray-600">{templateSettings.tax_label}: 29AAACT1234A1Z5</p>
-                  )}
+              {templateSettings.show_buyer_section && (
+                <div className="border rounded-lg p-3 bg-gray-50">
+                  <div className="text-xs font-bold text-gray-600 uppercase mb-1">Party:</div>
+                  <div className="font-bold text-sm mb-1">Customer Name</div>
+                  <div className="text-xs text-gray-600">
+                    <div>123 Business Street</div>
+                    <div>City, State - 12345</div>
+                    <div>Phone: +91 1234567890</div>
+                    <div className="font-semibold">GSTIN: 29AAACT1234A1Z5</div>
+                  </div>
                 </div>
               )}
 
-              <div className="border-t pt-4">
-                <h2 className="text-lg font-bold mb-2" style={{ color: templateSettings.accent_color }}>
-                  INVOICE
-                </h2>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="border-t pt-3 mt-3">
+                <div className="flex justify-between items-start">
                   <div>
-                    <span className="font-medium">Invoice #:</span> INV-000001
+                    <h2 className="text-base font-bold mb-1" style={{ color: templateSettings.accent_color }}>
+                      INVOICE
+                    </h2>
                   </div>
-                  <div>
-                    <span className="font-medium">Date:</span> {new Date().toLocaleDateString()}
+                  <div className="text-right text-xs">
+                    <div className="mb-1">
+                      <span className="font-medium">Date:</span> {new Date().toLocaleDateString()}
+                    </div>
+                    <div>
+                      <span className="font-medium">Invoice #:</span> INV-000001
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="border-t pt-4">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b" style={{ borderColor: templateSettings.accent_color }}>
-                      {templateSettings.include_item_numbers && <th className="text-left py-2">#</th>}
-                      <th className="text-left py-2">Item</th>
-                      <th className="text-right py-2">Qty</th>
-                      <th className="text-right py-2">Price</th>
-                      {templateSettings.show_item_tax && <th className="text-right py-2">Tax</th>}
-                      <th className="text-right py-2">Total</th>
+              <div className="border-t pt-3 mt-3">
+                <table className="w-full text-xs border border-gray-300">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      {templateSettings.include_item_numbers && <th className="border border-gray-300 p-1 text-center">#</th>}
+                      <th className="border border-gray-300 p-1 text-left">Particulars</th>
+                      <th className="border border-gray-300 p-1 text-center">HSN/SAC</th>
+                      <th className="border border-gray-300 p-1 text-center">Qty</th>
+                      <th className="border border-gray-300 p-1 text-right">Rate</th>
+                      <th className="border border-gray-300 p-1 text-right">Taxable Value</th>
+                      {templateSettings.show_item_tax && (
+                        <th className="border border-gray-300 p-1 text-right">
+                          {templateSettings.split_gst ? 'GST Amount' : 'Tax Amount'}
+                        </th>
+                      )}
+                      <th className="border border-gray-300 p-1 text-right">Total Amount</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b">
-                      {templateSettings.include_item_numbers && <td className="py-2">1</td>}
-                      <td className="py-2">Sample Service</td>
-                      <td className="text-right py-2">1</td>
-                      <td className="text-right py-2">{templateSettings.currency_symbol}1,000.00</td>
+                    <tr>
+                      {templateSettings.include_item_numbers && <td className="border border-gray-300 p-1 text-center">1</td>}
+                      <td className="border border-gray-300 p-1">Sample Service</td>
+                      <td className="border border-gray-300 p-1 text-center">-</td>
+                      <td className="border border-gray-300 p-1 text-center">1</td>
+                      <td className="border border-gray-300 p-1 text-right">{templateSettings.currency_symbol}1,000.00</td>
+                      <td className="border border-gray-300 p-1 text-right">{templateSettings.currency_symbol}1,000.00</td>
                       {templateSettings.show_item_tax && (
-                        <td className="text-right py-2">{templateSettings.currency_symbol}180.00</td>
+                        <td className="border border-gray-300 p-1 text-right">{templateSettings.currency_symbol}180.00</td>
                       )}
-                      <td className="text-right py-2">{templateSettings.currency_symbol}1,180.00</td>
+                      <td className="border border-gray-300 p-1 text-right font-semibold">{templateSettings.currency_symbol}1,180.00</td>
+                    </tr>
+                    <tr className="font-semibold">
+                      <td colSpan={templateSettings.include_item_numbers ? 5 : 4} className="border border-gray-300 p-1 text-right">Total</td>
+                      <td className="border border-gray-300 p-1 text-right">{templateSettings.currency_symbol}1,000.00</td>
+                      {templateSettings.show_item_tax && (
+                        <td className="border border-gray-300 p-1 text-right">{templateSettings.currency_symbol}180.00</td>
+                      )}
+                      <td className="border border-gray-300 p-1 text-right">{templateSettings.currency_symbol}1,180.00</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal:</span>
-                  <span>{templateSettings.currency_symbol}1,000.00</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>{templateSettings.tax_label} (18%):</span>
-                  <span>{templateSettings.currency_symbol}180.00</span>
-                </div>
-                <div
-                  className="flex justify-between font-bold text-lg pt-2 border-t-2"
-                  style={{
-                    borderColor: templateSettings.accent_color,
-                    color: templateSettings.accent_color
-                  }}
-                >
-                  <span>Total:</span>
-                  <span>{templateSettings.currency_symbol}1,180.00</span>
+              <div className="border-t pt-3 mt-3">
+                <div className="flex justify-between">
+                  <div className="w-1/2 text-xs">
+                    <div className="font-semibold">Taxable Amount</div>
+                    <div className="font-bold">{templateSettings.currency_symbol}1,000.00</div>
+                  </div>
+                  <div className="w-1/2 border-l pl-3">
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>{templateSettings.currency_symbol}1,000.00</span>
+                      </div>
+                      {templateSettings.split_gst ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span>Add: CGST @ 9%:</span>
+                            <span>{templateSettings.currency_symbol}90.00</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Add: SGST @ 9%:</span>
+                            <span>{templateSettings.currency_symbol}90.00</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between">
+                          <span>{templateSettings.tax_label} @ 18%:</span>
+                          <span>{templateSettings.currency_symbol}180.00</span>
+                        </div>
+                      )}
+                      <div
+                        className="flex justify-between font-bold pt-1 border-t"
+                        style={{ borderColor: templateSettings.accent_color }}
+                      >
+                        <span>Invoice Value:</span>
+                        <span>{templateSettings.currency_symbol}1,180.00</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              <div className="border-t pt-3 mt-3 text-xs">
+                <div className="font-semibold mb-1">Amount in Words</div>
+                <div className="font-bold">One Thousand One Hundred Eighty Rupees Only</div>
+              </div>
+
               {templateSettings.show_bank_details && (
-                <div className="border-t pt-4 text-sm">
-                  <h3 className="font-semibold mb-2">Bank Details</h3>
-                  <p>Bank: State Bank of India</p>
-                  <p>Account: 1234567890</p>
-                  <p>IFSC: SBIN0001234</p>
+                <div className="border-t pt-3 mt-3 text-xs">
+                  <h3 className="font-bold mb-2 uppercase">Bank Details</h3>
+                  <div className="grid grid-cols-2 gap-1">
+                    <div><span className="font-semibold">Bank Name:</span> State Bank of India</div>
+                    <div><span className="font-semibold">Account Number:</span> 1234567890</div>
+                    <div><span className="font-semibold">IFSC Code:</span> SBIN0001234</div>
+                    <div><span className="font-semibold">Account Holder:</span> Company Name</div>
+                  </div>
                 </div>
               )}
 
-              {templateSettings.show_payment_terms && (
-                <div className="border-t pt-4 text-sm">
-                  <h3 className="font-semibold mb-2">Payment Terms</h3>
-                  <p>Net 30 Days</p>
+              <div className="border-t pt-3 mt-3">
+                <div className="flex justify-between items-end text-xs">
+                  <div className="w-3/5">
+                    <div className="font-semibold mb-1">For Company Name</div>
+                    <div className="text-gray-500">+91 1234567890</div>
+                    <div className="text-gray-500">info@company.com</div>
+                  </div>
+                  <div className="w-2/5 text-right">
+                    <div className="mt-8 pt-2 border-t border-gray-400 font-semibold">Authorised Signatory</div>
+                  </div>
                 </div>
-              )}
+              </div>
 
-              {templateSettings.show_notes && templateSettings.invoice_notes && (
-                <div className="border-t pt-4 text-sm">
-                  <p className="italic">{templateSettings.invoice_notes}</p>
-                </div>
-              )}
-
-              {templateSettings.invoice_terms && (
-                <div className="border-t pt-4 text-xs text-gray-600">
-                  <h3 className="font-semibold mb-2">Terms & Conditions</h3>
-                  <p>{templateSettings.invoice_terms}</p>
-                </div>
-              )}
-
-              {templateSettings.footer_text && (
-                <div className="text-center text-xs text-gray-500 border-t pt-4">
-                  {templateSettings.footer_text}
-                </div>
-              )}
             </div>
 
             {templateSettings.watermark_text && (

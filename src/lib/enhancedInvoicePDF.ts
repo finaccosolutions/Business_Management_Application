@@ -7,6 +7,7 @@ interface InvoiceItem {
   unit_price: number;
   amount: number;
   tax_rate?: number;
+  hsn_sac?: string;
 }
 
 interface Invoice {
@@ -27,6 +28,7 @@ interface Invoice {
     gstin?: string;
     city?: string;
     state?: string;
+    state_code?: string;
     postal_code?: string;
   };
 }
@@ -37,6 +39,7 @@ interface CompanySettings {
   address_line2?: string;
   city?: string;
   state?: string;
+  state_code?: string;
   postal_code?: string;
   country?: string;
   phone?: string;
@@ -58,6 +61,8 @@ interface CompanySettings {
   invoice_buyer_position?: string;
   invoice_number_position?: string;
   invoice_logo_position?: string;
+  invoice_show_bank_details?: boolean;
+  invoice_show_notes?: boolean;
   currency_symbol?: string;
 }
 
@@ -114,11 +119,31 @@ export function generateEnhancedInvoiceHTML(
 ): string {
   const isIndia = companySettings.country === 'India' || companySettings.country === 'IN';
   const splitGST = companySettings.invoice_split_gst !== false && isIndia;
-  const showPaymentTerms = companySettings.invoice_show_payment_terms !== false;
+  const showPaymentTerms = companySettings.invoice_show_payment_terms === true;
+  const showBankDetails = companySettings.invoice_show_bank_details !== false;
+  const showNotes = companySettings.invoice_show_notes !== false;
+  const showBuyerSection = companySettings.invoice_show_buyer_section !== false;
+  const showSupplierSection = companySettings.invoice_show_supplier_section !== false;
+  const numberPosition = companySettings.invoice_number_position || 'right';
+
+  const supplierState = companySettings.state || '';
+  const customerState = invoice.customers.state || '';
+  const isSameState = supplierState.toLowerCase() === customerState.toLowerCase();
 
   const taxRate = invoice.subtotal > 0 ? (invoice.tax_amount / invoice.subtotal) * 100 : 0;
-  const cgst = splitGST ? invoice.tax_amount / 2 : 0;
-  const sgst = splitGST ? invoice.tax_amount / 2 : 0;
+
+  let cgst = 0;
+  let sgst = 0;
+  let igst = 0;
+
+  if (splitGST) {
+    if (isSameState) {
+      cgst = invoice.tax_amount / 2;
+      sgst = invoice.tax_amount / 2;
+    } else {
+      igst = invoice.tax_amount;
+    }
+  }
 
   const statusColors = {
     draft: '#6b7280',
@@ -389,13 +414,15 @@ export function generateEnhancedInvoiceHTML(
           <div class="invoice-title">Invoice</div>
         </div>
 
+        ${showBuyerSection ? `
         <div class="party-section">
           <div class="party-box">
             <div class="party-label">Party:</div>
             <div class="party-name">${invoice.customers.name}</div>
             <div class="party-details">
-              ${invoice.customers.address || ''}<br>
-              ${invoice.customers.city || ''}, ${invoice.customers.state || ''} ${invoice.customers.postal_code || ''}<br>
+              ${invoice.customers.address ? `${invoice.customers.address}<br>` : ''}
+              ${invoice.customers.city ? `${invoice.customers.city}${invoice.customers.state ? ', ' + invoice.customers.state : ''}${invoice.customers.postal_code ? ' - ' + invoice.customers.postal_code : ''}<br>` : ''}
+              ${invoice.customers.state ? `State Name: ${invoice.customers.state}, Code: ${invoice.customers.state_code || ''}<br>` : ''}
               ${invoice.customers.phone ? `Phone: ${invoice.customers.phone}<br>` : ''}
               ${invoice.customers.gstin ? `<strong>GSTIN:</strong> ${invoice.customers.gstin}` : ''}
             </div>
@@ -407,6 +434,22 @@ export function generateEnhancedInvoiceHTML(
             <div class="meta-value">${invoice.invoice_number}</div>
           </div>
         </div>
+        ` : `
+        <div class="party-section">
+          <div class="party-box" style="width: 100%; border-right: none;">
+            <div style="display: flex; justify-content: space-between;">
+              <div>
+                <div class="meta-label">Date</div>
+                <div class="meta-value">${formatDateDisplay(invoice.invoice_date)}</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="meta-label">Invoice No.</div>
+                <div class="meta-value">${invoice.invoice_number}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        `}
 
         <table class="items-table">
           <thead>
@@ -420,24 +463,26 @@ export function generateEnhancedInvoiceHTML(
               ${splitGST ? `
                 <th style="width: 7%;">GST<br>Amount</th>
               ` : `
-                <th style="width: 7%;">Tax</th>
+                <th style="width: 7%;">Tax<br>Amount</th>
               `}
-              <th style="width: 13%;">Total Amount<br>(in ${companySettings.currency_symbol || 'Rs.'})</th>
+              <th style="width: 13%;">Total Amount<br>(in ${currencySymbol})</th>
             </tr>
           </thead>
           <tbody>
             ${items.map((item, index) => {
-              const itemTax = item.tax_rate ? (item.amount * item.tax_rate / 100) : 0;
+              const itemTaxRate = item.tax_rate || taxRate;
+              const itemTax = (item.amount * itemTaxRate / 100);
+              const itemTotal = item.amount + itemTax;
               return `
                 <tr>
                   <td class="center">${index + 1}</td>
                   <td>${item.description}</td>
-                  <td class="center">-</td>
+                  <td class="center">${item.hsn_sac || '-'}</td>
                   <td class="center">${item.quantity}</td>
                   <td class="right">${item.unit_price.toFixed(2)}</td>
                   <td class="right">${item.amount.toFixed(2)}</td>
                   <td class="right">${itemTax > 0 ? itemTax.toFixed(2) : '-'}</td>
-                  <td class="right">${(item.amount + itemTax).toFixed(2)}</td>
+                  <td class="right">${itemTotal.toFixed(2)}</td>
                 </tr>
               `;
             }).join('')}
@@ -456,16 +501,23 @@ export function generateEnhancedInvoiceHTML(
             <div class="amount-words-value">${invoice.subtotal.toFixed(2)}</div>
           </div>
           <div class="totals-right">
-            ${splitGST ? `
-              <div class="total-row">
-                <span>Add: CGST @ ${(taxRate / 2).toFixed(2)}%</span>
-                <span>${cgst.toFixed(2)}</span>
-              </div>
-              <div class="total-row">
-                <span>Add: SGST @ ${(taxRate / 2).toFixed(2)}%</span>
-                <span>${sgst.toFixed(2)}</span>
-              </div>
-            ` : `
+            ${splitGST ? (
+              isSameState ? `
+                <div class="total-row">
+                  <span>Add: CGST @ ${(taxRate / 2).toFixed(2)}%</span>
+                  <span>${cgst.toFixed(2)}</span>
+                </div>
+                <div class="total-row">
+                  <span>Add: SGST @ ${(taxRate / 2).toFixed(2)}%</span>
+                  <span>${sgst.toFixed(2)}</span>
+                </div>
+              ` : `
+                <div class="total-row">
+                  <span>Add: IGST @ ${taxRate.toFixed(2)}%</span>
+                  <span>${igst.toFixed(2)}</span>
+                </div>
+              `
+            ) : `
               <div class="total-row">
                 <span>Add: ${companySettings.tax_label || 'Tax'} @ ${taxRate.toFixed(2)}%</span>
                 <span>${invoice.tax_amount.toFixed(2)}</span>
@@ -483,9 +535,9 @@ export function generateEnhancedInvoiceHTML(
           <div class="amount-words-value">${totalInWords}</div>
         </div>
 
-        ${companySettings.bank_name ? `
+        ${showBankDetails && companySettings.bank_name ? `
           <div class="bank-details">
-            <div class="bank-details-title">Bank Details</div>
+            <div class="bank-details-title">Bank Details${companySettings.company_name ? ` For ${companySettings.company_name}` : ''}</div>
             <div class="bank-details-grid">
               ${companySettings.bank_name ? `
                 <div class="bank-detail-item">
@@ -505,10 +557,10 @@ export function generateEnhancedInvoiceHTML(
                   <span>${companySettings.bank_ifsc_code}</span>
                 </div>
               ` : ''}
-              ${companySettings.bank_branch ? `
+              ${companySettings.company_name ? `
                 <div class="bank-detail-item">
                   <span class="bank-detail-label">Account Holder's Name:</span>
-                  <span>${companySettings.company_name || ''}</span>
+                  <span>${companySettings.company_name}</span>
                 </div>
               ` : ''}
             </div>
