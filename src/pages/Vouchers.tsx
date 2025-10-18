@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Plus, FileText, Search, Filter, X, Eye, Edit2, Trash2, Calendar, Printer, Download, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, FileText, Search, Filter, X, Eye, Edit2, Trash2, Calendar, Printer, Download, CheckCircle, XCircle, DollarSign, ArrowUpDown } from 'lucide-react';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import PaymentVoucherModal from '../components/accounting/PaymentVoucherModal';
 import ReceiptVoucherModal from '../components/accounting/ReceiptVoucherModal';
@@ -18,6 +18,14 @@ interface VoucherType {
   code: string;
 }
 
+interface VoucherEntry {
+  id: string;
+  account_id: string;
+  debit_amount: number;
+  credit_amount: number;
+  narration: string;
+}
+
 interface Voucher {
   id: string;
   voucher_number: string;
@@ -28,6 +36,7 @@ interface Voucher {
   status: string;
   voucher_type_id: string;
   voucher_types: { name: string; code: string };
+  voucher_entries?: VoucherEntry[];
 }
 
 
@@ -59,9 +68,231 @@ const getVoucherTypeColor = (code: string, index: number) => {
   return colors[index % colors.length];
 };
 
+interface VoucherTileProps {
+  voucher: Voucher;
+  onView: (voucher: Voucher) => void;
+  onEdit: (voucher: Voucher) => void;
+  onPost: (id: string, number: string) => void;
+  onPrint: (voucher: Voucher) => void;
+  onCancel: (id: string, number: string) => void;
+  onDelete: (id: string, number: string) => void;
+  onStatusChange: (id: string, status: string) => void;
+}
+
+function VoucherTile({ voucher, onView, onEdit, onPost, onPrint, onCancel, onDelete, onStatusChange }: VoucherTileProps) {
+  const [accounts, setAccounts] = useState<{ [key: string]: string }>({});
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      if (voucher.voucher_entries && voucher.voucher_entries.length > 0) {
+        const accountIds = voucher.voucher_entries.map(e => e.account_id).filter(Boolean);
+        if (accountIds.length > 0) {
+          const { data } = await supabase
+            .from('chart_of_accounts')
+            .select('id, account_name')
+            .in('id', accountIds);
+
+          if (data) {
+            const accountMap: { [key: string]: string } = {};
+            data.forEach(acc => {
+              accountMap[acc.id] = acc.account_name;
+            });
+            setAccounts(accountMap);
+          }
+        }
+      }
+      setLoadingAccounts(false);
+    };
+    fetchAccounts();
+  }, [voucher.voucher_entries]);
+
+  const getLedgerInfo = () => {
+    if (!voucher.voucher_entries || voucher.voucher_entries.length === 0) {
+      return { primary: 'No ledger entries', secondary: '' };
+    }
+
+    const debitEntry = voucher.voucher_entries.find(e => e.debit_amount > 0);
+    const creditEntry = voucher.voucher_entries.find(e => e.credit_amount > 0);
+
+    if (debitEntry && creditEntry) {
+      return {
+        primary: accounts[debitEntry.account_id] || 'Loading...',
+        secondary: accounts[creditEntry.account_id] || 'Loading...'
+      };
+    }
+
+    return { primary: 'Multiple entries', secondary: '' };
+  };
+
+  const ledgerInfo = getLedgerInfo();
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-gray-200 dark:border-slate-700 hover:shadow-xl transition-all duration-200">
+      <div className="p-5">
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Left Section - Main Info */}
+          <div className="flex-1">
+            <div className="flex items-start gap-4">
+              <div className={`p-3 bg-gradient-to-br rounded-lg flex-shrink-0 ${
+                voucher.status === 'posted'
+                  ? 'from-green-100 to-emerald-200 dark:from-green-900/40 dark:to-emerald-900/40'
+                  : voucher.status === 'cancelled'
+                  ? 'from-red-100 to-rose-200 dark:from-red-900/40 dark:to-rose-900/40'
+                  : 'from-blue-100 to-cyan-200 dark:from-blue-900/40 dark:to-cyan-900/40'
+              }`}>
+                <FileText className={`w-6 h-6 ${
+                  voucher.status === 'posted'
+                    ? 'text-green-700 dark:text-green-300'
+                    : voucher.status === 'cancelled'
+                    ? 'text-red-700 dark:text-red-300'
+                    : 'text-blue-700 dark:text-blue-300'
+                }`} />
+              </div>
+
+              <div className="flex-1">
+                {/* Ledger Names - Most Prominent */}
+                <div className="mb-3">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{ledgerInfo.primary}</h3>
+                  {ledgerInfo.secondary && (
+                    <p className="text-lg text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                      <ArrowUpDown className="w-4 h-4" />
+                      {ledgerInfo.secondary}
+                    </p>
+                  )}
+                </div>
+
+                {/* Voucher Details */}
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  <span className="px-3 py-1 text-sm font-semibold rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300">
+                    {voucher.voucher_number}
+                  </span>
+                  <span
+                    className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1.5 ${
+                      statusColors[voucher.status as keyof typeof statusColors]
+                    }`}
+                  >
+                    {voucher.status === 'posted' && <CheckCircle className="w-3.5 h-3.5" />}
+                    {voucher.status === 'cancelled' && <XCircle className="w-3.5 h-3.5" />}
+                    {voucher.status.toUpperCase()}
+                  </span>
+                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                    {voucher.voucher_types.name}
+                  </span>
+                </div>
+
+                {/* Secondary Info Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Date</p>
+                    <p className="font-medium text-gray-900 dark:text-white flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                      {formatDateDisplay(voucher.voucher_date)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Amount</p>
+                    <p className="font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                      <DollarSign className="w-3.5 h-3.5" />
+                      ₹{voucher.total_amount.toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                  {voucher.reference_number && (
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Reference</p>
+                      <p className="font-medium text-gray-900 dark:text-white truncate">{voucher.reference_number}</p>
+                    </div>
+                  )}
+                </div>
+
+                {voucher.narration && (
+                  <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <p className="text-xs text-amber-700 dark:text-amber-400 line-clamp-2">{voucher.narration}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Section - Actions */}
+          <div className="flex flex-col gap-2 lg:w-64">
+            {/* Status Dropdown */}
+            <select
+              value={voucher.status}
+              onChange={(e) => onStatusChange(voucher.id, e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white"
+            >
+              <option value="draft">Draft</option>
+              <option value="posted">Posted</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+
+            {/* Action Buttons - 2 Column Grid */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => onView(voucher)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-xs font-medium"
+              >
+                <Eye className="w-4 h-4" />
+                <span>View</span>
+              </button>
+
+              <button
+                onClick={() => onEdit(voucher)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/50 transition-colors text-xs font-medium"
+              >
+                <Edit2 className="w-4 h-4" />
+                <span>Edit</span>
+              </button>
+
+              {voucher.status === 'draft' && (
+                <button
+                  onClick={() => onPost(voucher.id, voucher.voucher_number)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors text-xs font-medium"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Post</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => onPrint(voucher)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors text-xs font-medium"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print</span>
+              </button>
+
+              {voucher.status === 'posted' && (
+                <button
+                  onClick={() => onCancel(voucher.id, voucher.voucher_number)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors text-xs font-medium"
+                >
+                  <XCircle className="w-4 h-4" />
+                  <span>Cancel</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => onDelete(voucher.id, voucher.voucher_number)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors text-xs font-medium"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface VouchersProps {
   onNavigate?: (page: string) => void;
 }
+
+const VoucherTileMemo = VoucherTile;
 
 export default function Vouchers({ onNavigate }: VouchersProps) {
   const { user } = useAuth();
@@ -75,7 +306,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [dateFilter, setDateFilter] = useState('all');
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
@@ -92,7 +323,17 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
       const [vouchersResult, typesResult, invoicesResult] = await Promise.all([
         supabase
           .from('vouchers')
-          .select('*, voucher_types(name, code)')
+          .select(`
+            *,
+            voucher_types(name, code),
+            voucher_entries(
+              id,
+              account_id,
+              debit_amount,
+              credit_amount,
+              narration
+            )
+          `)
           .order('voucher_date', { ascending: false }),
         supabase
           .from('voucher_types')
@@ -221,15 +462,35 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
     };
   });
 
+  const applyDateFilter = (voucher: Voucher) => {
+    if (dateFilter === 'all') return true;
+    const now = new Date();
+    const voucherDate = new Date(voucher.voucher_date);
+    switch (dateFilter) {
+      case 'today':
+        return voucherDate.toDateString() === now.toDateString();
+      case 'week':
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return voucherDate >= weekAgo;
+      case 'month':
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return voucherDate >= monthAgo;
+      default:
+        return true;
+    }
+  };
+
   const filteredVouchers = selectedTypeId
     ? vouchers.filter((voucher) => {
         const matchesType = voucher.voucher_type_id === selectedTypeId;
         const matchesSearch =
           searchQuery === '' ||
           voucher.voucher_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          voucher.narration?.toLowerCase().includes(searchQuery.toLowerCase());
+          voucher.narration?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          voucher.reference_number?.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = filterStatus === 'all' || voucher.status === filterStatus;
-        return matchesType && matchesSearch && matchesStatus;
+        const matchesDate = applyDateFilter(voucher);
+        return matchesType && matchesSearch && matchesStatus && matchesDate;
       })
     : [];
 
@@ -269,184 +530,83 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
           </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search vouchers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-            />
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center space-x-2 px-6 py-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
-          >
-            <Filter className="w-5 h-5" />
-            <span>Filters</span>
-          </button>
-        </div>
-
-        {showFilters && (
-          <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
-              >
-                <option value="all">All Status</option>
-                <option value="draft">Draft</option>
-                <option value="posted">Posted</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-4">
+          <div className="flex flex-col lg:flex-row gap-4 mb-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search by voucher number, reference, or narration..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+              />
             </div>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 dark:text-white"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+            </select>
           </div>
-        )}
+
+          <div className="flex flex-wrap gap-2">
+            {['all', 'draft', 'posted', 'cancelled'].map((status) => {
+              const count = filteredVouchers.filter(v => status === 'all' || v.status === status).length;
+              return (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    filterStatus === status
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                    filterStatus === status
+                      ? 'bg-white/30 text-white'
+                      : 'bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-gray-300'
+                  }`}>
+                    {status === 'all' ? vouchers.filter(v => v.voucher_type_id === selectedTypeId).length : count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="space-y-4">
           {filteredVouchers.map((voucher) => (
-            <div
+            <VoucherTile
               key={voucher.id}
-              className="bg-white dark:bg-slate-800 rounded-xl shadow-md border-2 border-gray-200 dark:border-slate-700 hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200"
-            >
-              <div className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                  {/* Left Section - Voucher Info */}
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className={`p-4 bg-gradient-to-br rounded-xl flex-shrink-0 shadow-sm ${
-                      voucher.status === 'posted'
-                        ? 'from-green-100 to-emerald-200 dark:from-green-900/40 dark:to-emerald-900/40'
-                        : voucher.status === 'cancelled'
-                        ? 'from-red-100 to-rose-200 dark:from-red-900/40 dark:to-rose-900/40'
-                        : 'from-blue-100 to-cyan-200 dark:from-blue-900/40 dark:to-cyan-900/40'
-                    }`}>
-                      <FileText className={`w-7 h-7 ${
-                        voucher.status === 'posted'
-                          ? 'text-green-700 dark:text-green-300'
-                          : voucher.status === 'cancelled'
-                          ? 'text-red-700 dark:text-red-300'
-                          : 'text-blue-700 dark:text-blue-300'
-                      }`} />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-3 flex-wrap">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{voucher.voucher_number}</h3>
-                        <span
-                          className={`px-3 py-1.5 text-xs font-bold rounded-full shadow-sm flex items-center gap-1.5 ${
-                            statusColors[voucher.status as keyof typeof statusColors]
-                          }`}
-                        >
-                          {voucher.status === 'posted' && <CheckCircle className="w-3.5 h-3.5" />}
-                          {voucher.status === 'cancelled' && <XCircle className="w-3.5 h-3.5" />}
-                          {voucher.status.toUpperCase()}
-                        </span>
-                        <span className="px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300">
-                          {voucher.voucher_types.name}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                        <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Voucher Date</p>
-                          <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            {formatDateDisplay(voucher.voucher_date)}
-                          </p>
-                        </div>
-                        {voucher.reference_number && (
-                          <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Reference No.</p>
-                            <p className="font-semibold text-gray-900 dark:text-white truncate">{voucher.reference_number}</p>
-                          </div>
-                        )}
-                        <div className="bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-lg p-3">
-                          <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 font-medium">Total Amount</p>
-                          <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                            ₹{voucher.total_amount.toLocaleString('en-IN')}
-                          </p>
-                        </div>
-                        <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Type Code</p>
-                          <p className="font-mono font-bold text-gray-900 dark:text-white">{voucher.voucher_types.code}</p>
-                        </div>
-                      </div>
-
-                      {voucher.narration && (
-                        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                          <p className="text-xs text-amber-700 dark:text-amber-400 font-medium mb-1">Narration</p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">{voucher.narration}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right Section - Actions */}
-                  <div className="flex flex-col gap-2 lg:flex-shrink-0 lg:ml-auto">
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleView(voucher)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>View</span>
-                      </button>
-                      {voucher.status === 'draft' && (
-                        <>
-                          <button
-                            onClick={() => handleEdit(voucher)}
-                            className="flex items-center gap-1.5 px-4 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
-                            title="Edit Voucher"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={() => handlePost(voucher.id, voucher.voucher_number)}
-                            className="flex items-center gap-1.5 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
-                            title="Post Voucher"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                            <span>Post</span>
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={() => handlePrint(voucher)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
-                        title="Print Voucher"
-                      >
-                        <Printer className="w-4 h-4" />
-                        <span>Print</span>
-                      </button>
-                      {voucher.status === 'posted' && (
-                        <button
-                          onClick={() => handleCancel(voucher.id, voucher.voucher_number)}
-                          className="flex items-center gap-1.5 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
-                          title="Cancel Voucher"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          <span>Cancel</span>
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(voucher.id, voucher.voucher_number)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
-                        title="Delete Voucher"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              voucher={voucher}
+              onView={handleView}
+              onEdit={handleEdit}
+              onPost={handlePost}
+              onPrint={handlePrint}
+              onCancel={handleCancel}
+              onDelete={handleDelete}
+              onStatusChange={async (id, status) => {
+                try {
+                  const { error } = await supabase
+                    .from('vouchers')
+                    .update({ status, updated_at: new Date().toISOString() })
+                    .eq('id', id);
+                  if (error) throw error;
+                  toast.success(`Voucher status changed to ${status}`);
+                  fetchData();
+                } catch (error: any) {
+                  console.error('Error updating status:', error);
+                  toast.error('Failed to update status');
+                }
+              }}
+            />
           ))}
 
           {filteredVouchers.length === 0 && (
