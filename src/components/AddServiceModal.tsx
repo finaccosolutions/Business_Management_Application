@@ -223,11 +223,20 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
   const generateServiceCode = async () => {
     try {
+      const { data, error } = await supabase.rpc('generate_next_id', {
+        p_user_id: user!.id,
+        p_id_type: 'service_code'
+      });
+
+      if (!error && data) {
+        return data;
+      }
+
       const { data: existingServices } = await supabase
         .from('services')
         .select('service_code')
         .not('service_code', 'is', null)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false})
         .limit(1);
 
       let nextNumber = 1;

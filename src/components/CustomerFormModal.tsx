@@ -32,12 +32,14 @@ interface CustomerFormData {
   state: string;
   pincode: string;
   country: string;
-  
+  entity_type: string;
+  legal_form: string;
+
   // Dynamic tax fields
   gstin?: string;
   vat_number?: string;
   ein?: string;
-  
+
   pan_number: string;
   tax_registration_type: string;
   msme_number: string;
@@ -97,6 +99,8 @@ export default function CustomerFormModal({
     designation: initialData.designation || '',
     alternate_phone: initialData.alternate_phone || '',
     website: initialData.website || '',
+    entity_type: initialData.entity_type || '',
+    legal_form: initialData.legal_form || '',
     address: initialData.address || '',
     city: initialData.city || '',
     state: initialData.state || '',
@@ -393,6 +397,33 @@ export default function CustomerFormModal({
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="Manager"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Entity Type / Legal Form
+                  </label>
+                  <select
+                    value={formData.entity_type}
+                    onChange={(e) =>
+                      setFormData({ ...formData, entity_type: e.target.value, legal_form: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="">Select Entity Type</option>
+                    <option value="Individual">Individual</option>
+                    <option value="Sole Proprietor">Sole Proprietor</option>
+                    <option value="Partnership">Partnership</option>
+                    <option value="LLP">Limited Liability Partnership (LLP)</option>
+                    <option value="Private Limited">Private Limited Company</option>
+                    <option value="Public Limited">Public Limited Company</option>
+                    <option value="One Person Company">One Person Company (OPC)</option>
+                    <option value="Trust">Trust</option>
+                    <option value="Society">Society</option>
+                    <option value="NGO">Non-Governmental Organization (NGO)</option>
+                    <option value="Government">Government Entity</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
 
                 <div>

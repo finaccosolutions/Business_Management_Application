@@ -37,6 +37,8 @@ interface Customer {
   website: string;
   gstin: string;
   pan_number: string;
+  entity_type: string;
+  legal_form: string;
   bank_name: string;
   bank_account_number: string;
   bank_ifsc_code: string;
@@ -634,6 +636,15 @@ function OverviewTab({ customer }: { customer: Customer }) {
               <div>
                 <p className="text-xs text-gray-500">Designation</p>
                 <p className="text-sm font-medium text-gray-900">{customer.designation}</p>
+              </div>
+            </div>
+          )}
+          {(customer.entity_type || customer.legal_form) && (
+            <div className="flex items-center gap-3">
+              <Building2 size={18} className="text-gray-400" />
+              <div>
+                <p className="text-xs text-gray-500">Entity Type / Legal Form</p>
+                <p className="text-sm font-medium text-gray-900">{customer.entity_type || customer.legal_form}</p>
               </div>
             </div>
           )}

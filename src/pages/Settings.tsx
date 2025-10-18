@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import VoucherNumberConfig from '../components/VoucherNumberConfig';
+import UnifiedIDConfig from '../components/UnifiedIDConfig';
 import InvoiceTemplateSettings from '../components/InvoiceTemplateSettings';
 import { COUNTRIES_WITH_STATES, getStatesByCountryCode } from '../config/countriesStates';
 import { getCountryConfig } from '../config/countryConfig';
@@ -280,7 +280,7 @@ export default function Settings() {
             }`}
           >
             <Hash size={20} />
-            Voucher Numbers
+            ID Configuration
           </button>
           <button
             onClick={() => setActiveTab('template')}
@@ -902,7 +902,7 @@ export default function Settings() {
           )}
 
           {activeTab === 'invoice' && (
-            <VoucherNumberConfig
+            <UnifiedIDConfig
               settings={settings}
               onUpdateSettings={(updates) => setSettings({ ...settings, ...updates })}
             />

@@ -48,6 +48,8 @@ interface Customer {
   website: string | null;
   notes: string | null;
   image_url: string | null;
+  entity_type: string | null;
+  legal_form: string | null;
   created_at: string;
   service_count?: number;
   total_revenue?: number;
@@ -518,6 +520,12 @@ export default function Customers() {
                           <p className="text-sm text-gray-600 truncate flex items-center gap-1" title={customer.company_name}>
                             <Building size={14} />
                             {customer.company_name}
+                          </p>
+                        )}
+                        {(customer.entity_type || customer.legal_form) && (
+                          <p className="text-xs text-blue-600 truncate flex items-center gap-1">
+                            <Briefcase size={12} />
+                            {customer.entity_type || customer.legal_form}
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-1">
