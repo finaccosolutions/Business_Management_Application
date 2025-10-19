@@ -515,22 +515,18 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Customer Account (Debit) *
                   </label>
-                  <select
-                    value={formData.customer_account_id || ''}
-                    onChange={(e) => setFormData({ ...formData, customer_account_id: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Customer Account</option>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_code} - {account.account_name}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    value={
+                      formData.customer_account_id && accounts.find(a => a.id === formData.customer_account_id)
+                        ? `${accounts.find(a => a.id === formData.customer_account_id)?.account_code} - ${accounts.find(a => a.id === formData.customer_account_id)?.account_name}`
+                        : 'Auto-filled from selected customer'
+                    }
+                    disabled
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                  />
                   <p className="text-xs text-gray-500 mt-1">
-                    {formData.customer_account_id
-                      ? 'Receivable account to debit for customer payment'
-                      : 'Select an accounts receivable account for this customer'}
+                    Automatically linked from customer's account mapping
                   </p>
                 </div>
               </div>
