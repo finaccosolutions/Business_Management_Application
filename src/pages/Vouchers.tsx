@@ -420,11 +420,25 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
   };
 
   const handleEdit = async (voucher: Voucher) => {
-    const voucherType = voucherTypes.find(t => t.id === voucher.voucher_type_id);
-    if (voucherType) {
-      setSelectedVoucher(voucher);
-      setSelectedVoucherType(voucherType);
-      setShowModal(true);
+    try {
+      // Fetch voucher entries
+      const { data: entries, error } = await supabase
+        .from('voucher_entries')
+        .select('*')
+        .eq('voucher_id', voucher.id);
+
+      if (error) throw error;
+
+      const voucherType = voucherTypes.find(t => t.id === voucher.voucher_type_id);
+      if (voucherType) {
+        const voucherWithEntries = { ...voucher, voucher_entries: entries || [] };
+        setSelectedVoucher(voucherWithEntries);
+        setSelectedVoucherType(voucherType);
+        setShowModal(true);
+      }
+    } catch (error) {
+      console.error('Error loading voucher for edit:', error);
+      toast.error('Failed to load voucher details');
     }
   };
 
@@ -667,6 +681,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
           <button
             onClick={() => {
               setSelectedVoucherType(selectedType || null);
+              setSelectedVoucher(null);
               setShowModal(true);
             }}
             className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
@@ -764,6 +779,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
                 onClick={() => {
                   const selectedType = voucherTypes.find(t => t.id === selectedTypeId);
                   setSelectedVoucherType(selectedType || null);
+                  setSelectedVoucher(null);
                   setShowModal(true);
                 }}
                 className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-8 py-4 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -782,24 +798,29 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
                 onClose={() => {
                   setShowModal(false);
                   setSelectedVoucherType(null);
+                  setSelectedVoucher(null);
                   fetchData();
                 }}
                 voucherTypeId={selectedVoucherType.id}
+                editVoucher={selectedVoucher || undefined}
               />
             ) : selectedVoucherType.code.toUpperCase() === 'ITMRCT' || selectedVoucherType.code.toUpperCase() === 'RV' ? (
               <ReceiptVoucherModal
                 onClose={() => {
                   setShowModal(false);
                   setSelectedVoucherType(null);
+                  setSelectedVoucher(null);
                   fetchData();
                 }}
                 voucherTypeId={selectedVoucherType.id}
+                editVoucher={selectedVoucher || undefined}
               />
             ) : selectedVoucherType.code.toUpperCase() === 'ITMCNT' || selectedVoucherType.code.toUpperCase() === 'CV' ? (
               <ContraVoucherModal
                 onClose={() => {
                   setShowModal(false);
                   setSelectedVoucherType(null);
+                  setSelectedVoucher(null);
                   fetchData();
                 }}
                 voucherTypeId={selectedVoucherType.id}
@@ -809,6 +830,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
                 onClose={() => {
                   setShowModal(false);
                   setSelectedVoucherType(null);
+                  setSelectedVoucher(null);
                   fetchData();
                 }}
                 voucherTypeId={selectedVoucherType.id}

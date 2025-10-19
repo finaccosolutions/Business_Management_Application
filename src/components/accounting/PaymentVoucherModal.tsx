@@ -17,12 +17,31 @@ interface DebitEntry {
   narration: string;
 }
 
+interface Voucher {
+  id: string;
+  voucher_number: string;
+  voucher_date: string;
+  reference_number: string;
+  narration: string;
+  status: string;
+  voucher_entries?: VoucherEntry[];
+}
+
+interface VoucherEntry {
+  id: string;
+  account_id: string;
+  debit_amount: number;
+  credit_amount: number;
+  narration: string;
+}
+
 interface PaymentVoucherModalProps {
   onClose: () => void;
   voucherTypeId: string;
+  editVoucher?: Voucher;
 }
 
-export default function PaymentVoucherModal({ onClose, voucherTypeId }: PaymentVoucherModalProps) {
+export default function PaymentVoucherModal({ onClose, voucherTypeId, editVoucher }: PaymentVoucherModalProps) {
   const { user } = useAuth();
   const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -30,11 +49,11 @@ export default function PaymentVoucherModal({ onClose, voucherTypeId }: PaymentV
   const [cashBankAccountName, setCashBankAccountName] = useState<string>('');
   const [paymentReceiptType, setPaymentReceiptType] = useState<'cash' | 'bank'>('cash');
   const [formData, setFormData] = useState({
-    voucher_number: '',
-    voucher_date: new Date().toISOString().split('T')[0],
-    reference_number: '',
-    narration: '',
-    status: 'draft',
+    voucher_number: editVoucher?.voucher_number || '',
+    voucher_date: editVoucher?.voucher_date || new Date().toISOString().split('T')[0],
+    reference_number: editVoucher?.reference_number || '',
+    narration: editVoucher?.narration || '',
+    status: editVoucher?.status || 'draft',
   });
 
   const [debitEntries, setDebitEntries] = useState<DebitEntry[]>([
@@ -44,8 +63,32 @@ export default function PaymentVoucherModal({ onClose, voucherTypeId }: PaymentV
   useEffect(() => {
     fetchAccounts();
     fetchSettings();
-    generateVoucherNumber();
+    if (!editVoucher) {
+      generateVoucherNumber();
+    }
   }, []);
+
+  useEffect(() => {
+    if (editVoucher && editVoucher.voucher_entries && accounts.length > 0) {
+      // Load existing entries for editing
+      const creditEntry = editVoucher.voucher_entries.find(e => e.credit_amount > 0);
+      if (creditEntry) {
+        setCashBankAccountId(creditEntry.account_id);
+      }
+
+      const debitEntriesData = editVoucher.voucher_entries
+        .filter(e => e.debit_amount > 0)
+        .map(e => ({
+          account_id: e.account_id,
+          amount: e.debit_amount.toString(),
+          narration: e.narration || ''
+        }));
+
+      if (debitEntriesData.length > 0) {
+        setDebitEntries(debitEntriesData);
+      }
+    }
+  }, [editVoucher, accounts]);
 
   const fetchAccounts = async () => {
     try {
@@ -170,38 +213,74 @@ export default function PaymentVoucherModal({ onClose, voucherTypeId }: PaymentV
         },
       ];
 
-      const voucherData = {
-        user_id: user!.id,
-        voucher_type_id: voucherTypeId,
-        voucher_number: formData.voucher_number,
-        voucher_date: formData.voucher_date,
-        reference_number: formData.reference_number,
-        narration: formData.narration,
-        total_amount: totalAmount,
-        status: formData.status,
-        created_by: user!.id,
-      };
+      if (editVoucher) {
+        // Update existing voucher
+        const { error: voucherError } = await supabase
+          .from('vouchers')
+          .update({
+            voucher_number: formData.voucher_number,
+            voucher_date: formData.voucher_date,
+            reference_number: formData.reference_number,
+            narration: formData.narration,
+            total_amount: totalAmount,
+            status: formData.status,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', editVoucher.id);
 
-      const { data: voucher, error: voucherError } = await supabase
-        .from('vouchers')
-        .insert(voucherData)
-        .select()
-        .single();
+        if (voucherError) throw voucherError;
 
-      if (voucherError) throw voucherError;
+        // Delete old entries
+        await supabase.from('voucher_entries').delete().eq('voucher_id', editVoucher.id);
 
-      const finalEntriesData = entriesData.map((entry) => ({
-        ...entry,
-        voucher_id: voucher.id,
-      }));
+        // Insert new entries
+        const finalEntriesData = entriesData.map((entry) => ({
+          ...entry,
+          voucher_id: editVoucher.id,
+        }));
 
-      const { error: entriesError } = await supabase
-        .from('voucher_entries')
-        .insert(finalEntriesData);
+        const { error: entriesError } = await supabase
+          .from('voucher_entries')
+          .insert(finalEntriesData);
 
-      if (entriesError) throw entriesError;
+        if (entriesError) throw entriesError;
 
-      toast.success('Payment voucher created successfully');
+        toast.success('Payment voucher updated successfully');
+      } else {
+        // Create new voucher
+        const voucherData = {
+          user_id: user!.id,
+          voucher_type_id: voucherTypeId,
+          voucher_number: formData.voucher_number,
+          voucher_date: formData.voucher_date,
+          reference_number: formData.reference_number,
+          narration: formData.narration,
+          total_amount: totalAmount,
+          status: formData.status,
+          created_by: user!.id,
+        };
+
+        const { data: voucher, error: voucherError } = await supabase
+          .from('vouchers')
+          .insert(voucherData)
+          .select()
+          .single();
+
+        if (voucherError) throw voucherError;
+
+        const finalEntriesData = entriesData.map((entry) => ({
+          ...entry,
+          voucher_id: voucher.id,
+        }));
+
+        const { error: entriesError } = await supabase
+          .from('voucher_entries')
+          .insert(finalEntriesData);
+
+        if (entriesError) throw entriesError;
+
+        toast.success('Payment voucher created successfully');
+      }
       onClose();
     } catch (error: any) {
       console.error('Error saving payment voucher:', error);
@@ -218,7 +297,7 @@ export default function PaymentVoucherModal({ onClose, voucherTypeId }: PaymentV
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
               <FileText size={28} />
-              Create Payment Voucher
+              {editVoucher ? 'Edit' : 'Create'} Payment Voucher
             </h2>
             <p className="text-red-100 text-sm mt-1">Record payment transactions</p>
           </div>
@@ -432,7 +511,7 @@ export default function PaymentVoucherModal({ onClose, voucherTypeId }: PaymentV
             onClick={handleSubmit}
             className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg hover:from-red-700 hover:to-orange-700 transition-all font-medium shadow-lg"
           >
-            Create Payment Voucher
+            {editVoucher ? 'Update' : 'Create'} Payment Voucher
           </button>
         </div>
       </div>
