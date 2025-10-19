@@ -538,17 +538,20 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
                 <Landmark size={20} className="text-blue-600" />
                 Accounting Accounts
               </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Select ledger accounts to post this invoice to accounting records. Required for financial reports.
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Income Account (Credit)
+                    Income Account (Credit) *
                   </label>
                   <select
                     value={formData.income_account_id}
                     onChange={(e) => setFormData({ ...formData, income_account_id: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                   >
-                    <option value="">Select income account</option>
+                    <option value="">Select Income Account</option>
                     {accounts.map((account) => (
                       <option key={account.id} value={account.id}>
                         {account.account_code} - {account.account_name}
@@ -557,29 +560,34 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
                   </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {formData.income_account_id
-                      ? `Selected: ${accounts.find(a => a.id === formData.income_account_id)?.account_name || ''}`
-                      : 'Auto-selected from service mapping or company default'}
+                      ? 'Revenue account to credit for this sale'
+                      : 'Select an income/revenue account to post this sale'}
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Customer Account (Debit)
+                    Customer Account (Debit) *
                   </label>
                   <input
                     type="text"
                     value={
                       formData.customer_account_id && accounts.find(a => a.id === formData.customer_account_id)
                         ? `${accounts.find(a => a.id === formData.customer_account_id)?.account_code} - ${accounts.find(a => a.id === formData.customer_account_id)?.account_name}`
-                        : 'Select customer to auto-fill'
+                        : 'Auto-filled from selected customer'
                     }
                     disabled
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-600 text-gray-600 dark:text-gray-300"
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-100 dark:bg-slate-600 text-gray-600 dark:text-gray-300"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Automatically linked from customer's account
+                    Automatically linked from customer's account mapping
                   </p>
                 </div>
+              </div>
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  <strong>Note:</strong> Invoice will only be posted to ledger and appear in financial reports after both accounts are selected and status is changed from draft.
+                </p>
               </div>
             </div>
 

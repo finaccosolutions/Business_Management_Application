@@ -484,54 +484,60 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
                 <Landmark size={20} className="text-blue-600" />
                 Accounting Accounts
               </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Select ledger accounts to post this invoice to accounting records. Required for financial reports.
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Income Account (Credit)
+                    Income Account (Credit) *
                   </label>
-                  <input
-                    type="text"
-                    value={
-                      formData.income_account_id
-                        ? (() => {
-                            const account = accounts.find(a => a.id === formData.income_account_id);
-                            return account ? `${account.account_code} - ${account.account_name}` : 'Not mapped';
-                          })()
-                        : 'Not mapped'
-                    }
-                    disabled
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-blue-50 text-gray-700 font-medium"
-                  />
+                  <select
+                    value={formData.income_account_id || ''}
+                    onChange={(e) => setFormData({ ...formData, income_account_id: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Income Account</option>
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_code} - {account.account_name}
+                      </option>
+                    ))}
+                  </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Mapped from service or company default settings
+                    {formData.income_account_id
+                      ? 'Revenue account to credit for this sale'
+                      : 'Select an income/revenue account to post this sale'}
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Customer Account (Debit)
+                    Customer Account (Debit) *
                   </label>
-                  <input
-                    type="text"
-                    value={
-                      formData.customer_account_id
-                        ? (() => {
-                            const account = accounts.find(a => a.id === formData.customer_account_id);
-                            const customer = customers.find(c => c.id === formData.customer_id);
-                            if (account && customer) {
-                              return `${customer.name} (${account.account_code} - ${account.account_name})`;
-                            }
-                            return customer?.name || 'Not mapped';
-                          })()
-                        : 'Not mapped'
-                    }
-                    disabled
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-blue-50 text-gray-700 font-medium"
-                  />
+                  <select
+                    value={formData.customer_account_id || ''}
+                    onChange={(e) => setFormData({ ...formData, customer_account_id: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Customer Account</option>
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_code} - {account.account_name}
+                      </option>
+                    ))}
+                  </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Automatically linked to customer's account
+                    {formData.customer_account_id
+                      ? 'Receivable account to debit for customer payment'
+                      : 'Select an accounts receivable account for this customer'}
                   </p>
                 </div>
+              </div>
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs text-amber-800">
+                  <strong>Note:</strong> Invoice will only be posted to ledger and appear in financial reports after both accounts are selected and status is changed from draft.
+                </p>
               </div>
             </div>
 
