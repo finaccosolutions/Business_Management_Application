@@ -111,16 +111,16 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
   };
 
   const calculateStats = (invoiceData: Invoice[]) => {
-    const totalAmount = invoiceData.reduce((sum, inv) => sum + inv.total_amount, 0);
+    const totalAmount = invoiceData.reduce((sum, inv) => sum + inv.subtotal, 0);
     const paidAmount = invoiceData
       .filter(inv => inv.status === 'paid')
-      .reduce((sum, inv) => sum + inv.total_amount, 0);
+      .reduce((sum, inv) => sum + inv.subtotal, 0);
     const overdueAmount = invoiceData
       .filter(inv => inv.status === 'overdue')
-      .reduce((sum, inv) => sum + inv.total_amount, 0);
+      .reduce((sum, inv) => sum + inv.subtotal, 0);
     const pendingAmount = invoiceData
       .filter(inv => inv.status === 'sent' || inv.status === 'draft')
-      .reduce((sum, inv) => sum + inv.total_amount, 0);
+      .reduce((sum, inv) => sum + inv.subtotal, 0);
 
     setStats({
       totalAmount,
