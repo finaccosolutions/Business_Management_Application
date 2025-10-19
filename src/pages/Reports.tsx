@@ -930,6 +930,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
         account: accountId,
         start: startDate,
         end: endDate || '',
+        returnPath: '/reports',
       };
       sessionStorage.setItem('ledgerParams', JSON.stringify(params));
       onNavigate('ledger');

@@ -325,6 +325,7 @@ export default function ChartOfAccounts() {
     // Store params in sessionStorage for the Ledger page to read
     const params = {
       account: account.id,
+      returnPath: '/chart-of-accounts',
     };
     sessionStorage.setItem('ledgerParams', JSON.stringify(params));
     // Navigate to dedicated Ledger page

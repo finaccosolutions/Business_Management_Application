@@ -50,6 +50,7 @@ export default function Ledger() {
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [returnPath, setReturnPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -63,6 +64,7 @@ export default function Ledger() {
           if (params.account) {
             if (params.start) setStartDate(params.start);
             if (params.end) setEndDate(params.end);
+            if (params.returnPath) setReturnPath(params.returnPath);
             fetchAccountDetails(params.account);
             // Clear after reading
             sessionStorage.removeItem('ledgerParams');
@@ -313,10 +315,15 @@ export default function Ledger() {
   };
 
   const handleBackToSelection = () => {
-    setSelectedAccount(null);
-    setEntries([]);
-    // Clear URL parameters
-    window.history.pushState({}, '', '/ledger');
+    if (returnPath) {
+      // Navigate back to the source page
+      window.location.href = returnPath;
+    } else {
+      setSelectedAccount(null);
+      setEntries([]);
+      // Clear URL parameters
+      window.history.pushState({}, '', '/ledger');
+    }
   };
 
   const handleTransactionClick = async (entry: LedgerEntry) => {
@@ -428,9 +435,9 @@ export default function Ledger() {
 
   return (
     <>
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Page Header - Fixed */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-6 text-white flex-shrink-0">
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-6 text-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3">
@@ -554,7 +561,7 @@ export default function Ledger() {
         <>
           {/* Collapsible Filters Section */}
           {showFilters && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6 flex-shrink-0">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Filter className="w-5 h-5 text-blue-600" />
@@ -684,8 +691,8 @@ export default function Ledger() {
             </div>
           )}
 
-          {/* Transactions Table Container - Flex grow to fill remaining space */}
-          <div className="flex-1 flex flex-col mt-6 overflow-hidden">
+          {/* Transactions Table Container */}
+          <div className="mt-6">
             {filteredEntries.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
                 <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -697,9 +704,9 @@ export default function Ledger() {
                 </p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col flex-1 overflow-hidden">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 {/* Title Bar */}
-                <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 flex-shrink-0">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-bold text-gray-900">Ledger Transactions</h2>
                     <div className="text-sm text-gray-600">
@@ -708,38 +715,33 @@ export default function Ledger() {
                   </div>
                 </div>
 
-                {/* Fixed Table Header */}
-                <div className="flex-shrink-0 bg-gradient-to-r from-slate-700 to-slate-600">
-                  <table className="w-full">
-                    <thead>
-                      <tr>
-                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '12%' }}>
-                          Date
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '13%' }}>
-                          Voucher No.
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '30%' }}>
-                          Particulars
-                        </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
-                          Debit (₹)
-                        </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
-                          Credit (₹)
-                        </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
-                          Balance (₹)
-                        </th>
-                      </tr>
-                    </thead>
-                  </table>
-                </div>
-
-                {/* Scrollable Transaction Body */}
-                <div className="flex-1 overflow-y-auto">
-                  <table className="w-full">
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                {/* Scrollable Table with Fixed Header */}
+                <div className="overflow-x-auto">
+                  <div className="max-h-[600px] overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-gradient-to-r from-slate-700 to-slate-600 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '12%' }}>
+                            Date
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '13%' }}>
+                            Voucher No.
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '30%' }}>
+                            Particulars
+                          </th>
+                          <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                            Debit (₹)
+                          </th>
+                          <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                            Credit (₹)
+                          </th>
+                          <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                            Balance (₹)
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
                       {filteredEntries.map((entry) => (
                         <tr
                           key={entry.id}
@@ -797,9 +799,10 @@ export default function Ledger() {
                     </tbody>
                   </table>
                 </div>
+              </div>
 
-                {/* Fixed Bottom Summary Panel - Attractive Design */}
-                <div className="flex-shrink-0 border-t-4 border-slate-700 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50 shadow-2xl">
+                {/* Bottom Summary Panel - Just below transactions */}
+                <div className="border-t-4 border-slate-700 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50">
                   <table className="w-full">
                     <tbody>
                       {/* Opening Balance Row */}

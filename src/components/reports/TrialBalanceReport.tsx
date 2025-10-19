@@ -41,6 +41,8 @@ export default function TrialBalanceReport({
   const totalCredit = filteredData.reduce((sum, e) => sum + e.credit, 0);
 
   const handleAccountClick = (accountId: string) => {
+    // Store return path before navigating
+    sessionStorage.setItem('ledgerReturnPath', '/reports');
     onAccountClick(accountId, startDate, endDate);
   };
 

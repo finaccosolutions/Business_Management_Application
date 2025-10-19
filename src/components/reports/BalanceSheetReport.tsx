@@ -46,6 +46,8 @@ export default function BalanceSheetReport({
     );
 
   const handleAccountClick = (accountId: string) => {
+    // Store return path before navigating
+    sessionStorage.setItem('ledgerReturnPath', '/reports');
     onAccountClick(accountId, asOnDate);
   };
 
