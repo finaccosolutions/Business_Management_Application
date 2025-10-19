@@ -50,6 +50,7 @@ interface Account {
 interface Customer {
   id: string;
   name: string;
+  account_id?: string;
 }
 
 interface Work {
@@ -388,7 +389,15 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
                   <select
                     required
                     value={formData.customer_id}
-                    onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                    onChange={(e) => {
+                      const customerId = e.target.value;
+                      const customer = customers.find(c => c.id === customerId);
+                      setFormData({
+                        ...formData,
+                        customer_id: customerId,
+                        customer_account_id: customer?.account_id || ''
+                      });
+                    }}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   >
                     <option value="">Select customer</option>
