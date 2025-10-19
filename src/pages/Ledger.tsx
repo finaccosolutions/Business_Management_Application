@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { BookOpen, Download, Search, Calendar, Filter, X, ArrowLeft } from 'lucide-react';
+import { BookOpen, Download, Search, Calendar, Filter, X, ArrowLeft, FileText, Edit2 } from 'lucide-react';
 import { formatDateDisplay } from '../lib/dateUtils';
+import PaymentVoucherModal from '../components/accounting/PaymentVoucherModal';
+import ReceiptVoucherModal from '../components/accounting/ReceiptVoucherModal';
+import JournalVoucherModal from '../components/accounting/JournalVoucherModal';
+import ContraVoucherModal from '../components/accounting/ContraVoucherModal';
+import InvoiceFormModal from '../components/InvoiceFormModal';
 
 interface Account {
   id: string;
@@ -17,6 +22,8 @@ interface LedgerEntry {
   transaction_date: string;
   voucher_number: string;
   voucher_type: string;
+  voucher_type_code?: string;
+  voucher_id?: string;
   particulars: string;
   debit: number;
   credit: number;
@@ -40,6 +47,9 @@ export default function Ledger() {
   const [maxAmount, setMaxAmount] = useState('');
   const [transactionType, setTransactionType] = useState<'all' | 'debit' | 'credit'>('all');
   const [voucherTypes, setVoucherTypes] = useState<string[]>([]);
+  const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
+  const [showVoucherModal, setShowVoucherModal] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -155,7 +165,7 @@ export default function Ledger() {
           *,
           vouchers(
             voucher_number,
-            voucher_types(name),
+            voucher_types(name, code),
             id
           )
         `)
@@ -205,6 +215,8 @@ export default function Ledger() {
           transaction_date: txn.transaction_date,
           voucher_number: txn.vouchers?.voucher_number || 'N/A',
           voucher_type: txn.vouchers?.voucher_types?.name || 'Unknown',
+          voucher_type_code: txn.vouchers?.voucher_types?.code || '',
+          voucher_id: txn.vouchers?.id || '',
           particulars: particularsName,
           narration: txn.narration || '-',
           debit: Number(txn.debit) || 0,
@@ -307,6 +319,102 @@ export default function Ledger() {
     window.history.pushState({}, '', '/ledger');
   };
 
+  const handleTransactionClick = async (entry: LedgerEntry) => {
+    if (!entry.voucher_id) return;
+
+    try {
+      // Fetch full voucher details
+      const { data: voucherData, error } = await supabase
+        .from('vouchers')
+        .select(`
+          *,
+          voucher_types(name, code),
+          voucher_entries(
+            id,
+            account_id,
+            debit_amount,
+            credit_amount,
+            narration,
+            chart_of_accounts(account_code, account_name)
+          )
+        `)
+        .eq('id', entry.voucher_id)
+        .single();
+
+      if (error) throw error;
+
+      setSelectedVoucher(voucherData);
+
+      // Check if it's an invoice voucher
+      if (voucherData.voucher_types?.code === 'ITMINV') {
+        setShowInvoiceModal(true);
+      } else {
+        setShowVoucherModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching voucher:', error);
+      toast.error('Failed to load voucher details');
+    }
+  };
+
+  const handleVoucherModalClose = () => {
+    setShowVoucherModal(false);
+    setShowInvoiceModal(false);
+    setSelectedVoucher(null);
+    // Refresh ledger entries after editing
+    if (selectedAccount) {
+      fetchLedgerEntries();
+    }
+  };
+
+  const renderVoucherModal = () => {
+    if (!selectedVoucher) return null;
+
+    const voucherTypeCode = selectedVoucher.voucher_types?.code;
+
+    if (voucherTypeCode === 'ITMINV') {
+      return (
+        <InvoiceFormModal
+          onClose={handleVoucherModalClose}
+          invoice={selectedVoucher}
+        />
+      );
+    }
+
+    switch (voucherTypeCode) {
+      case 'PMT':
+        return (
+          <PaymentVoucherModal
+            onClose={handleVoucherModalClose}
+            voucher={selectedVoucher}
+          />
+        );
+      case 'RCPT':
+        return (
+          <ReceiptVoucherModal
+            onClose={handleVoucherModalClose}
+            voucher={selectedVoucher}
+          />
+        );
+      case 'JV':
+        return (
+          <JournalVoucherModal
+            onClose={handleVoucherModalClose}
+            voucher={selectedVoucher}
+          />
+        );
+      case 'CNTR':
+        return (
+          <ContraVoucherModal
+            onClose={handleVoucherModalClose}
+            voucher={selectedVoucher}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   const { totalDebit, totalCredit, openingBalance, closingBalance } = calculateTotals();
   const activeFiltersCount = getActiveFiltersCount();
 
@@ -319,8 +427,9 @@ export default function Ledger() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      {/* Page Header */}
+    <>
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Page Header - Fixed */}
       <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-6 text-white flex-shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex-1">
@@ -632,9 +741,19 @@ export default function Ledger() {
                   <table className="w-full">
                     <tbody className="divide-y divide-gray-200 bg-white">
                       {filteredEntries.map((entry) => (
-                        <tr key={entry.id} className="hover:bg-blue-50 transition-colors">
+                        <tr
+                          key={entry.id}
+                          className="hover:bg-blue-50 transition-colors cursor-pointer group"
+                          onClick={() => handleTransactionClick(entry)}
+                          title="Click to view/edit voucher"
+                        >
                           <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900" style={{ width: '12%' }}>
-                            {formatDateDisplay(entry.transaction_date)}
+                            <div className="flex items-center gap-2">
+                              {formatDateDisplay(entry.transaction_date)}
+                              {entry.voucher_id && (
+                                <Edit2 className="w-3 h-3 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-3 whitespace-nowrap" style={{ width: '13%' }}>
                             <div className="flex flex-col">
@@ -679,58 +798,61 @@ export default function Ledger() {
                   </table>
                 </div>
 
-                {/* Fixed Bottom Summary Panel */}
-                <div className="flex-shrink-0 border-t-4 border-slate-700 bg-gradient-to-b from-slate-50 to-slate-100">
+                {/* Fixed Bottom Summary Panel - Attractive Design */}
+                <div className="flex-shrink-0 border-t-4 border-slate-700 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50 shadow-2xl">
                   <table className="w-full">
                     <tbody>
                       {/* Opening Balance Row */}
-                      <tr className="border-b border-gray-300">
-                        <td className="px-6 py-2.5 text-left font-medium text-gray-700 text-sm" style={{ width: '55%' }}>
+                      <tr className="border-b-2 border-slate-300 bg-gradient-to-r from-blue-50 to-slate-50">
+                        <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm" style={{ width: '55%' }}>
                           Opening Balance
                         </td>
-                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}></td>
-                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}></td>
-                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}>
-                          <span className={`text-sm font-bold ${
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}>
+                          <span className={`text-base font-bold ${
                             openingBalance >= 0 ? 'text-green-700' : 'text-red-700'
                           }`}>
                             ₹{Math.abs(openingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            <span className="text-xs ml-1.5 font-semibold">{openingBalance >= 0 ? 'Dr' : 'Cr'}</span>
+                            <span className="text-xs ml-2 font-bold bg-white/60 px-2 py-0.5 rounded">{openingBalance >= 0 ? 'Dr' : 'Cr'}</span>
                           </span>
                         </td>
                       </tr>
 
                       {/* Totals Row */}
-                      <tr className="bg-slate-200 border-b-2 border-slate-400">
-                        <td className="px-6 py-3.5 text-left font-bold text-gray-900 text-sm uppercase" style={{ width: '55%' }}>
-                          Total
+                      <tr className="bg-gradient-to-r from-slate-300 via-slate-200 to-slate-300 border-b-4 border-slate-500">
+                        <td className="px-6 py-4 text-left font-black text-slate-900 text-base uppercase tracking-wide" style={{ width: '55%' }}>
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="w-5 h-5" />
+                            Total
+                          </div>
                         </td>
-                        <td className="px-6 py-3.5 text-right" style={{ width: '15%' }}>
-                          <span className="text-base font-bold text-blue-800">
+                        <td className="px-6 py-4 text-right" style={{ width: '15%' }}>
+                          <span className="text-lg font-black text-blue-800">
                             ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                         </td>
-                        <td className="px-6 py-3.5 text-right" style={{ width: '15%' }}>
-                          <span className="text-base font-bold text-red-800">
+                        <td className="px-6 py-4 text-right" style={{ width: '15%' }}>
+                          <span className="text-lg font-black text-red-800">
                             ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                         </td>
-                        <td className="px-6 py-3.5 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-4 text-right" style={{ width: '15%' }}></td>
                       </tr>
 
                       {/* Closing Balance Row */}
-                      <tr>
-                        <td className="px-6 py-2.5 text-left font-medium text-gray-700 text-sm" style={{ width: '55%' }}>
+                      <tr className="bg-gradient-to-r from-slate-50 to-blue-50">
+                        <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm" style={{ width: '55%' }}>
                           Closing Balance
                         </td>
-                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}></td>
-                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}></td>
-                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}>
-                          <span className={`text-sm font-bold ${
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}>
+                          <span className={`text-base font-bold ${
                             closingBalance >= 0 ? 'text-green-700' : 'text-red-700'
                           }`}>
                             ₹{Math.abs(closingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            <span className="text-xs ml-1.5 font-semibold">{closingBalance >= 0 ? 'Dr' : 'Cr'}</span>
+                            <span className="text-xs ml-2 font-bold bg-white/60 px-2 py-0.5 rounded">{closingBalance >= 0 ? 'Dr' : 'Cr'}</span>
                           </span>
                         </td>
                       </tr>
@@ -743,5 +865,15 @@ export default function Ledger() {
         </>
       )}
     </div>
+
+    {/* Voucher Modals */}
+    {showVoucherModal && renderVoucherModal()}
+    {showInvoiceModal && selectedVoucher && (
+      <InvoiceFormModal
+        onClose={handleVoucherModalClose}
+        invoice={selectedVoucher}
+      />
+    )}
+    </>
   );
 }

@@ -29,17 +29,6 @@ interface Account {
   account_groups: { name: string; account_type: string };
 }
 
-interface LedgerTransaction {
-  id: string;
-  transaction_date: string;
-  debit: number;
-  credit: number;
-  balance: number;
-  narration: string;
-  particulars?: string;
-  vouchers: { voucher_number: string; voucher_types?: { name: string }; id?: string } | null;
-}
-
 const accountTypeColors = {
   asset: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   liability: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -71,8 +60,6 @@ export default function ChartOfAccounts() {
   const [editingGroup, setEditingGroup] = useState<AccountGroup | null>(null);
   const [activeTab, setActiveTab] = useState<'groups' | 'ledgers'>('ledgers');
   const [selectedGroup, setSelectedGroup] = useState<AccountGroup | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
   const [groupSearchQuery, setGroupSearchQuery] = useState('');
   const [groupFilterType, setGroupFilterType] = useState('all');
   const [groupViewMode, setGroupViewMode] = useState<'table' | 'cards' | 'tree'>('table');
@@ -130,63 +117,6 @@ export default function ChartOfAccounts() {
     }
   };
 
-  const fetchTransactions = async (accountId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('ledger_transactions')
-        .select(`
-          *,
-          vouchers(
-            voucher_number,
-            voucher_types(name),
-            id
-          )
-        `)
-        .eq('account_id', accountId)
-        .order('transaction_date', { ascending: true })
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      // Process entries to add counter-party account names and running balance
-      const processedEntries = [];
-      let runningBalance = 0;
-
-      for (const txn of (data || [])) {
-        runningBalance += (Number(txn.debit) || 0) - (Number(txn.credit) || 0);
-
-        let particularsName = txn.narration || '-';
-
-        if (txn.vouchers?.id) {
-          const { data: otherTxns } = await supabase
-            .from('ledger_transactions')
-            .select(`
-              account_id,
-              chart_of_accounts(account_name)
-            `)
-            .eq('voucher_id', txn.vouchers.id)
-            .neq('account_id', accountId)
-            .limit(1)
-            .maybeSingle();
-
-          if (otherTxns?.chart_of_accounts?.account_name) {
-            particularsName = otherTxns.chart_of_accounts.account_name;
-          }
-        }
-
-        processedEntries.push({
-          ...txn,
-          particulars: particularsName,
-          balance: runningBalance,
-        });
-      }
-
-      setTransactions(processedEntries);
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-      toast.error('Failed to load transactions');
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -392,8 +322,13 @@ export default function ChartOfAccounts() {
   };
 
   const handleAccountClick = async (account: Account) => {
-    setSelectedAccount(account);
-    await fetchTransactions(account.id);
+    // Store params in sessionStorage for the Ledger page to read
+    const params = {
+      account: account.id,
+    };
+    sessionStorage.setItem('ledgerParams', JSON.stringify(params));
+    // Navigate to dedicated Ledger page
+    window.location.href = '/ledger';
   };
 
   const filteredAccounts = selectedGroup
@@ -427,178 +362,6 @@ export default function ChartOfAccounts() {
     );
   }
 
-  if (selectedAccount) {
-    const totalDebit = transactions.reduce((sum, t) => sum + t.debit, 0);
-    const totalCredit = transactions.reduce((sum, t) => sum + t.credit, 0);
-
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setSelectedAccount(null)}
-            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Ledgers
-          </button>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            {selectedAccount.account_name}
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Code: {selectedAccount.account_code}</p>
-          <div className="mt-4 flex gap-4">
-            <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-              <p className="text-xs text-blue-600 dark:text-blue-400">Opening Balance</p>
-              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                ₹{selectedAccount.opening_balance.toLocaleString('en-IN')}
-              </p>
-            </div>
-            <div className="px-4 py-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
-              <p className="text-xs text-green-600 dark:text-green-400">Current Balance</p>
-              <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                ₹{selectedAccount.current_balance.toLocaleString('en-IN')}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-slate-700 to-slate-600 text-white sticky top-0 z-10">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    Voucher No.
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    Particulars (Ledger Name)
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">
-                    Debit (₹)
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">
-                    Credit (₹)
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">
-                    Balance (₹)
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                {transactions.map((txn) => (
-                    <tr key={txn.id} className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {formatDateDisplay(txn.transaction_date)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span className="font-mono text-sm text-blue-600 dark:text-blue-400 font-medium">
-                            {txn.vouchers?.voucher_number || 'N/A'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">{txn.particulars || '-'}</span>
-                          {txn.narration && txn.narration !== '-' && txn.narration !== txn.particulars && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{txn.narration}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        {txn.debit > 0 ? (
-                          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                            ₹{txn.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        {txn.credit > 0 ? (
-                          <span className="text-sm font-semibold text-red-600 dark:text-red-400">
-                            ₹{txn.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <span className={`text-sm font-bold ${
-                          txn.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                        }`}>
-                          ₹{Math.abs(txn.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          <span className="text-xs ml-1">{txn.balance >= 0 ? 'Dr' : 'Cr'}</span>
-                        </span>
-                      </td>
-                    </tr>
-                ))}
-              </tbody>
-            </table>
-            {transactions.length === 0 && (
-              <div className="text-center py-12">
-                <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">No transactions found for this ledger</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Fixed Bottom Summary Panel */}
-        {transactions.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t-4 border-slate-700 dark:border-slate-600 shadow-2xl z-50">
-            <div className="max-w-7xl mx-auto px-6 py-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg text-white shadow-lg">
-                  <div>
-                    <p className="text-xs font-medium text-blue-100 uppercase tracking-wide">Total Debit</p>
-                    <p className="text-2xl font-bold mt-1">
-                      ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <BookOpen className="w-8 h-8 opacity-70" />
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-500 to-red-600 rounded-lg text-white shadow-lg">
-                  <div>
-                    <p className="text-xs font-medium text-red-100 uppercase tracking-wide">Total Credit</p>
-                    <p className="text-2xl font-bold mt-1">
-                      ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <BookOpen className="w-8 h-8 opacity-70" />
-                </div>
-
-                <div className={`flex items-center justify-between p-4 bg-gradient-to-r ${
-                  transactions[transactions.length - 1].balance >= 0 ? 'from-green-500 to-green-600' : 'from-orange-500 to-orange-600'
-                } rounded-lg text-white shadow-lg`}>
-                  <div>
-                    <p className={`text-xs font-medium uppercase tracking-wide ${
-                      transactions[transactions.length - 1].balance >= 0 ? 'text-green-100' : 'text-orange-100'
-                    }`}>
-                      Closing Balance
-                    </p>
-                    <p className="text-2xl font-bold mt-1">
-                      ₹{Math.abs(transactions[transactions.length - 1].balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      <span className="text-sm ml-2">{transactions[transactions.length - 1].balance >= 0 ? 'Dr' : 'Cr'}</span>
-                    </p>
-                  </div>
-                  <BookOpen className="w-8 h-8 opacity-70" />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
