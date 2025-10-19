@@ -156,7 +156,7 @@ export function TasksTab({ tasks, isRecurring = false, onAddTask, onEditTask, on
                   <li>Select a period to view and manage its tasks</li>
                   <li>Each task has its own due date, assignee, status, and remarks</li>
                   <li>Period status automatically updates based on task completion</li>
-                  <li>Invoice generates automatically when all period tasks are completed</li>
+                  <li>After completing all tasks, create an invoice manually from the Invoices page</li>
                 </ul>
               </div>
             </div>

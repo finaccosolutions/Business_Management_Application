@@ -187,12 +187,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
 
       fetchPeriods();
       onUpdate();
-
-      if (status === 'completed') {
-        toast.success('Period completed! Invoice will be generated automatically.');
-      } else {
-        toast.success('Period status updated!');
-      }
+      toast.success('Period status updated!');
     } catch (error) {
       console.error('Error updating period status:', error);
       toast.error('Failed to update period status');

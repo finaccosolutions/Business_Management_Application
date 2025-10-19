@@ -403,14 +403,9 @@ export default function Works() {
         workData.completion_date = new Date().toISOString();
       }
 
-      let workId: string | null = null;
-      let shouldCreateInvoice = false;
-
       if (editingWork) {
         if (formData.status === 'completed' && editingWork.status !== 'completed') {
           workData.completion_date = new Date().toISOString();
-          shouldCreateInvoice = true;
-          workId = editingWork.id;
         }
 
         if (formData.assigned_to && formData.assigned_to !== editingWork.assigned_to) {
@@ -433,21 +428,8 @@ export default function Works() {
 
         if (newWork) {
           console.log('Work created successfully, ID:', newWork.id);
-
-          // Note: Service tasks and recurring periods are automatically created by database triggers
-          // No need to manually create them here
-
-          if (formData.status === 'completed') {
-            shouldCreateInvoice = true;
-            workId = newWork.id;
-          }
-
           toast.success('Work created successfully');
         }
-      }
-
-      if (shouldCreateInvoice && workId) {
-        await createInvoiceForWork(workId, formData.customer_id, formData.service_id);
       }
 
       setShowModal(false);
@@ -460,68 +442,6 @@ export default function Works() {
     }
   };
 
-  const createInvoiceForWork = async (workId: string, customerId: string, serviceId: string) => {
-    try {
-      const { data: invoiceCount } = await supabase
-        .from('invoices')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user!.id);
-
-      const count = invoiceCount || 0;
-      const invoiceNumber = `INV-${String(count + 1).padStart(4, '0')}`;
-
-      const service = services.find(s => s.id === serviceId);
-      const servicePrice = service?.default_price || 0;
-      const taxRate = 18;
-      const subtotal = servicePrice;
-      const taxAmount = (subtotal * taxRate) / 100;
-      const totalAmount = subtotal + taxAmount;
-
-      const today = new Date();
-      const dueDate = new Date(today);
-      dueDate.setDate(dueDate.getDate() + 30);
-
-      const invoiceData = {
-        user_id: user!.id,
-        customer_id: customerId,
-        work_id: workId,
-        invoice_number: invoiceNumber,
-        invoice_date: today.toISOString().split('T')[0],
-        due_date: dueDate.toISOString().split('T')[0],
-        subtotal: subtotal,
-        tax_amount: taxAmount,
-        total_amount: totalAmount,
-        status: 'draft',
-        notes: 'Auto-generated invoice for completed work',
-      };
-
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert(invoiceData)
-        .select()
-        .single();
-
-      if (invoiceError) throw invoiceError;
-
-      const invoiceItem = {
-        invoice_id: invoice.id,
-        description: service?.name || 'Service',
-        quantity: 1,
-        unit_price: servicePrice,
-        amount: subtotal + taxAmount,
-      };
-
-      const { error: itemError } = await supabase
-        .from('invoice_items')
-        .insert(invoiceItem);
-
-      if (itemError) throw itemError;
-
-      console.log(`Invoice ${invoiceNumber} created successfully for work ${workId}`);
-    } catch (error) {
-      console.error('Error creating invoice:', error);
-    }
-  };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1408,7 +1328,7 @@ const filteredWorks = works.filter((work) => {
                   />
                 </div>
                 <p className="text-xs text-gray-600">
-                  When enabled, an invoice will be automatically generated when work is marked as completed.
+                  Enable automatic billing for this work. Invoices must still be created manually from the Invoices page.
                 </p>
               </div>
 

@@ -634,13 +634,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
 
       if (error) throw error;
 
-      if (status === 'completed' && work.auto_bill) {
-        const instance = recurringInstances.find(i => i.id === instanceId);
-        if (instance && instance.billing_amount) {
-          await createInvoiceForPeriod(instanceId, instance);
-        }
-      }
-
       fetchWorkDetails();
       onUpdate();
       toast.success('Period status updated!');
@@ -650,75 +643,6 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
     }
   };
 
-  const createInvoiceForPeriod = async (instanceId: string, instance: RecurringInstance) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: invoiceCount } = await supabase
-        .from('invoices')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      const count = invoiceCount || 0;
-      const invoiceNumber = `INV-${String(count + 1).padStart(4, '0')}`;
-
-      const taxRate = 18;
-      const subtotal = instance.billing_amount || 0;
-      const taxAmount = (subtotal * taxRate) / 100;
-      const totalAmount = subtotal + taxAmount;
-
-      const today = new Date();
-      const dueDate = new Date(today);
-      dueDate.setDate(dueDate.getDate() + 30);
-
-      const invoiceData = {
-        user_id: user.id,
-        customer_id: work.customer_id,
-        work_id: workId,
-        invoice_number: invoiceNumber,
-        invoice_date: today.toISOString().split('T')[0],
-        due_date: dueDate.toISOString().split('T')[0],
-        subtotal: subtotal,
-        tax_amount: taxAmount,
-        total_amount: totalAmount,
-        status: 'draft',
-        notes: `Auto-generated invoice for ${instance.period_name}`,
-      };
-
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert(invoiceData)
-        .select()
-        .single();
-
-      if (invoiceError) throw invoiceError;
-
-      const invoiceItem = {
-        invoice_id: invoice.id,
-        description: `${work.services?.name || 'Service'} - ${instance.period_name}`,
-        quantity: 1,
-        unit_price: subtotal,
-        amount: totalAmount,
-      };
-
-      const { error: itemError } = await supabase
-        .from('invoice_items')
-        .insert(invoiceItem);
-
-      if (itemError) throw itemError;
-
-      await supabase
-        .from('work_recurring_instances')
-        .update({ is_billed: true, invoice_id: invoice.id })
-        .eq('id', instanceId);
-
-      toast.success(`Invoice ${invoiceNumber} created successfully!`);
-    } catch (error) {
-      console.error('Error creating invoice:', error);
-      toast.error('Failed to create invoice');
-    }
-  };
 
   // Document Management
   const handleToggleDocumentCollected = async (documentId: string, isCollected: boolean) => {
