@@ -9,7 +9,7 @@ import PaymentVoucherModal from '../components/accounting/PaymentVoucherModal';
 import ReceiptVoucherModal from '../components/accounting/ReceiptVoucherModal';
 import JournalVoucherModal from '../components/accounting/JournalVoucherModal';
 import ContraVoucherModal from '../components/accounting/ContraVoucherModal';
-import InvoiceFormModal from '../components/InvoiceFormModal';
+import EditInvoiceModal from '../components/EditInvoiceModal';
 
 interface Account {
   id: string;
@@ -53,6 +53,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
   const [transactionType, setTransactionType] = useState<'all' | 'debit' | 'credit'>('all');
   const [voucherTypes, setVoucherTypes] = useState<string[]>([]);
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
+  const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [returnPath, setReturnPath] = useState<string | null>(null);
@@ -390,6 +391,15 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
 
       // Check if it's an invoice voucher
       if (voucherData.voucher_types?.code === 'ITMINV') {
+        // Fetch invoice items
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('invoice_items')
+          .select('*')
+          .eq('invoice_id', entry.voucher_id)
+          .order('id');
+
+        if (itemsError) throw itemsError;
+        setInvoiceItems(itemsData || []);
         setShowInvoiceModal(true);
       } else {
         setShowVoucherModal(true);
@@ -414,43 +424,39 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
     if (!selectedVoucher) return null;
 
     const voucherTypeCode = selectedVoucher.voucher_types?.code;
-
-    if (voucherTypeCode === 'ITMINV') {
-      return (
-        <InvoiceFormModal
-          onClose={handleVoucherModalClose}
-          invoice={selectedVoucher}
-        />
-      );
-    }
+    const voucherTypeId = selectedVoucher.voucher_type_id;
 
     switch (voucherTypeCode) {
       case 'PMT':
         return (
           <PaymentVoucherModal
             onClose={handleVoucherModalClose}
-            voucher={selectedVoucher}
+            voucherTypeId={voucherTypeId}
+            editVoucher={selectedVoucher}
           />
         );
       case 'RCPT':
         return (
           <ReceiptVoucherModal
             onClose={handleVoucherModalClose}
-            voucher={selectedVoucher}
+            voucherTypeId={voucherTypeId}
+            editVoucher={selectedVoucher}
           />
         );
       case 'JV':
         return (
           <JournalVoucherModal
             onClose={handleVoucherModalClose}
-            voucher={selectedVoucher}
+            voucherTypeId={voucherTypeId}
+            editVoucher={selectedVoucher}
           />
         );
       case 'CNTR':
         return (
           <ContraVoucherModal
             onClose={handleVoucherModalClose}
-            voucher={selectedVoucher}
+            voucherTypeId={voucherTypeId}
+            editVoucher={selectedVoucher}
           />
         );
       default:
@@ -498,21 +504,21 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
               <p className="text-slate-300 mt-2">View detailed transaction history for any account</p>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {selectedAccount && (
               <>
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+                  className={`p-2 rounded-lg transition-colors ${
                     showFilters
                       ? 'bg-white text-slate-800'
                       : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
+                  } relative`}
+                  title="Filters"
                 >
-                  <Filter className="w-4 h-4" />
-                  Filters
+                  <Filter className="w-5 h-5" />
                   {activeFiltersCount > 0 && (
-                    <span className="ml-1 px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">
+                    <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
                       {activeFiltersCount}
                     </span>
                   )}
@@ -520,26 +526,25 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                 <button
                   onClick={exportLedgerToXLSX}
                   disabled={filteredEntries.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium transition-colors"
+                  className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors"
+                  title="Export to Excel"
                 >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  Export Excel
+                  <FileSpreadsheet className="w-5 h-5" />
                 </button>
                 <button
                   onClick={exportLedgerToPDF}
                   disabled={filteredEntries.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium transition-colors"
+                  className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors"
+                  title="Export to PDF"
                 >
-                  <Download className="w-4 h-4" />
-                  Export PDF
+                  <Download className="w-5 h-5" />
                 </button>
                 <button
                   onClick={handleBackToSelection}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors font-medium"
+                  className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
                   title="Back to account selection"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back
+                  <ArrowLeft className="w-5 h-5" />
                 </button>
               </>
             )}
@@ -919,10 +924,12 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
 
     {/* Voucher Modals */}
     {showVoucherModal && renderVoucherModal()}
-    {showInvoiceModal && selectedVoucher && (
-      <InvoiceFormModal
-        onClose={handleVoucherModalClose}
+    {showInvoiceModal && selectedVoucher && invoiceItems && (
+      <EditInvoiceModal
         invoice={selectedVoucher}
+        items={invoiceItems}
+        onClose={handleVoucherModalClose}
+        onSave={handleVoucherModalClose}
       />
     )}
     </>
