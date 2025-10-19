@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Download, Search, Building2 } from 'lucide-react';
+import { Download, Search, Building2, FileSpreadsheet } from 'lucide-react';
 import { formatDateDisplay } from '../../lib/dateUtils';
+import { exportToXLSX, exportToPDF } from '../../lib/exportUtils';
 import ViewToggle, { ViewType } from './ViewToggle';
 
 interface BalanceSheetAccount {
@@ -20,7 +21,6 @@ interface BalanceSheetReportProps {
   data: BalanceSheetEntry[];
   asOnDate: string;
   startDate?: string;
-  onExport: () => void;
   onAccountClick: (accountId: string, asOnDate: string) => void;
 }
 
@@ -28,7 +28,6 @@ export default function BalanceSheetReport({
   data,
   asOnDate,
   startDate,
-  onExport,
   onAccountClick,
 }: BalanceSheetReportProps) {
   const [viewType, setViewType] = useState<ViewType>('horizontal');
@@ -93,7 +92,7 @@ export default function BalanceSheetReport({
 
         <div>
           <h3 className="text-xl font-bold text-red-700 mb-4 pb-2 border-b-2 border-red-200">
-            Liabilities & Capital
+            Liabilities
           </h3>
           {liabilitiesAndEquity.map((entry, index) => (
             <div key={index} className="mb-6">
@@ -123,7 +122,7 @@ export default function BalanceSheetReport({
             </div>
           ))}
           <div className="flex justify-between items-center py-4 px-4 mt-4 bg-gradient-to-r from-red-100 to-red-200 rounded-lg border-2 border-red-300">
-            <span className="font-bold text-gray-900 text-lg uppercase">Total Liabilities & Capital</span>
+            <span className="font-bold text-gray-900 text-lg uppercase">Total Liabilities</span>
             <span className="font-bold text-red-900 text-xl">
               ₹{totalLiabilitiesAndEquity.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
@@ -137,18 +136,18 @@ export default function BalanceSheetReport({
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gradient-to-r from-blue-50 to-red-50 border-b-2 border-gray-300">
+          <thead className="bg-gradient-to-r from-red-50 to-blue-50 border-b-2 border-gray-300">
             <tr>
+              <th className="px-6 py-4 text-left text-sm font-bold text-red-800 uppercase tracking-wider border-r border-gray-300">
+                Liabilities
+              </th>
+              <th className="px-6 py-4 text-right text-sm font-bold text-red-800 uppercase tracking-wider border-r border-gray-300">
+                Amount (₹)
+              </th>
               <th className="px-6 py-4 text-left text-sm font-bold text-blue-800 uppercase tracking-wider border-r border-gray-300">
                 Assets
               </th>
-              <th className="px-6 py-4 text-right text-sm font-bold text-blue-800 uppercase tracking-wider border-r border-gray-300">
-                Amount (₹)
-              </th>
-              <th className="px-6 py-4 text-left text-sm font-bold text-red-800 uppercase tracking-wider border-r border-gray-300">
-                Liabilities & Capital
-              </th>
-              <th className="px-6 py-4 text-right text-sm font-bold text-red-800 uppercase tracking-wider">
+              <th className="px-6 py-4 text-right text-sm font-bold text-blue-800 uppercase tracking-wider">
                 Amount (₹)
               </th>
             </tr>
@@ -211,6 +210,24 @@ export default function BalanceSheetReport({
                 <tr key={rowIndex} className="hover:bg-gray-50">
                   <td
                     className={`px-6 py-3 text-sm border-r border-gray-200 ${
+                      liabilityRow?.type === 'category' ? 'font-bold text-gray-900 bg-red-50' :
+                      liabilityRow?.type === 'total' ? 'font-semibold text-red-700 bg-red-50' :
+                      liabilityRow?.type === 'account' ? 'text-gray-700 pl-10' : ''
+                    } ${liabilityRow?.id === 'net_profit' ? '' : 'cursor-pointer hover:text-red-600'}`}
+                    onClick={() => liabilityRow?.type === 'account' && liabilityRow.id && liabilityRow.id !== 'net_profit' && handleAccountClick(liabilityRow.id)}
+                  >
+                    {liabilityRow ? liabilityRow.name : ''}
+                  </td>
+                  <td className={`px-6 py-3 text-sm text-right border-r border-gray-200 ${
+                    liabilityRow?.type === 'total' ? 'font-bold text-red-700 bg-red-50' :
+                    liabilityRow?.type === 'account' ? 'font-medium text-gray-900' : ''
+                  }`}>
+                    {liabilityRow?.amount !== null && liabilityRow?.amount !== undefined
+                      ? `₹${liabilityRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                      : ''}
+                  </td>
+                  <td
+                    className={`px-6 py-3 text-sm border-r border-gray-200 ${
                       assetRow?.type === 'category' ? 'font-bold text-gray-900 bg-blue-50' :
                       assetRow?.type === 'total' ? 'font-semibold text-blue-700 bg-blue-50' :
                       assetRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-blue-600 pl-10' :
@@ -220,7 +237,7 @@ export default function BalanceSheetReport({
                   >
                     {assetRow ? assetRow.name : ''}
                   </td>
-                  <td className={`px-6 py-3 text-sm text-right border-r border-gray-200 ${
+                  <td className={`px-6 py-3 text-sm text-right ${
                     assetRow?.type === 'total' ? 'font-bold text-blue-700 bg-blue-50' :
                     assetRow?.type === 'account' ? 'font-medium text-gray-900' : ''
                   }`}>
@@ -228,35 +245,17 @@ export default function BalanceSheetReport({
                       ? `₹${assetRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                       : ''}
                   </td>
-                  <td
-                    className={`px-6 py-3 text-sm border-r border-gray-200 ${
-                      liabilityRow?.type === 'category' ? 'font-bold text-gray-900 bg-red-50' :
-                      liabilityRow?.type === 'total' ? 'font-semibold text-red-700 bg-red-50' :
-                      liabilityRow?.type === 'account' ? 'text-gray-700 pl-10' : ''
-                    } ${liabilityRow?.id === 'net_profit' ? '' : 'cursor-pointer hover:text-red-600'}`}
-                    onClick={() => liabilityRow?.type === 'account' && liabilityRow.id && liabilityRow.id !== 'net_profit' && handleAccountClick(liabilityRow.id)}
-                  >
-                    {liabilityRow ? liabilityRow.name : ''}
-                  </td>
-                  <td className={`px-6 py-3 text-sm text-right ${
-                    liabilityRow?.type === 'total' ? 'font-bold text-red-700 bg-red-50' :
-                    liabilityRow?.type === 'account' ? 'font-medium text-gray-900' : ''
-                  }`}>
-                    {liabilityRow?.amount !== null && liabilityRow?.amount !== undefined
-                      ? `₹${liabilityRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                      : ''}
-                  </td>
                 </tr>
               );
             })}
-            <tr className="bg-gradient-to-r from-blue-100 to-red-100 font-bold border-t-4 border-gray-400">
-              <td className="px-6 py-4 text-sm text-gray-900 uppercase border-r border-gray-300">Total Assets</td>
-              <td className="px-6 py-4 text-sm text-right text-blue-700 text-lg border-r border-gray-300">
-                ₹{totalAssets.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </td>
-              <td className="px-6 py-4 text-sm text-gray-900 uppercase border-r border-gray-300">Total Liabilities & Capital</td>
-              <td className="px-6 py-4 text-sm text-right text-red-700 text-lg">
+            <tr className="bg-gradient-to-r from-red-100 to-blue-100 font-bold border-t-4 border-gray-400">
+              <td className="px-6 py-4 text-sm text-gray-900 uppercase border-r border-gray-300">Total Liabilities</td>
+              <td className="px-6 py-4 text-sm text-right text-red-700 text-lg border-r border-gray-300">
                 ₹{totalLiabilitiesAndEquity.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </td>
+              <td className="px-6 py-4 text-sm text-gray-900 uppercase border-r border-gray-300">Total Assets</td>
+              <td className="px-6 py-4 text-sm text-right text-blue-700 text-lg">
+                ₹{totalAssets.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </td>
             </tr>
           </tbody>
@@ -282,11 +281,47 @@ export default function BalanceSheetReport({
             availableViews={['horizontal', 'vertical']}
           />
           <button
-            onClick={onExport}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm"
+            onClick={() => {
+              const exportData = data.flatMap(entry =>
+                entry.accounts.map(acc => ({
+                  'Category': entry.category,
+                  'Account': acc.account_name,
+                  'Amount': acc.amount,
+                }))
+              );
+              exportToXLSX(exportData, `balance_sheet_${asOnDate}`, 'Balance Sheet');
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export Excel
+          </button>
+          <button
+            onClick={() => {
+              const exportData = data.flatMap(entry =>
+                entry.accounts.map(acc => ({
+                  category: entry.category,
+                  account: acc.account_name,
+                  amount: acc.amount,
+                }))
+              );
+              const columns = [
+                { header: 'Category', key: 'category' },
+                { header: 'Account', key: 'account' },
+                { header: 'Amount (₹)', key: 'amount' },
+              ];
+              exportToPDF(
+                exportData,
+                columns,
+                `balance_sheet_${asOnDate}`,
+                'Balance Sheet',
+                `As on ${formatDateDisplay(asOnDate)}`
+              );
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-sm"
           >
             <Download className="w-4 h-4" />
-            Export CSV
+            Export PDF
           </button>
         </div>
       </div>
@@ -317,7 +352,7 @@ export default function BalanceSheetReport({
 
       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border-2 border-blue-200">
         <p className="text-sm text-blue-900">
-          <strong>Note:</strong> This Balance Sheet shows Assets on the left/top and Liabilities & Capital on the right/bottom.
+          <strong>Note:</strong> This Balance Sheet shows Liabilities on the left/top and Assets on the right/bottom.
           {startDate && ' Net Profit/Loss for the period is included in the Liabilities & Capital side.'}
           {' '}Click on any account to view its detailed ledger transactions.
         </p>

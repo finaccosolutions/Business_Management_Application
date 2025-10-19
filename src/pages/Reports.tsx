@@ -25,6 +25,7 @@ import TrialBalanceReport from '../components/reports/TrialBalanceReport';
 import BalanceSheetReport from '../components/reports/BalanceSheetReport';
 import ProfitLossReport from '../components/reports/ProfitLossReport';
 import ReportFilters from '../components/reports/ReportFilters';
+import { exportToXLSX, exportToPDF } from '../lib/exportUtils';
 
 interface ReportCategory {
   id: string;
@@ -991,25 +992,6 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
     }
   };
 
-  const exportToCSV = (data: any[], filename: string) => {
-    if (data.length === 0) return;
-
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(row =>
-      Object.values(row).map(val => {
-        const stringVal = String(val);
-        return stringVal.includes(',') ? `"${stringVal}"` : stringVal;
-      }).join(',')
-    ).join('\n');
-    const csv = `${headers}\n${rows}`;
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  };
 
   const reportCategories: ReportCategory[] = [
     {
@@ -1208,7 +1190,6 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
             data={trialBalance}
             startDate={dateRange.start}
             endDate={dateRange.end}
-            onExport={() => exportToCSV(trialBalance, 'trial_balance')}
             onAccountClick={handleAccountClick}
           />
         )}
@@ -1218,7 +1199,6 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
             data={balanceSheet}
             asOnDate={dateRange.end}
             startDate={dateRange.start}
-            onExport={() => exportToCSV(balanceSheet.flatMap(bs => bs.accounts.map(a => ({ category: bs.category, ...a }))), 'balance_sheet')}
             onAccountClick={(accountId, asOnDate) => handleAccountClick(accountId, '', asOnDate)}
           />
         )}
@@ -1228,7 +1208,6 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
             data={profitLoss}
             startDate={dateRange.start}
             endDate={dateRange.end}
-            onExport={() => exportToCSV(profitLoss.flatMap(pl => pl.accounts.map(a => ({ category: pl.category, ...a }))), 'profit_loss')}
             onAccountClick={handleAccountClick}
           />
         )}
@@ -1241,11 +1220,21 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 <p className="text-sm text-gray-600 mt-1">Detailed analysis of customer engagement and revenue</p>
               </div>
               <button
-                onClick={() => exportToCSV(customerReports, 'customer_report')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={() => exportToXLSX(customerReports.map(r => ({
+                  'Customer': r.customer_name,
+                  'Email': r.email,
+                  'Phone': r.phone,
+                  'Total Works': r.total_works,
+                  'Completed': r.completed_works,
+                  'Pending': r.pending_works,
+                  'Total Billed': r.total_billed,
+                  'Paid': r.total_paid,
+                  'Pending Amount': r.total_pending,
+                })), 'customer_report', 'Customer Performance')}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Download className="w-4 h-4" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </button>
             </div>
 
@@ -1303,11 +1292,19 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 <p className="text-sm text-gray-600 mt-1">Comprehensive work tracking and analysis</p>
               </div>
               <button
-                onClick={() => exportToCSV(workReports, 'work_report')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={() => exportToXLSX(workReports.map(r => ({
+                  'Work Title': r.work_title,
+                  'Customer': r.customer_name,
+                  'Service': r.service_name,
+                  'Status': r.status,
+                  'Priority': r.priority,
+                  'Due Date': r.due_date,
+                  'Amount': r.total_amount,
+                })), 'work_report', 'Work Performance')}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Download className="w-4 h-4" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </button>
             </div>
 
@@ -1372,11 +1369,19 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 <p className="text-sm text-gray-600 mt-1">Individual staff member performance metrics</p>
               </div>
               <button
-                onClick={() => exportToCSV(staffReports, 'staff_report')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={() => exportToXLSX(staffReports.map(r => ({
+                  'Staff Name': r.staff_name,
+                  'Role': r.role,
+                  'Total Works': r.total_works,
+                  'Completed': r.completed_works,
+                  'Pending': r.pending_works,
+                  'Total Hours': r.total_hours,
+                  'Efficiency': r.efficiency_rating + '%',
+                })), 'staff_report', 'Staff Performance')}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Download className="w-4 h-4" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </button>
             </div>
 
@@ -1437,11 +1442,19 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 <p className="text-sm text-gray-600 mt-1">Service-wise revenue and performance analysis</p>
               </div>
               <button
-                onClick={() => exportToCSV(serviceReports, 'service_report')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={() => exportToXLSX(serviceReports.map(r => ({
+                  'Service': r.service_name,
+                  'Category': r.category,
+                  'Total Orders': r.total_orders,
+                  'Completed': r.completed_orders,
+                  'Total Revenue': r.total_revenue,
+                  'Avg Revenue': r.avg_revenue_per_order,
+                  'Avg Days': r.avg_completion_time,
+                })), 'service_report', 'Service Performance')}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Download className="w-4 h-4" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </button>
             </div>
 
@@ -1496,11 +1509,20 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 <p className="text-sm text-gray-600 mt-1">Detailed invoice tracking and payment analysis</p>
               </div>
               <button
-                onClick={() => exportToCSV(invoiceReports, 'invoice_report')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={() => exportToXLSX(invoiceReports.map(r => ({
+                  'Invoice No': r.invoice_number,
+                  'Customer': r.customer_name,
+                  'Invoice Date': r.invoice_date,
+                  'Due Date': r.due_date,
+                  'Total Amount': r.total_amount,
+                  'Paid': r.amount_paid,
+                  'Balance': r.balance,
+                  'Status': r.status,
+                })), 'invoice_report', 'Invoice Report')}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Download className="w-4 h-4" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </button>
             </div>
 
@@ -1566,11 +1588,19 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 <p className="text-sm text-gray-600 mt-1">Service category analysis and comparison</p>
               </div>
               <button
-                onClick={() => exportToCSV(categoryReports, 'category_report')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={() => exportToXLSX(categoryReports.map(r => ({
+                  'Category': r.category,
+                  'Total Services': r.total_services,
+                  'Total Works': r.total_works,
+                  'Completed': r.completed_works,
+                  'Total Revenue': r.total_revenue,
+                  'Avg Revenue': r.avg_revenue_per_work,
+                  'Active Customers': r.active_customers,
+                })), 'category_report', 'Category Analysis')}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Download className="w-4 h-4" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </button>
             </div>
 
@@ -1623,11 +1653,19 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 <p className="text-sm text-gray-600 mt-1">Lead tracking and conversion analysis</p>
               </div>
               <button
-                onClick={() => exportToCSV(leadReports, 'lead_report')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={() => exportToXLSX(leadReports.map(r => ({
+                  'Lead Name': r.lead_name,
+                  'Source': r.source,
+                  'Status': r.status,
+                  'Created Date': r.created_date,
+                  'Days to Convert': r.days_to_convert || 'N/A',
+                  'Estimated Value': r.estimated_value,
+                  'Assigned Staff': r.assigned_staff,
+                })), 'lead_report', 'Lead Conversion')}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Download className="w-4 h-4" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </button>
             </div>
 
@@ -1687,11 +1725,19 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 <p className="text-sm text-gray-600 mt-1">Monthly revenue trends and growth analysis</p>
               </div>
               <button
-                onClick={() => exportToCSV(revenueReports, 'revenue_report')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={() => exportToXLSX(revenueReports.map(r => ({
+                  'Period': r.period,
+                  'Total Revenue': r.total_revenue,
+                  'Paid Invoices': r.paid_invoices,
+                  'Unpaid': r.unpaid_invoices,
+                  'Avg Invoice': r.avg_invoice_value,
+                  'New Customers': r.new_customers,
+                  'Growth': r.revenue_growth + '%',
+                })), 'revenue_report', 'Revenue Analysis')}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Download className="w-4 h-4" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </button>
             </div>
 

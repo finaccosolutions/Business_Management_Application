@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Download, Search } from 'lucide-react';
+import { Download, Search, FileSpreadsheet } from 'lucide-react';
 import { formatDateDisplay } from '../../lib/dateUtils';
+import { exportToXLSX, exportToPDF } from '../../lib/exportUtils';
 import ViewToggle, { ViewType } from './ViewToggle';
 
 interface TrialBalanceEntry {
@@ -16,7 +17,6 @@ interface TrialBalanceReportProps {
   data: TrialBalanceEntry[];
   startDate: string;
   endDate: string;
-  onExport: () => void;
   onAccountClick: (accountId: string, startDate: string, endDate: string) => void;
 }
 
@@ -24,7 +24,6 @@ export default function TrialBalanceReport({
   data,
   startDate,
   endDate,
-  onExport,
   onAccountClick,
 }: TrialBalanceReportProps) {
   const [viewType, setViewType] = useState<ViewType>('horizontal');
@@ -188,11 +187,49 @@ export default function TrialBalanceReport({
             availableViews={['horizontal', 't-form']}
           />
           <button
-            onClick={onExport}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm"
+            onClick={() => {
+              const exportData = filteredData.map(entry => ({
+                'Account Code': entry.account_code,
+                'Account Name': entry.account_name,
+                'Group': entry.group_name,
+                'Debit': entry.debit,
+                'Credit': entry.credit,
+              }));
+              exportToXLSX(exportData, `trial_balance_${startDate}_to_${endDate}`, 'Trial Balance');
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export Excel
+          </button>
+          <button
+            onClick={() => {
+              const exportData = filteredData.map(entry => ({
+                code: entry.account_code,
+                name: entry.account_name,
+                group: entry.group_name,
+                debit: entry.debit,
+                credit: entry.credit,
+              }));
+              const columns = [
+                { header: 'Code', key: 'code' },
+                { header: 'Account Name', key: 'name' },
+                { header: 'Group', key: 'group' },
+                { header: 'Debit (₹)', key: 'debit' },
+                { header: 'Credit (₹)', key: 'credit' },
+              ];
+              exportToPDF(
+                exportData,
+                columns,
+                `trial_balance_${startDate}_to_${endDate}`,
+                'Trial Balance',
+                `Period: ${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`
+              );
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-sm"
           >
             <Download className="w-4 h-4" />
-            Export CSV
+            Export PDF
           </button>
         </div>
       </div>

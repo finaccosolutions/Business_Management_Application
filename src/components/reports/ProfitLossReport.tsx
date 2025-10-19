@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Download, Search, TrendingUp } from 'lucide-react';
+import { Download, Search, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import { formatDateDisplay } from '../../lib/dateUtils';
+import { exportToXLSX, exportToPDF } from '../../lib/exportUtils';
 import ViewToggle, { ViewType } from './ViewToggle';
 
 interface ProfitLossAccount {
@@ -20,7 +21,6 @@ interface ProfitLossReportProps {
   data: ProfitLossEntry[];
   startDate: string;
   endDate: string;
-  onExport: () => void;
   onAccountClick: (accountId: string, startDate: string, endDate: string) => void;
 }
 
@@ -28,7 +28,6 @@ export default function ProfitLossReport({
   data,
   startDate,
   endDate,
-  onExport,
   onAccountClick,
 }: ProfitLossReportProps) {
   const [viewType, setViewType] = useState<ViewType>('horizontal');
@@ -403,11 +402,50 @@ export default function ProfitLossReport({
             availableViews={['horizontal', 'vertical', 't-form']}
           />
           <button
-            onClick={onExport}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm"
+            onClick={() => {
+              const exportData = data.flatMap(entry =>
+                entry.accounts.map(acc => ({
+                  'Type': entry.type === 'income' ? 'Income' : 'Expense',
+                  'Category': entry.category,
+                  'Account': acc.account_name,
+                  'Amount': acc.amount,
+                }))
+              );
+              exportToXLSX(exportData, `profit_loss_${startDate}_to_${endDate}`, 'Profit & Loss');
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export Excel
+          </button>
+          <button
+            onClick={() => {
+              const exportData = data.flatMap(entry =>
+                entry.accounts.map(acc => ({
+                  type: entry.type === 'income' ? 'Income' : 'Expense',
+                  category: entry.category,
+                  account: acc.account_name,
+                  amount: acc.amount,
+                }))
+              );
+              const columns = [
+                { header: 'Type', key: 'type' },
+                { header: 'Category', key: 'category' },
+                { header: 'Account', key: 'account' },
+                { header: 'Amount (₹)', key: 'amount' },
+              ];
+              exportToPDF(
+                exportData,
+                columns,
+                `profit_loss_${startDate}_to_${endDate}`,
+                'Profit & Loss Statement',
+                `Period: ${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`
+              );
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-sm"
           >
             <Download className="w-4 h-4" />
-            Export CSV
+            Export PDF
           </button>
         </div>
       </div>

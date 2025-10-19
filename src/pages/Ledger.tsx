@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { BookOpen, Download, Search, Calendar, Filter, X, ArrowLeft, FileText, Edit2 } from 'lucide-react';
+import { BookOpen, Download, Search, Calendar, Filter, X, ArrowLeft, FileText, Edit2, FileSpreadsheet } from 'lucide-react';
 import { formatDateDisplay } from '../lib/dateUtils';
+import { exportToXLSX, exportToPDF } from '../lib/exportUtils';
 import PaymentVoucherModal from '../components/accounting/PaymentVoucherModal';
 import ReceiptVoucherModal from '../components/accounting/ReceiptVoucherModal';
 import JournalVoucherModal from '../components/accounting/JournalVoucherModal';
@@ -249,31 +250,54 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
     return { totalDebit, totalCredit, openingBalance, closingBalance };
   };
 
-  const exportToCSV = () => {
+  const exportLedgerToXLSX = () => {
     if (filteredEntries.length === 0) return;
 
-    const headers = ['Date', 'Voucher No', 'Type', 'Particulars', 'Debit', 'Credit', 'Balance'];
-    const rows = filteredEntries.map(entry => [
-      formatDateDisplay(entry.transaction_date),
-      entry.voucher_number,
-      entry.voucher_type,
-      entry.particulars,
-      entry.debit > 0 ? entry.debit.toFixed(2) : '0.00',
-      entry.credit > 0 ? entry.credit.toFixed(2) : '0.00',
-      entry.balance.toFixed(2),
-    ]);
+    const exportData = filteredEntries.map(entry => ({
+      'Date': formatDateDisplay(entry.transaction_date),
+      'Voucher No': entry.voucher_number,
+      'Type': entry.voucher_type,
+      'Particulars': entry.particulars,
+      'Debit': entry.debit,
+      'Credit': entry.credit,
+      'Balance': entry.balance,
+    }));
 
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+    exportToXLSX(
+      exportData,
+      `ledger_${selectedAccount?.account_code}`,
+      'Ledger Transactions'
+    );
+  };
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ledger_${selectedAccount?.account_code}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+  const exportLedgerToPDF = () => {
+    if (filteredEntries.length === 0) return;
+
+    const exportData = filteredEntries.map(entry => ({
+      date: formatDateDisplay(entry.transaction_date),
+      voucher: entry.voucher_number,
+      particulars: entry.particulars,
+      debit: entry.debit,
+      credit: entry.credit,
+      balance: entry.balance,
+    }));
+
+    const columns = [
+      { header: 'Date', key: 'date' },
+      { header: 'Voucher No', key: 'voucher' },
+      { header: 'Particulars', key: 'particulars' },
+      { header: 'Debit (₹)', key: 'debit' },
+      { header: 'Credit (₹)', key: 'credit' },
+      { header: 'Balance (₹)', key: 'balance' },
+    ];
+
+    exportToPDF(
+      exportData,
+      columns,
+      `ledger_${selectedAccount?.account_code}`,
+      'Ledger Transactions',
+      `${selectedAccount?.account_code} - ${selectedAccount?.account_name}`
+    );
   };
 
   const filteredEntries = entries.filter(entry => {
@@ -494,12 +518,20 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                   )}
                 </button>
                 <button
-                  onClick={exportToCSV}
+                  onClick={exportLedgerToXLSX}
                   disabled={filteredEntries.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium transition-colors"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Export Excel
+                </button>
+                <button
+                  onClick={exportLedgerToPDF}
+                  disabled={filteredEntries.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium transition-colors"
                 >
                   <Download className="w-4 h-4" />
-                  Export CSV
+                  Export PDF
                 </button>
                 <button
                   onClick={handleBackToSelection}
