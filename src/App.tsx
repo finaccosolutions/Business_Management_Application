@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './pages/Login';
@@ -98,7 +98,6 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route path="/email-verified" element={<Navigate to="/" replace />} />
       <Route path="*" element={
         <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
           {renderPage()}
