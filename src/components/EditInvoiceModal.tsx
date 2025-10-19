@@ -489,20 +489,21 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Income Account (Credit)
                   </label>
-                  <select
-                    value={formData.income_account_id}
-                    onChange={(e) => setFormData({ ...formData, income_account_id: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Auto-select from service/settings</option>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_code} - {account.account_name}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    value={
+                      formData.income_account_id
+                        ? (() => {
+                            const account = accounts.find(a => a.id === formData.income_account_id);
+                            return account ? `${account.account_code} - ${account.account_name}` : 'Not mapped';
+                          })()
+                        : 'Not mapped'
+                    }
+                    disabled
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-blue-50 text-gray-700 font-medium"
+                  />
                   <p className="text-xs text-gray-500 mt-1">
-                    Auto-selected from service mapping or company default
+                    Mapped from service or company default settings
                   </p>
                 </div>
 
@@ -512,12 +513,23 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
                   </label>
                   <input
                     type="text"
-                    value={accounts.find(a => a.id === formData.customer_account_id)?.account_name || 'Auto-selected from customer'}
+                    value={
+                      formData.customer_account_id
+                        ? (() => {
+                            const account = accounts.find(a => a.id === formData.customer_account_id);
+                            const customer = customers.find(c => c.id === formData.customer_id);
+                            if (account && customer) {
+                              return `${customer.name} (${account.account_code} - ${account.account_name})`;
+                            }
+                            return customer?.name || 'Not mapped';
+                          })()
+                        : 'Not mapped'
+                    }
                     disabled
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-blue-50 text-gray-700 font-medium"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Automatically linked to customer account
+                    Automatically linked to customer's account
                   </p>
                 </div>
               </div>
