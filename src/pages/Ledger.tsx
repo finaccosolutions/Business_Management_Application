@@ -477,9 +477,9 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
 
   return (
     <>
-    <div className="h-screen flex flex-col overflow-hidden">
-      {/* Page Header */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-4 text-white flex-shrink-0">
+    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] overflow-hidden bg-gray-50">
+      {/* Fixed Page Header - No Scroll */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 shadow-xl p-4 text-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3">
@@ -554,63 +554,67 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
 
       {/* Account Selection */}
       {!selectedAccount ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex-1 overflow-auto">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Select Account</h2>
-            <p className="text-gray-600 text-sm">Choose an account to view its ledger transactions</p>
-          </div>
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Select Account</h2>
+                <p className="text-gray-600 text-sm">Choose an account to view its ledger transactions</p>
+              </div>
 
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search accounts by code or name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+              <div className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Search accounts by code or name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
 
-            <div className="grid gap-2 max-h-96 overflow-y-auto">
-              {accounts
-                .filter(acc =>
-                  acc.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  acc.account_code.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((account) => (
-                  <div
-                    key={account.id}
-                    onClick={() => setSelectedAccount(account)}
-                    className="p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm text-blue-600 font-medium">
-                            {account.account_code}
-                          </span>
-                          <span className="text-gray-400">•</span>
-                          <span className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
-                            {account.account_name}
-                          </span>
+                <div className="grid gap-2 max-h-96 overflow-y-auto">
+                  {accounts
+                    .filter(acc =>
+                      acc.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      acc.account_code.toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                    .map((account) => (
+                      <div
+                        key={account.id}
+                        onClick={() => setSelectedAccount(account)}
+                        className="p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm text-blue-600 font-medium">
+                                {account.account_code}
+                              </span>
+                              <span className="text-gray-400">•</span>
+                              <span className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                                {account.account_name}
+                              </span>
+                            </div>
+                            {account.group_name && (
+                              <p className="text-xs text-gray-500 mt-1">{account.group_name}</p>
+                            )}
+                          </div>
+                          <BookOpen className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
                         </div>
-                        {account.group_name && (
-                          <p className="text-xs text-gray-500 mt-1">{account.group_name}</p>
-                        )}
                       </div>
-                      <BookOpen className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                    </div>
-                  </div>
-                ))}
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       ) : (
-        <>
-          {/* Collapsible Filters Section */}
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Fixed Filters Section - No Scroll */}
           {showFilters && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex-shrink-0">
+            <div className="flex-shrink-0 bg-white shadow-sm border-b border-gray-200 p-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Filter className="w-5 h-5 text-blue-600" />
@@ -633,7 +637,6 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
               </div>
 
               <div className="space-y-4">
-                {/* Date Range */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -661,7 +664,6 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                   </div>
                 </div>
 
-                {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
@@ -673,7 +675,6 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                   />
                 </div>
 
-                {/* Other Filters */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -740,10 +741,10 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
             </div>
           )}
 
-          {/* Transactions Table Container - Full Height with Fixed Bottom Panel */}
-          <div className="flex flex-col flex-1 min-h-0 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {/* Main Content Area - Ledger Table */}
+          <div className="flex-1 flex flex-col min-h-0 bg-white">
             {filteredEntries.length === 0 ? (
-              <div className="p-12 text-center flex-1 flex flex-col items-center justify-center">
+              <div className="flex-1 p-12 text-center flex flex-col items-center justify-center">
                 <BookOpen className="w-16 h-16 text-gray-300 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions found</h3>
                 <p className="text-gray-600">
@@ -754,8 +755,8 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
               </div>
             ) : (
               <>
-                {/* Fixed Title Bar */}
-                <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 flex-shrink-0">
+                {/* Fixed Title Bar - No Scroll */}
+                <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-bold text-gray-900">Ledger Transactions</h2>
                     <div className="text-sm text-gray-600">
@@ -764,27 +765,27 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                   </div>
                 </div>
 
-                {/* Fixed Table Headers */}
+                {/* Fixed Table Column Headers - No Scroll */}
                 <div className="flex-shrink-0 bg-gradient-to-r from-slate-700 to-slate-600">
-                  <table className="w-full">
+                  <table className="w-full table-fixed">
                     <thead>
                       <tr>
-                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '12%' }}>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white w-[12%]">
                           Date
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '13%' }}>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white w-[13%]">
                           Voucher No.
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '30%' }}>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white w-[30%]">
                           Particulars
                         </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white w-[15%]">
                           Debit (₹)
                         </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white w-[15%]">
                           Credit (₹)
                         </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white w-[15%]">
                           Balance (₹)
                         </th>
                       </tr>
@@ -792,9 +793,9 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                   </table>
                 </div>
 
-                {/* Scrollable Transaction Rows Only */}
+                {/* Scrollable Transaction Rows ONLY */}
                 <div className="flex-1 overflow-y-auto min-h-0">
-                  <table className="w-full">
+                  <table className="w-full table-fixed">
                     <tbody className="divide-y divide-gray-200 bg-white">
                       {filteredEntries.map((entry) => (
                         <tr
@@ -803,7 +804,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                           onClick={() => handleTransactionClick(entry)}
                           title="Click to view/edit voucher"
                         >
-                          <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900" style={{ width: '12%' }}>
+                          <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900 w-[12%]">
                             <div className="flex items-center gap-2">
                               {formatDateDisplay(entry.transaction_date)}
                               {entry.voucher_id && (
@@ -811,7 +812,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-3 whitespace-nowrap" style={{ width: '13%' }}>
+                          <td className="px-6 py-3 whitespace-nowrap w-[13%]">
                             <div className="flex flex-col">
                               <span className="font-mono text-sm text-blue-600 font-medium">
                                 {entry.voucher_number}
@@ -819,10 +820,10 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                               <span className="text-xs text-gray-500">{entry.voucher_type}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-3 text-sm font-medium text-gray-900" style={{ width: '30%' }}>
+                          <td className="px-6 py-3 text-sm font-medium text-gray-900 w-[30%] truncate" title={entry.particulars}>
                             {entry.particulars}
                           </td>
-                          <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
+                          <td className="px-6 py-3 text-right whitespace-nowrap w-[15%]">
                             {entry.debit > 0 ? (
                               <span className="text-sm font-semibold text-blue-600">
                                 ₹{entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -831,7 +832,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                               <span className="text-sm text-gray-400">-</span>
                             )}
                           </td>
-                          <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
+                          <td className="px-6 py-3 text-right whitespace-nowrap w-[15%]">
                             {entry.credit > 0 ? (
                               <span className="text-sm font-semibold text-red-600">
                                 ₹{entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -840,7 +841,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                               <span className="text-sm text-gray-400">-</span>
                             )}
                           </td>
-                          <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
+                          <td className="px-6 py-3 text-right whitespace-nowrap w-[15%]">
                             <span className={`text-sm font-bold ${
                               entry.balance >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
@@ -854,18 +855,17 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                   </table>
                 </div>
 
-                {/* Fixed Bottom Summary Panel */}
+                {/* Fixed Bottom Summary Panel - Always Visible at Bottom */}
                 <div className="flex-shrink-0 border-t-4 border-slate-700 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50">
-                  <table className="w-full">
+                  <table className="w-full table-fixed">
                     <tbody>
-                      {/* Opening Balance Row */}
                       <tr className="border-b-2 border-slate-300 bg-gradient-to-r from-blue-50 to-slate-50">
-                        <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm" style={{ width: '55%' }}>
+                        <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm w-[55%]">
                           Opening Balance
                         </td>
-                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
-                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
-                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}>
+                        <td className="px-6 py-3 text-right w-[15%]"></td>
+                        <td className="px-6 py-3 text-right w-[15%]"></td>
+                        <td className="px-6 py-3 text-right w-[15%]">
                           <span className={`text-base font-bold ${
                             openingBalance >= 0 ? 'text-green-700' : 'text-red-700'
                           }`}>
@@ -875,35 +875,33 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                         </td>
                       </tr>
 
-                      {/* Totals Row */}
                       <tr className="bg-gradient-to-r from-slate-300 via-slate-200 to-slate-300 border-b-4 border-slate-500">
-                        <td className="px-6 py-4 text-left font-black text-slate-900 text-base uppercase tracking-wide" style={{ width: '55%' }}>
+                        <td className="px-6 py-4 text-left font-black text-slate-900 text-base uppercase tracking-wide w-[55%]">
                           <div className="flex items-center gap-2">
                             <BookOpen className="w-5 h-5" />
                             Total
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right" style={{ width: '15%' }}>
+                        <td className="px-6 py-4 text-right w-[15%]">
                           <span className="text-lg font-black text-blue-800">
                             ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right" style={{ width: '15%' }}>
+                        <td className="px-6 py-4 text-right w-[15%]">
                           <span className="text-lg font-black text-red-800">
                             ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-4 text-right w-[15%]"></td>
                       </tr>
 
-                      {/* Closing Balance Row */}
                       <tr className="bg-gradient-to-r from-slate-50 to-blue-50">
-                        <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm" style={{ width: '55%' }}>
+                        <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm w-[55%]">
                           Closing Balance
                         </td>
-                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
-                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
-                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}>
+                        <td className="px-6 py-3 text-right w-[15%]"></td>
+                        <td className="px-6 py-3 text-right w-[15%]"></td>
+                        <td className="px-6 py-3 text-right w-[15%]">
                           <span className={`text-base font-bold ${
                             closingBalance >= 0 ? 'text-green-700' : 'text-red-700'
                           }`}>
@@ -918,7 +916,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
               </>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
 
