@@ -554,7 +554,7 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
                       <div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Amount</p>
                         <p className="text-xl font-bold text-amber-700 dark:text-amber-400 flex items-center gap-0.5">
-                          ₹{invoice.total_amount.toLocaleString('en-IN')}
+                          ₹{invoice.subtotal.toLocaleString('en-IN')}
                         </p>
                       </div>
                     </div>

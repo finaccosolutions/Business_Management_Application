@@ -11,7 +11,7 @@ export default function EmailVerified() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          navigate('/');
+          navigate('/login');
           return 0;
         }
         return prev - 1;
@@ -48,7 +48,7 @@ export default function EmailVerified() {
             </div>
 
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/login')}
               className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg font-medium hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transform transition-all duration-200 hover:scale-[1.02]"
             >
               Go to Login Now
