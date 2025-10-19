@@ -541,20 +541,6 @@ export default function ChartOfAccounts() {
                     </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50 dark:bg-slate-700 border-t-2 border-gray-300 dark:border-slate-600">
-                <tr>
-                  <td colSpan={3} className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">
-                    Total:
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-blue-600 dark:text-blue-400">
-                    ₹{totalDebit.toLocaleString('en-IN')}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-red-600 dark:text-red-400">
-                    ₹{totalCredit.toLocaleString('en-IN')}
-                  </td>
-                  <td className="px-6 py-4"></td>
-                </tr>
-              </tfoot>
             </table>
             {transactions.length === 0 && (
               <div className="text-center py-12">
@@ -564,6 +550,52 @@ export default function ChartOfAccounts() {
             )}
           </div>
         </div>
+
+        {/* Fixed Bottom Summary Panel */}
+        {transactions.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t-4 border-slate-700 dark:border-slate-600 shadow-2xl z-50">
+            <div className="max-w-7xl mx-auto px-6 py-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg text-white shadow-lg">
+                  <div>
+                    <p className="text-xs font-medium text-blue-100 uppercase tracking-wide">Total Debit</p>
+                    <p className="text-2xl font-bold mt-1">
+                      ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <BookOpen className="w-8 h-8 opacity-70" />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-500 to-red-600 rounded-lg text-white shadow-lg">
+                  <div>
+                    <p className="text-xs font-medium text-red-100 uppercase tracking-wide">Total Credit</p>
+                    <p className="text-2xl font-bold mt-1">
+                      ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <BookOpen className="w-8 h-8 opacity-70" />
+                </div>
+
+                <div className={`flex items-center justify-between p-4 bg-gradient-to-r ${
+                  transactions[transactions.length - 1].balance >= 0 ? 'from-green-500 to-green-600' : 'from-orange-500 to-orange-600'
+                } rounded-lg text-white shadow-lg`}>
+                  <div>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${
+                      transactions[transactions.length - 1].balance >= 0 ? 'text-green-100' : 'text-orange-100'
+                    }`}>
+                      Closing Balance
+                    </p>
+                    <p className="text-2xl font-bold mt-1">
+                      ₹{Math.abs(transactions[transactions.length - 1].balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      <span className="text-sm ml-2">{transactions[transactions.length - 1].balance >= 0 ? 'Dr' : 'Cr'}</span>
+                    </p>
+                  </div>
+                  <BookOpen className="w-8 h-8 opacity-70" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -970,10 +1002,10 @@ export default function ChartOfAccounts() {
                       Group
                     </th>
                     <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Opening Balance
+                      Current Debit (₹)
                     </th>
                     <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Current Balance
+                      Current Credit (₹)
                     </th>
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
                       Actions
@@ -1020,14 +1052,22 @@ export default function ChartOfAccounts() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          ₹{account.opening_balance.toLocaleString('en-IN')}
-                        </span>
+                        {account.current_balance >= 0 ? (
+                          <span className="font-bold text-blue-600 dark:text-blue-400">
+                            ₹{account.current_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <span className="font-bold text-blue-600 dark:text-blue-400">
-                          ₹{account.current_balance.toLocaleString('en-IN')}
-                        </span>
+                        {account.current_balance < 0 ? (
+                          <span className="font-bold text-red-600 dark:text-red-400">
+                            ₹{Math.abs(account.current_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
