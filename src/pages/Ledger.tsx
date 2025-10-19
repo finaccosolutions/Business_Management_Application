@@ -447,9 +447,9 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
 
   return (
     <>
-    <div className="space-y-6">
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* Page Header */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-6 text-white">
+      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-4 text-white flex-shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3">
@@ -517,7 +517,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
 
       {/* Account Selection */}
       {!selectedAccount ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex-1 overflow-auto">
           <div className="mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-2">Select Account</h2>
             <p className="text-gray-600 text-sm">Choose an account to view its ledger transactions</p>
@@ -573,7 +573,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
         <>
           {/* Collapsible Filters Section */}
           {showFilters && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex-shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Filter className="w-5 h-5 text-blue-600" />
@@ -704,9 +704,9 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
           )}
 
           {/* Transactions Table Container - Full Height with Fixed Bottom Panel */}
-          <div className="mt-6 flex flex-col" style={{ height: 'calc(100vh - 280px)' }}>
+          <div className="flex flex-col flex-1 min-h-0">
             {filteredEntries.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center flex-1 flex flex-col items-center justify-center">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center flex-1 flex flex-col items-center justify-center overflow-hidden">
                 <BookOpen className="w-16 h-16 text-gray-300 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions found</h3>
                 <p className="text-gray-600">
@@ -718,11 +718,11 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
             ) : (
               <>
                 {/* Table Container with Scrollable Body */}
-                <div className="bg-white rounded-t-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
+                <div className="bg-white rounded-t-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col min-h-0">
                   {/* Title Bar */}
-                  <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 flex-shrink-0">
+                  <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 flex-shrink-0">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold text-gray-900">Ledger Transactions</h2>
+                      <h2 className="text-lg font-bold text-gray-900">Ledger Transactions</h2>
                       <div className="text-sm text-gray-600">
                         {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
                       </div>
@@ -730,7 +730,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                   </div>
 
                   {/* Scrollable Table Area */}
-                  <div className="flex-1 overflow-auto">
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden">
                     <table className="w-full">
                       <thead className="bg-gradient-to-r from-slate-700 to-slate-600 sticky top-0 z-10">
                         <tr>
@@ -815,7 +815,7 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
                 </div>
 
                 {/* Bottom Summary Panel - Fixed at Bottom */}
-                <div className="bg-white rounded-b-xl shadow-sm border border-t-0 border-gray-200 flex-shrink-0">
+                <div className="bg-white rounded-b-xl shadow-sm border border-t-0 border-gray-200 flex-shrink-0 overflow-hidden">
                   <div className="border-t-4 border-slate-700 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50">
                     <table className="w-full">
                       <tbody>

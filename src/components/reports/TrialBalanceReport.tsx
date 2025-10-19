@@ -27,7 +27,7 @@ export default function TrialBalanceReport({
   onExport,
   onAccountClick,
 }: TrialBalanceReportProps) {
-  const [viewType, setViewType] = useState<ViewType>('vertical');
+  const [viewType, setViewType] = useState<ViewType>('horizontal');
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredData = data.filter(
@@ -46,7 +46,7 @@ export default function TrialBalanceReport({
     onAccountClick(accountId, startDate, endDate);
   };
 
-  const renderVerticalView = () => (
+  const renderHorizontalView = () => (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -185,7 +185,7 @@ export default function TrialBalanceReport({
           <ViewToggle
             currentView={viewType}
             onViewChange={setViewType}
-            availableViews={['vertical', 't-form']}
+            availableViews={['horizontal', 't-form']}
           />
           <button
             onClick={onExport}
@@ -217,7 +217,7 @@ export default function TrialBalanceReport({
       ) : viewType === 't-form' ? (
         renderTFormView()
       ) : (
-        renderVerticalView()
+        renderHorizontalView()
       )}
 
       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border-2 border-blue-200">

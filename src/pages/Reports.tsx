@@ -791,6 +791,34 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
         balances.set(txn.account_id, existing + (Number(txn.debit) || 0) - (Number(txn.credit) || 0));
       });
 
+      // Calculate profit/loss for the period
+      const { data: plTransactions } = await supabase
+        .from('ledger_transactions')
+        .select('account_id, debit, credit')
+        .gte('transaction_date', dateRange.start)
+        .lte('transaction_date', dateRange.end);
+
+      let totalIncome = 0;
+      let totalExpenses = 0;
+
+      accounts.forEach((account: any) => {
+        const accountType = account.account_groups?.account_type;
+        if (accountType === 'income' || accountType === 'expense') {
+          const plTxns = plTransactions?.filter((t: any) => t.account_id === account.id) || [];
+          const txnBalance = plTxns.reduce((sum: number, txn: any) =>
+            sum + (Number(txn.credit) || 0) - (Number(txn.debit) || 0), 0
+          );
+
+          if (accountType === 'income') {
+            totalIncome += txnBalance;
+          } else {
+            totalExpenses += Math.abs(txnBalance);
+          }
+        }
+      });
+
+      const netProfit = totalIncome - totalExpenses;
+
       const assets: BalanceSheetEntry[] = [];
       const liabilities: BalanceSheetEntry[] = [];
       const equity: BalanceSheetEntry[] = [];
@@ -798,9 +826,13 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
       const grouped = new Map<string, Array<{ account_id: string; account_name: string; amount: number; type: string }>>();
 
       accounts.forEach((account: any) => {
+        const accountType = account.account_groups?.account_type;
+
+        // Skip income and expense accounts - they go to P&L, not Balance Sheet
+        if (accountType === 'income' || accountType === 'expense') return;
+
         const balance = balances.get(account.id) || 0;
         const groupName = account.account_groups?.name || 'Uncategorized';
-        const accountType = account.account_groups?.account_type;
 
         if (!grouped.has(groupName)) {
           grouped.set(groupName, []);
@@ -821,6 +853,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
         let type: 'asset' | 'liability' | 'equity' = 'asset';
         if (accountType === 'liability') type = 'liability';
         else if (accountType === 'equity') type = 'equity';
+        else if (accountType === 'asset') type = 'asset';
         else if (category.toLowerCase().includes('liability')) type = 'liability';
         else if (category.toLowerCase().includes('equity') || category.toLowerCase().includes('capital')) type = 'equity';
 
@@ -839,6 +872,27 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
           equity.push(entry);
         }
       });
+
+      // Add net profit/loss as a liability (or reduce liability if loss)
+      if (Math.abs(netProfit) > 0.01) {
+        const profitEntry: BalanceSheetEntry = {
+          category: netProfit >= 0 ? 'Current Year Profit' : 'Current Year Loss',
+          accounts: [{
+            account_id: 'net_profit',
+            account_name: netProfit >= 0 ? 'Net Profit for the Period' : 'Net Loss for the Period',
+            amount: Math.abs(netProfit)
+          }],
+          total: Math.abs(netProfit),
+          type: 'liability'
+        };
+
+        if (netProfit >= 0) {
+          liabilities.push(profitEntry);
+        } else {
+          // Loss reduces liabilities
+          liabilities.push(profitEntry);
+        }
+      }
 
       setBalanceSheet([...assets, ...liabilities, ...equity]);
     } catch (error) {
@@ -1163,6 +1217,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
           <BalanceSheetReport
             data={balanceSheet}
             asOnDate={dateRange.end}
+            startDate={dateRange.start}
             onExport={() => exportToCSV(balanceSheet.flatMap(bs => bs.accounts.map(a => ({ category: bs.category, ...a }))), 'balance_sheet')}
             onAccountClick={(accountId, asOnDate) => handleAccountClick(accountId, '', asOnDate)}
           />

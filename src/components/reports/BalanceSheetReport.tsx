@@ -19,6 +19,7 @@ interface BalanceSheetEntry {
 interface BalanceSheetReportProps {
   data: BalanceSheetEntry[];
   asOnDate: string;
+  startDate?: string;
   onExport: () => void;
   onAccountClick: (accountId: string, asOnDate: string) => void;
 }
@@ -26,19 +27,18 @@ interface BalanceSheetReportProps {
 export default function BalanceSheetReport({
   data,
   asOnDate,
+  startDate,
   onExport,
   onAccountClick,
 }: BalanceSheetReportProps) {
-  const [viewType, setViewType] = useState<ViewType>('vertical');
+  const [viewType, setViewType] = useState<ViewType>('horizontal');
   const [searchTerm, setSearchTerm] = useState('');
 
   const assets = data.filter((entry) => entry.type === 'asset');
-  const liabilities = data.filter((entry) => entry.type === 'liability');
-  const equity = data.filter((entry) => entry.type === 'equity');
+  const liabilitiesAndEquity = data.filter((entry) => entry.type === 'liability' || entry.type === 'equity');
 
   const totalAssets = assets.reduce((sum, e) => sum + e.total, 0);
-  const totalLiabilities = liabilities.reduce((sum, e) => sum + e.total, 0);
-  const totalEquity = equity.reduce((sum, e) => sum + e.total, 0);
+  const totalLiabilitiesAndEquity = liabilitiesAndEquity.reduce((sum, e) => sum + e.total, 0);
 
   const filterAccounts = (accounts: BalanceSheetAccount[]) =>
     accounts.filter((acc) =>
@@ -46,7 +46,7 @@ export default function BalanceSheetReport({
     );
 
   const handleAccountClick = (accountId: string) => {
-    // Store return path before navigating
+    if (accountId === 'net_profit') return; // Don't navigate for calculated profit
     sessionStorage.setItem('ledgerReturnPath', '/reports');
     onAccountClick(accountId, asOnDate);
   };
@@ -93,9 +93,9 @@ export default function BalanceSheetReport({
 
         <div>
           <h3 className="text-xl font-bold text-red-700 mb-4 pb-2 border-b-2 border-red-200">
-            Liabilities
+            Liabilities & Capital
           </h3>
-          {liabilities.map((entry, index) => (
+          {liabilitiesAndEquity.map((entry, index) => (
             <div key={index} className="mb-6">
               <h4 className="font-semibold text-gray-800 mb-3 text-lg">{entry.category}</h4>
               <div className="space-y-1">
@@ -103,7 +103,9 @@ export default function BalanceSheetReport({
                   <div
                     key={idx}
                     onClick={() => handleAccountClick(account.account_id)}
-                    className="flex justify-between items-center py-2 px-4 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                    className={`flex justify-between items-center py-2 px-4 hover:bg-red-50 rounded-lg transition-colors ${
+                      account.account_id === 'net_profit' ? '' : 'cursor-pointer'
+                    }`}
                   >
                     <span className="text-gray-700">{account.account_name}</span>
                     <span className="font-medium text-gray-900">
@@ -121,139 +123,9 @@ export default function BalanceSheetReport({
             </div>
           ))}
           <div className="flex justify-between items-center py-4 px-4 mt-4 bg-gradient-to-r from-red-100 to-red-200 rounded-lg border-2 border-red-300">
-            <span className="font-bold text-gray-900 text-lg uppercase">Total Liabilities</span>
+            <span className="font-bold text-gray-900 text-lg uppercase">Total Liabilities & Capital</span>
             <span className="font-bold text-red-900 text-xl">
-              ₹{totalLiabilities.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-xl font-bold text-green-700 mb-4 pb-2 border-b-2 border-green-200">
-            Equity
-          </h3>
-          {equity.map((entry, index) => (
-            <div key={index} className="mb-6">
-              <h4 className="font-semibold text-gray-800 mb-3 text-lg">{entry.category}</h4>
-              <div className="space-y-1">
-                {filterAccounts(entry.accounts).map((account, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleAccountClick(account.account_id)}
-                    className="flex justify-between items-center py-2 px-4 hover:bg-green-50 rounded-lg cursor-pointer transition-colors"
-                  >
-                    <span className="text-gray-700">{account.account_name}</span>
-                    <span className="font-medium text-gray-900">
-                      ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between items-center py-3 px-4 mt-2 bg-green-50 rounded-lg border-t-2 border-green-200">
-                <span className="font-semibold text-gray-800">Total {entry.category}</span>
-                <span className="font-bold text-green-700">
-                  ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-          ))}
-          <div className="flex justify-between items-center py-4 px-4 mt-4 bg-gradient-to-r from-green-100 to-green-200 rounded-lg border-2 border-green-300">
-            <span className="font-bold text-gray-900 text-lg uppercase">Total Equity</span>
-            <span className="font-bold text-green-900 text-xl">
-              ₹{totalEquity.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded-xl p-6 border-2 border-gray-400">
-          <div className="flex justify-between items-center">
-            <span className="font-bold text-gray-900 text-xl uppercase">Total Liabilities & Equity</span>
-            <span className="font-bold text-gray-900 text-2xl">
-              ₹{(totalLiabilities + totalEquity).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderTFormView = () => (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <div className="grid grid-cols-2 gap-6">
-        <div className="border-r-2 border-gray-300 pr-6">
-          <h3 className="text-xl font-bold text-blue-700 mb-4 bg-blue-50 p-3 rounded-lg">
-            Assets
-          </h3>
-          {assets.map((entry, index) => (
-            <div key={index} className="mb-4">
-              <h4 className="font-semibold text-gray-800 mb-2 text-sm uppercase bg-gray-50 p-2 rounded">
-                {entry.category}
-              </h4>
-              <div className="space-y-1 ml-2">
-                {filterAccounts(entry.accounts).map((account, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleAccountClick(account.account_id)}
-                    className="flex justify-between items-center py-2 px-3 hover:bg-blue-50 rounded cursor-pointer text-sm"
-                  >
-                    <span className="text-gray-700">{account.account_name}</span>
-                    <span className="font-medium text-gray-900">
-                      ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between items-center py-2 px-3 mt-1 bg-blue-50 rounded border-t border-blue-200 text-sm">
-                <span className="font-semibold text-gray-800">{entry.category}</span>
-                <span className="font-bold text-blue-700">
-                  ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-          ))}
-          <div className="flex justify-between items-center py-3 px-3 mt-4 bg-blue-100 rounded-lg font-bold border-2 border-blue-300">
-            <span className="text-gray-900">TOTAL</span>
-            <span className="text-blue-800">
-              ₹{totalAssets.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
-
-        <div className="pl-6">
-          <h3 className="text-xl font-bold text-red-700 mb-4 bg-red-50 p-3 rounded-lg">
-            Liabilities & Equity
-          </h3>
-          {[...liabilities, ...equity].map((entry, index) => (
-            <div key={index} className="mb-4">
-              <h4 className="font-semibold text-gray-800 mb-2 text-sm uppercase bg-gray-50 p-2 rounded">
-                {entry.category}
-              </h4>
-              <div className="space-y-1 ml-2">
-                {filterAccounts(entry.accounts).map((account, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleAccountClick(account.account_id)}
-                    className="flex justify-between items-center py-2 px-3 hover:bg-red-50 rounded cursor-pointer text-sm"
-                  >
-                    <span className="text-gray-700">{account.account_name}</span>
-                    <span className="font-medium text-gray-900">
-                      ₹{account.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between items-center py-2 px-3 mt-1 bg-red-50 rounded border-t border-red-200 text-sm">
-                <span className="font-semibold text-gray-800">{entry.category}</span>
-                <span className="font-bold text-red-700">
-                  ₹{entry.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-          ))}
-          <div className="flex justify-between items-center py-3 px-3 mt-4 bg-red-100 rounded-lg font-bold border-2 border-red-300">
-            <span className="text-gray-900">TOTAL</span>
-            <span className="text-red-800">
-              ₹{(totalLiabilities + totalEquity).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              ₹{totalLiabilitiesAndEquity.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
           </div>
         </div>
@@ -265,24 +137,29 @@ export default function BalanceSheetReport({
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 border-blue-200">
+          <thead className="bg-gradient-to-r from-blue-50 to-red-50 border-b-2 border-gray-300">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Particulars
+              <th className="px-6 py-4 text-left text-sm font-bold text-blue-800 uppercase tracking-wider border-r border-gray-300">
+                Assets
               </th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-6 py-4 text-right text-sm font-bold text-blue-800 uppercase tracking-wider border-r border-gray-300">
                 Amount (₹)
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Particulars
+              <th className="px-6 py-4 text-left text-sm font-bold text-red-800 uppercase tracking-wider border-r border-gray-300">
+                Liabilities & Capital
               </th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-6 py-4 text-right text-sm font-bold text-red-800 uppercase tracking-wider">
                 Amount (₹)
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {Array.from({ length: Math.max(assets.reduce((sum, e) => sum + e.accounts.length + 2, 1), [...liabilities, ...equity].reduce((sum, e) => sum + e.accounts.length + 2, 1)) }).map((_, rowIndex) => {
+            {Array.from({
+              length: Math.max(
+                assets.reduce((sum, e) => sum + e.accounts.length + 2, 1),
+                liabilitiesAndEquity.reduce((sum, e) => sum + e.accounts.length + 2, 1)
+              )
+            }).map((_, rowIndex) => {
               let assetRow = null;
               let liabilityRow = null;
               let assetIdx = 0;
@@ -309,7 +186,7 @@ export default function BalanceSheetReport({
                 assetIdx++;
               }
 
-              for (const entry of [...liabilities, ...equity]) {
+              for (const entry of liabilitiesAndEquity) {
                 if (liabilityIdx === rowIndex) {
                   liabilityRow = { type: 'category', name: entry.category, amount: null };
                   break;
@@ -333,36 +210,37 @@ export default function BalanceSheetReport({
               return (
                 <tr key={rowIndex} className="hover:bg-gray-50">
                   <td
-                    className={`px-6 py-3 text-sm ${
+                    className={`px-6 py-3 text-sm border-r border-gray-200 ${
                       assetRow?.type === 'category' ? 'font-bold text-gray-900 bg-blue-50' :
                       assetRow?.type === 'total' ? 'font-semibold text-blue-700 bg-blue-50' :
-                      assetRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-blue-600' :
+                      assetRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-blue-600 pl-10' :
                       ''
                     }`}
                     onClick={() => assetRow?.type === 'account' && assetRow.id && handleAccountClick(assetRow.id)}
                   >
                     {assetRow ? assetRow.name : ''}
                   </td>
-                  <td className={`px-6 py-3 text-sm text-right ${
-                    assetRow?.type === 'total' ? 'font-bold text-blue-700' : 'font-medium text-gray-900'
+                  <td className={`px-6 py-3 text-sm text-right border-r border-gray-200 ${
+                    assetRow?.type === 'total' ? 'font-bold text-blue-700 bg-blue-50' :
+                    assetRow?.type === 'account' ? 'font-medium text-gray-900' : ''
                   }`}>
                     {assetRow?.amount !== null && assetRow?.amount !== undefined
                       ? `₹${assetRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                       : ''}
                   </td>
                   <td
-                    className={`px-6 py-3 text-sm ${
+                    className={`px-6 py-3 text-sm border-r border-gray-200 ${
                       liabilityRow?.type === 'category' ? 'font-bold text-gray-900 bg-red-50' :
                       liabilityRow?.type === 'total' ? 'font-semibold text-red-700 bg-red-50' :
-                      liabilityRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-red-600' :
-                      ''
-                    }`}
-                    onClick={() => liabilityRow?.type === 'account' && liabilityRow.id && handleAccountClick(liabilityRow.id)}
+                      liabilityRow?.type === 'account' ? 'text-gray-700 pl-10' : ''
+                    } ${liabilityRow?.id === 'net_profit' ? '' : 'cursor-pointer hover:text-red-600'}`}
+                    onClick={() => liabilityRow?.type === 'account' && liabilityRow.id && liabilityRow.id !== 'net_profit' && handleAccountClick(liabilityRow.id)}
                   >
                     {liabilityRow ? liabilityRow.name : ''}
                   </td>
                   <td className={`px-6 py-3 text-sm text-right ${
-                    liabilityRow?.type === 'total' ? 'font-bold text-red-700' : 'font-medium text-gray-900'
+                    liabilityRow?.type === 'total' ? 'font-bold text-red-700 bg-red-50' :
+                    liabilityRow?.type === 'account' ? 'font-medium text-gray-900' : ''
                   }`}>
                     {liabilityRow?.amount !== null && liabilityRow?.amount !== undefined
                       ? `₹${liabilityRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
@@ -371,14 +249,14 @@ export default function BalanceSheetReport({
                 </tr>
               );
             })}
-            <tr className="bg-gradient-to-r from-gray-100 to-blue-100 font-bold border-t-2 border-gray-300">
-              <td className="px-6 py-4 text-sm text-gray-900 uppercase">Total Assets</td>
-              <td className="px-6 py-4 text-sm text-right text-blue-600">
+            <tr className="bg-gradient-to-r from-blue-100 to-red-100 font-bold border-t-4 border-gray-400">
+              <td className="px-6 py-4 text-sm text-gray-900 uppercase border-r border-gray-300">Total Assets</td>
+              <td className="px-6 py-4 text-sm text-right text-blue-700 text-lg border-r border-gray-300">
                 ₹{totalAssets.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-6 py-4 text-sm text-gray-900 uppercase">Total Liabilities & Equity</td>
-              <td className="px-6 py-4 text-sm text-right text-red-600">
-                ₹{(totalLiabilities + totalEquity).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              <td className="px-6 py-4 text-sm text-gray-900 uppercase border-r border-gray-300">Total Liabilities & Capital</td>
+              <td className="px-6 py-4 text-sm text-right text-red-700 text-lg">
+                ₹{totalLiabilitiesAndEquity.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </td>
             </tr>
           </tbody>
@@ -392,13 +270,16 @@ export default function BalanceSheetReport({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Balance Sheet</h2>
-          <p className="text-sm text-gray-600 mt-1">As on {formatDateDisplay(asOnDate)}</p>
+          <p className="text-sm text-gray-600 mt-1">
+            As on {formatDateDisplay(asOnDate)}
+            {startDate && ` (Period: ${formatDateDisplay(startDate)} to ${formatDateDisplay(asOnDate)})`}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <ViewToggle
             currentView={viewType}
             onViewChange={setViewType}
-            availableViews={['vertical', 't-form', 'horizontal']}
+            availableViews={['horizontal', 'vertical']}
           />
           <button
             onClick={onExport}
@@ -428,23 +309,22 @@ export default function BalanceSheetReport({
           <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-600">No balance sheet data available</p>
         </div>
-      ) : viewType === 't-form' ? (
-        renderTFormView()
-      ) : viewType === 'horizontal' ? (
-        renderHorizontalView()
-      ) : (
+      ) : viewType === 'vertical' ? (
         renderVerticalView()
+      ) : (
+        renderHorizontalView()
       )}
 
       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border-2 border-blue-200">
         <p className="text-sm text-blue-900">
-          <strong>Note:</strong> Click on any account to view its detailed ledger transactions.
-          The Balance Sheet shows the financial position as on {formatDateDisplay(asOnDate)}.
+          <strong>Note:</strong> This Balance Sheet shows Assets on the left/top and Liabilities & Capital on the right/bottom.
+          {startDate && ' Net Profit/Loss for the period is included in the Liabilities & Capital side.'}
+          {' '}Click on any account to view its detailed ledger transactions.
         </p>
-        {Math.abs(totalAssets - (totalLiabilities + totalEquity)) > 0.01 && (
+        {Math.abs(totalAssets - totalLiabilitiesAndEquity) > 0.01 && (
           <p className="text-sm text-red-600 mt-2 font-semibold">
             ⚠️ Warning: Balance Sheet is not balanced. Difference: ₹
-            {Math.abs(totalAssets - (totalLiabilities + totalEquity)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            {Math.abs(totalAssets - totalLiabilitiesAndEquity).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </p>
         )}
       </div>

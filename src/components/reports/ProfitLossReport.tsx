@@ -31,7 +31,7 @@ export default function ProfitLossReport({
   onExport,
   onAccountClick,
 }: ProfitLossReportProps) {
-  const [viewType, setViewType] = useState<ViewType>('vertical');
+  const [viewType, setViewType] = useState<ViewType>('horizontal');
   const [searchTerm, setSearchTerm] = useState('');
 
   const income = data.filter((entry) => entry.type === 'income');
@@ -400,7 +400,7 @@ export default function ProfitLossReport({
           <ViewToggle
             currentView={viewType}
             onViewChange={setViewType}
-            availableViews={['vertical', 't-form', 'horizontal']}
+            availableViews={['horizontal', 'vertical', 't-form']}
           />
           <button
             onClick={onExport}
@@ -430,12 +430,12 @@ export default function ProfitLossReport({
           <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-600">No profit & loss data available for the selected period</p>
         </div>
+      ) : viewType === 'vertical' ? (
+        renderVerticalView()
       ) : viewType === 't-form' ? (
         renderTFormView()
-      ) : viewType === 'horizontal' ? (
-        renderHorizontalView()
       ) : (
-        renderVerticalView()
+        renderHorizontalView()
       )}
 
       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border-2 border-blue-200">
