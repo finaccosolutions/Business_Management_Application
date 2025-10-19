@@ -78,9 +78,9 @@ function AppContent() {
       case 'vouchers':
         return <Vouchers onNavigate={setCurrentPage} />;
       case 'chart-of-accounts':
-        return <ChartOfAccounts />;
+        return <ChartOfAccounts onNavigate={setCurrentPage} />;
       case 'ledger':
-        return <Ledger />;
+        return <Ledger onNavigate={setCurrentPage} />;
       case 'accounting-masters':
         return <AccountingMasters />;
       case 'reminders':

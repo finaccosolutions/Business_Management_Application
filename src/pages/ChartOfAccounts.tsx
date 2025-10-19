@@ -45,7 +45,11 @@ const accountTypeBgColors = {
   equity: 'from-slate-500 to-slate-600',
 };
 
-export default function ChartOfAccounts() {
+interface ChartOfAccountsProps {
+  onNavigate?: (page: string) => void;
+}
+
+export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {}) {
   const { user } = useAuth();
   const toast = useToast();
   const { showConfirmation } = useConfirmation();
@@ -328,8 +332,14 @@ export default function ChartOfAccounts() {
       returnPath: '/chart-of-accounts',
     };
     sessionStorage.setItem('ledgerParams', JSON.stringify(params));
-    // Navigate to dedicated Ledger page
-    window.location.href = '/ledger';
+
+    // Navigate to ledger page using the app's navigation system
+    if (onNavigate) {
+      onNavigate('ledger');
+    } else {
+      // Fallback: reload not recommended but needed if onNavigate not provided
+      window.location.reload();
+    }
   };
 
   const filteredAccounts = selectedGroup
