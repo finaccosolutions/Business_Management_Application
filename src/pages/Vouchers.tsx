@@ -343,7 +343,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
           .order('display_order', { nullsFirst: false }),
         supabase
           .from('invoices')
-          .select('total_amount')
+          .select('subtotal')
           .order('created_at', { ascending: false }),
       ]);
 
@@ -356,7 +356,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
 
       const invoicesData = invoicesResult.data || [];
       setInvoiceCount(invoicesData.length);
-      setInvoicesTotalAmount(invoicesData.reduce((sum, inv) => sum + inv.total_amount, 0));
+      setInvoicesTotalAmount(invoicesData.reduce((sum, inv) => sum + inv.subtotal, 0));
 
       if ((typesResult.data || []).length === 0) {
         setShowSetup(true);
