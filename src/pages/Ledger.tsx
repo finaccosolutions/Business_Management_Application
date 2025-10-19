@@ -131,11 +131,12 @@ export default function Ledger() {
       if (error) throw error;
 
       if (data) {
+        const accountGroups = data.account_groups as any;
         setSelectedAccount({
           id: data.id,
           account_code: data.account_code,
           account_name: data.account_name,
-          group_name: data.account_groups?.name || 'Ungrouped',
+          group_name: accountGroups?.name || 'Ungrouped',
         });
       }
     } catch (error) {
@@ -193,8 +194,9 @@ export default function Ledger() {
             .limit(1)
             .maybeSingle();
 
-          if (otherTxns?.chart_of_accounts?.account_name) {
-            particularsName = otherTxns.chart_of_accounts.account_name;
+          const chartOfAccounts = otherTxns?.chart_of_accounts as any;
+          if (chartOfAccounts?.account_name) {
+            particularsName = chartOfAccounts.account_name;
           }
         }
 
@@ -224,8 +226,9 @@ export default function Ledger() {
   const calculateTotals = () => {
     const totalDebit = filteredEntries.reduce((sum, entry) => sum + entry.debit, 0);
     const totalCredit = filteredEntries.reduce((sum, entry) => sum + entry.credit, 0);
+    const openingBalance = filteredEntries.length > 0 ? filteredEntries[0].balance - filteredEntries[0].debit + filteredEntries[0].credit : 0;
     const closingBalance = filteredEntries.length > 0 ? filteredEntries[filteredEntries.length - 1].balance : 0;
-    return { totalDebit, totalCredit, closingBalance };
+    return { totalDebit, totalCredit, openingBalance, closingBalance };
   };
 
   const exportToCSV = () => {
@@ -304,7 +307,7 @@ export default function Ledger() {
     window.history.pushState({}, '', '/ledger');
   };
 
-  const { totalDebit, totalCredit, closingBalance } = calculateTotals();
+  const { totalDebit, totalCredit, openingBalance, closingBalance } = calculateTotals();
   const activeFiltersCount = getActiveFiltersCount();
 
   if (loading) {
@@ -316,21 +319,12 @@ export default function Ledger() {
   }
 
   return (
-    <div className="space-y-6 pb-40">
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* Page Header */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-6 text-white">
+      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-6 text-white flex-shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              {selectedAccount && (
-                <button
-                  onClick={handleBackToSelection}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                  title="Back to account selection"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-              )}
               <BookOpen className="w-8 h-8" />
               <div>
                 <h1 className="text-3xl font-bold text-white">
@@ -352,22 +346,50 @@ export default function Ledger() {
               <p className="text-slate-300 mt-2">View detailed transaction history for any account</p>
             )}
           </div>
-          {selectedAccount && (
-            <button
-              onClick={exportToCSV}
-              disabled={filteredEntries.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {selectedAccount && (
+              <>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+                    showFilters
+                      ? 'bg-white text-slate-800'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  Filters
+                  {activeFiltersCount > 0 && (
+                    <span className="ml-1 px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={exportToCSV}
+                  disabled={filteredEntries.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-white text-slate-800 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </button>
+                <button
+                  onClick={handleBackToSelection}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors font-medium"
+                  title="Back to account selection"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Account Selection */}
       {!selectedAccount ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
           <div className="mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-2">Select Account</h2>
             <p className="text-gray-600 text-sm">Choose an account to view its ledger transactions</p>
@@ -421,80 +443,60 @@ export default function Ledger() {
         </div>
       ) : (
         <>
-          {/* Date Filters */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Date Range</h3>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  From Date
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {startDate && (
-                  <p className="text-xs text-gray-500 mt-1">{formatDateDisplay(startDate)}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  To Date
-                </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {endDate && (
-                  <p className="text-xs text-gray-500 mt-1">{formatDateDisplay(endDate)}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Additional Filters */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Filter className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
-                {activeFiltersCount > 0 && (
-                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                    {activeFiltersCount} active
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
+          {/* Collapsible Filters Section */}
+          {showFilters && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6 flex-shrink-0">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Filters & Date Range</h3>
+                  {activeFiltersCount > 0 && (
+                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                      {activeFiltersCount} active
+                    </span>
+                  )}
+                </div>
                 {activeFiltersCount > 0 && (
                   <button
                     onClick={clearFilters}
                     className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <X className="w-4 h-4" />
-                    Clear
+                    Clear All
                   </button>
                 )}
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <Filter className="w-4 h-4" />
-                </button>
               </div>
-            </div>
 
-            {showFilters && (
               <div className="space-y-4">
+                {/* Date Range */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Calendar className="w-4 h-4 inline mr-1" />
+                      From Date
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Calendar className="w-4 h-4 inline mr-1" />
+                      To Date
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
@@ -506,6 +508,7 @@ export default function Ledger() {
                   />
                 </div>
 
+                {/* Other Filters */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -569,155 +572,174 @@ export default function Ledger() {
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* Transactions Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200" style={{ marginBottom: filteredEntries.length > 0 ? '180px' : '0' }}>
-            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 sticky top-0 z-20">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Ledger Transactions
-                </h2>
-                <div className="text-sm text-gray-600">
-                  {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
-                </div>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 450px)', overflowY: 'auto' }}>
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-slate-700 to-slate-600 text-white sticky top-0 z-10">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                      Voucher No.
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                      Particulars (Ledger Name)
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">
-                      Debit (₹)
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">
-                      Credit (₹)
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider">
-                      Balance (₹)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredEntries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-blue-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatDateDisplay(entry.transaction_date)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span className="font-mono text-sm text-blue-600 font-medium">
-                            {entry.voucher_number}
-                          </span>
-                          <span className="text-xs text-gray-500">{entry.voucher_type}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{entry.particulars}</div>
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        {entry.debit > 0 ? (
-                          <span className="text-sm font-semibold text-blue-600">
-                            ₹{entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        {entry.credit > 0 ? (
-                          <span className="text-sm font-semibold text-red-600">
-                            ₹{entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <span className={`text-sm font-bold ${
-                          entry.balance >= 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          ₹{Math.abs(entry.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          <span className="text-xs ml-1">{entry.balance >= 0 ? 'Dr' : 'Cr'}</span>
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {filteredEntries.length === 0 && (
-                <div className="text-center py-12">
-                  <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions found</h3>
-                  <p className="text-gray-600">
-                    {searchTerm || voucherTypeFilter || minAmount || maxAmount || transactionType !== 'all'
-                      ? 'No transactions match your filter criteria'
-                      : 'No transactions for this account in the selected period'}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Fixed Bottom Summary Panel */}
-          {filteredEntries.length > 0 && (
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-slate-700 shadow-2xl z-50">
-              <div className="max-w-7xl mx-auto px-6 py-5">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg text-white shadow-lg">
-                    <div>
-                      <p className="text-xs font-medium text-blue-100 uppercase tracking-wide">Total Debit</p>
-                      <p className="text-2xl font-bold mt-1">
-                        ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <BookOpen className="w-8 h-8 opacity-70" />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-500 to-red-600 rounded-lg text-white shadow-lg">
-                    <div>
-                      <p className="text-xs font-medium text-red-100 uppercase tracking-wide">Total Credit</p>
-                      <p className="text-2xl font-bold mt-1">
-                        ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <BookOpen className="w-8 h-8 opacity-70" />
-                  </div>
-
-                  <div className={`flex items-center justify-between p-4 bg-gradient-to-r ${
-                    closingBalance >= 0 ? 'from-green-500 to-green-600' : 'from-orange-500 to-orange-600'
-                  } rounded-lg text-white shadow-lg`}>
-                    <div>
-                      <p className={`text-xs font-medium uppercase tracking-wide ${
-                        closingBalance >= 0 ? 'text-green-100' : 'text-orange-100'
-                      }`}>
-                        Closing Balance
-                      </p>
-                      <p className="text-2xl font-bold mt-1">
-                        ₹{Math.abs(closingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        <span className="text-sm ml-2">{closingBalance >= 0 ? 'Dr' : 'Cr'}</span>
-                      </p>
-                    </div>
-                    <BookOpen className="w-8 h-8 opacity-70" />
-                  </div>
-                </div>
-              </div>
             </div>
           )}
+
+          {/* Transactions Table Container - Flex grow to fill remaining space */}
+          <div className="flex-1 flex flex-col mt-6 overflow-hidden">
+            {filteredEntries.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+                <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions found</h3>
+                <p className="text-gray-600">
+                  {searchTerm || voucherTypeFilter || minAmount || maxAmount || transactionType !== 'all'
+                    ? 'No transactions match your filter criteria'
+                    : 'No transactions for this account in the selected period'}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col flex-1 overflow-hidden">
+                {/* Title Bar */}
+                <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-gray-900">Ledger Transactions</h2>
+                    <div className="text-sm text-gray-600">
+                      {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fixed Table Header */}
+                <div className="flex-shrink-0 bg-gradient-to-r from-slate-700 to-slate-600">
+                  <table className="w-full">
+                    <thead>
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '12%' }}>
+                          Date
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '13%' }}>
+                          Voucher No.
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '30%' }}>
+                          Particulars
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                          Debit (₹)
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                          Credit (₹)
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                          Balance (₹)
+                        </th>
+                      </tr>
+                    </thead>
+                  </table>
+                </div>
+
+                {/* Scrollable Transaction Body */}
+                <div className="flex-1 overflow-y-auto">
+                  <table className="w-full">
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {filteredEntries.map((entry) => (
+                        <tr key={entry.id} className="hover:bg-blue-50 transition-colors">
+                          <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900" style={{ width: '12%' }}>
+                            {formatDateDisplay(entry.transaction_date)}
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap" style={{ width: '13%' }}>
+                            <div className="flex flex-col">
+                              <span className="font-mono text-sm text-blue-600 font-medium">
+                                {entry.voucher_number}
+                              </span>
+                              <span className="text-xs text-gray-500">{entry.voucher_type}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3 text-sm font-medium text-gray-900" style={{ width: '30%' }}>
+                            {entry.particulars}
+                          </td>
+                          <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
+                            {entry.debit > 0 ? (
+                              <span className="text-sm font-semibold text-blue-600">
+                                ₹{entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
+                            {entry.credit > 0 ? (
+                              <span className="text-sm font-semibold text-red-600">
+                                ₹{entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
+                            <span className={`text-sm font-bold ${
+                              entry.balance >= 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              ₹{Math.abs(entry.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              <span className="text-xs ml-1">{entry.balance >= 0 ? 'Dr' : 'Cr'}</span>
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Fixed Bottom Summary Panel */}
+                <div className="flex-shrink-0 border-t-4 border-slate-700 bg-gradient-to-b from-slate-50 to-slate-100">
+                  <table className="w-full">
+                    <tbody>
+                      {/* Opening Balance Row */}
+                      <tr className="border-b border-gray-300">
+                        <td className="px-6 py-2.5 text-left font-medium text-gray-700 text-sm" style={{ width: '55%' }}>
+                          Opening Balance
+                        </td>
+                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}>
+                          <span className={`text-sm font-bold ${
+                            openingBalance >= 0 ? 'text-green-700' : 'text-red-700'
+                          }`}>
+                            ₹{Math.abs(openingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            <span className="text-xs ml-1.5 font-semibold">{openingBalance >= 0 ? 'Dr' : 'Cr'}</span>
+                          </span>
+                        </td>
+                      </tr>
+
+                      {/* Totals Row */}
+                      <tr className="bg-slate-200 border-b-2 border-slate-400">
+                        <td className="px-6 py-3.5 text-left font-bold text-gray-900 text-sm uppercase" style={{ width: '55%' }}>
+                          Total
+                        </td>
+                        <td className="px-6 py-3.5 text-right" style={{ width: '15%' }}>
+                          <span className="text-base font-bold text-blue-800">
+                            ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3.5 text-right" style={{ width: '15%' }}>
+                          <span className="text-base font-bold text-red-800">
+                            ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3.5 text-right" style={{ width: '15%' }}></td>
+                      </tr>
+
+                      {/* Closing Balance Row */}
+                      <tr>
+                        <td className="px-6 py-2.5 text-left font-medium text-gray-700 text-sm" style={{ width: '55%' }}>
+                          Closing Balance
+                        </td>
+                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-2.5 text-right" style={{ width: '15%' }}>
+                          <span className={`text-sm font-bold ${
+                            closingBalance >= 0 ? 'text-green-700' : 'text-red-700'
+                          }`}>
+                            ₹{Math.abs(closingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            <span className="text-xs ml-1.5 font-semibold">{closingBalance >= 0 ? 'Dr' : 'Cr'}</span>
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
