@@ -31,12 +31,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserCountry(session.user.id);
+      // Only update state if it's a meaningful auth change, not just token refresh
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user && event !== 'TOKEN_REFRESHED') {
+          fetchUserCountry(session.user.id);
+        }
+        if (event !== 'TOKEN_REFRESHED') {
+          setLoading(false);
+        }
+      } else if (event === 'TOKEN_REFRESHED') {
+        // For token refresh, just update the session without triggering re-renders
+        setSession(session);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();

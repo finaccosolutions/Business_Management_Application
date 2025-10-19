@@ -75,28 +75,6 @@ export default function UnifiedIDConfig({ settings, onUpdateSettings }: UnifiedI
       description: 'Contra voucher numbers for bank-to-bank transfers',
     },
     {
-      type: 'credit_note',
-      label: 'Credit Note',
-      icon: FileText,
-      prefix: settings.credit_note_prefix || 'CN',
-      suffix: settings.credit_note_suffix || '',
-      width: settings.credit_note_number_width || 6,
-      prefixZero: settings.credit_note_number_prefix_zero !== false,
-      startingNumber: settings.credit_note_starting_number || 1,
-      description: 'Credit note numbers for customer refunds',
-    },
-    {
-      type: 'debit_note',
-      label: 'Debit Note',
-      icon: FileText,
-      prefix: settings.debit_note_prefix || 'DN',
-      suffix: settings.debit_note_suffix || '',
-      width: settings.debit_note_number_width || 6,
-      prefixZero: settings.debit_note_number_prefix_zero !== false,
-      startingNumber: settings.debit_note_starting_number || 1,
-      description: 'Debit note numbers for supplier returns',
-    },
-    {
       type: 'customer_id',
       label: 'Customer ID',
       icon: Users,
@@ -170,7 +148,7 @@ export default function UnifiedIDConfig({ settings, onUpdateSettings }: UnifiedI
 
   // Group configurations
   const voucherTypes = idTypes.filter((t) =>
-    ['invoice', 'receipt', 'payment', 'journal', 'contra', 'credit_note', 'debit_note'].includes(t.type)
+    ['invoice', 'receipt', 'payment', 'journal', 'contra'].includes(t.type)
   );
   const entityIDTypes = idTypes.filter((t) =>
     ['customer_id', 'employee_id', 'service_code', 'work_id'].includes(t.type)

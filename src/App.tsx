@@ -30,7 +30,16 @@ import { ToastProvider } from './contexts/ToastContext';
 function AppContent() {
   const { user, loading } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  // Persist current page to prevent loss on auth state changes
+  const [currentPage, setCurrentPage] = useState(() => {
+    return sessionStorage.getItem('currentPage') || 'dashboard';
+  });
+
+  // Save current page to sessionStorage whenever it changes
+  const handleNavigate = (page: string) => {
+    setCurrentPage(page);
+    sessionStorage.setItem('currentPage', page);
+  };
 
   if (loading) {
     return (
@@ -58,7 +67,7 @@ function AppContent() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard onNavigate={setCurrentPage} />;
+        return <Dashboard onNavigate={handleNavigate} />;
       case 'services':
         return <Services />;
       case 'leads':
@@ -70,36 +79,36 @@ function AppContent() {
       case 'works':
         return <Works />;
       case 'accounting':
-        return <Accounting onNavigate={setCurrentPage} />;
+        return <Accounting onNavigate={handleNavigate} />;
       case 'invoices':
         return <Invoices />;
       case 'invoices-list':
-        return <InvoicesList onBack={() => setCurrentPage('vouchers')} />;
+        return <InvoicesList onBack={() => handleNavigate('vouchers')} />;
       case 'vouchers':
-        return <Vouchers onNavigate={setCurrentPage} />;
+        return <Vouchers onNavigate={handleNavigate} />;
       case 'chart-of-accounts':
-        return <ChartOfAccounts onNavigate={setCurrentPage} />;
+        return <ChartOfAccounts onNavigate={handleNavigate} />;
       case 'ledger':
-        return <Ledger onNavigate={setCurrentPage} />;
+        return <Ledger onNavigate={handleNavigate} />;
       case 'accounting-masters':
         return <AccountingMasters />;
       case 'reminders':
         return <Reminders />;
       case 'reports':
-        return <Reports onNavigate={setCurrentPage} />;
+        return <Reports onNavigate={handleNavigate} />;
       case 'settings':
         return <Settings />;
       case 'profile':
         return <Profile />;
       default:
-        return <Dashboard onNavigate={setCurrentPage} />;
+        return <Dashboard onNavigate={handleNavigate} />;
     }
   };
 
   return (
     <Routes>
       <Route path="*" element={
-        <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
+        <Layout currentPage={currentPage} onNavigate={handleNavigate}>
           {renderPage()}
         </Layout>
       } />

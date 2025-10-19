@@ -704,9 +704,9 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
           )}
 
           {/* Transactions Table Container - Full Height with Fixed Bottom Panel */}
-          <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex flex-col flex-1 min-h-0 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             {filteredEntries.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center flex-1 flex flex-col items-center justify-center overflow-hidden">
+              <div className="p-12 text-center flex-1 flex flex-col items-center justify-center">
                 <BookOpen className="w-16 h-16 text-gray-300 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions found</h3>
                 <p className="text-gray-600">
@@ -717,165 +717,166 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
               </div>
             ) : (
               <>
-                {/* Table Container with Scrollable Body */}
-                <div className="bg-white rounded-t-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col min-h-0">
-                  {/* Title Bar */}
-                  <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 flex-shrink-0">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-bold text-gray-900">Ledger Transactions</h2>
-                      <div className="text-sm text-gray-600">
-                        {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
-                      </div>
+                {/* Fixed Title Bar */}
+                <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-gray-900">Ledger Transactions</h2>
+                    <div className="text-sm text-gray-600">
+                      {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
                     </div>
-                  </div>
-
-                  {/* Scrollable Table Area */}
-                  <div className="flex-1 overflow-y-auto overflow-x-hidden">
-                    <table className="w-full">
-                      <thead className="bg-gradient-to-r from-slate-700 to-slate-600 sticky top-0 z-10">
-                        <tr>
-                          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '12%' }}>
-                            Date
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '13%' }}>
-                            Voucher No.
-                          </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '30%' }}>
-                            Particulars
-                          </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
-                            Debit (₹)
-                          </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
-                            Credit (₹)
-                          </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
-                            Balance (₹)
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white">
-                        {filteredEntries.map((entry) => (
-                          <tr
-                            key={entry.id}
-                            className="hover:bg-blue-50 transition-colors cursor-pointer group"
-                            onClick={() => handleTransactionClick(entry)}
-                            title="Click to view/edit voucher"
-                          >
-                            <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900" style={{ width: '12%' }}>
-                              <div className="flex items-center gap-2">
-                                {formatDateDisplay(entry.transaction_date)}
-                                {entry.voucher_id && (
-                                  <Edit2 className="w-3 h-3 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap" style={{ width: '13%' }}>
-                              <div className="flex flex-col">
-                                <span className="font-mono text-sm text-blue-600 font-medium">
-                                  {entry.voucher_number}
-                                </span>
-                                <span className="text-xs text-gray-500">{entry.voucher_type}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-3 text-sm font-medium text-gray-900" style={{ width: '30%' }}>
-                              {entry.particulars}
-                            </td>
-                            <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
-                              {entry.debit > 0 ? (
-                                <span className="text-sm font-semibold text-blue-600">
-                                  ₹{entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </span>
-                              ) : (
-                                <span className="text-sm text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
-                              {entry.credit > 0 ? (
-                                <span className="text-sm font-semibold text-red-600">
-                                  ₹{entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </span>
-                              ) : (
-                                <span className="text-sm text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
-                              <span className={`text-sm font-bold ${
-                                entry.balance >= 0 ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                                ₹{Math.abs(entry.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                <span className="text-xs ml-1">{entry.balance >= 0 ? 'Dr' : 'Cr'}</span>
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
                   </div>
                 </div>
 
-                {/* Bottom Summary Panel - Fixed at Bottom */}
-                <div className="bg-white rounded-b-xl shadow-sm border border-t-0 border-gray-200 flex-shrink-0 overflow-hidden">
-                  <div className="border-t-4 border-slate-700 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50">
-                    <table className="w-full">
-                      <tbody>
-                        {/* Opening Balance Row */}
-                        <tr className="border-b-2 border-slate-300 bg-gradient-to-r from-blue-50 to-slate-50">
-                          <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm" style={{ width: '55%' }}>
-                            Opening Balance
-                          </td>
-                          <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
-                          <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
-                          <td className="px-6 py-3 text-right" style={{ width: '15%' }}>
-                            <span className={`text-base font-bold ${
-                              openingBalance >= 0 ? 'text-green-700' : 'text-red-700'
-                            }`}>
-                              ₹{Math.abs(openingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              <span className="text-xs ml-2 font-bold bg-white/60 px-2 py-0.5 rounded">{openingBalance >= 0 ? 'Dr' : 'Cr'}</span>
-                            </span>
-                          </td>
-                        </tr>
+                {/* Fixed Table Headers */}
+                <div className="flex-shrink-0 bg-gradient-to-r from-slate-700 to-slate-600">
+                  <table className="w-full">
+                    <thead>
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '12%' }}>
+                          Date
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '13%' }}>
+                          Voucher No.
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white" style={{ width: '30%' }}>
+                          Particulars
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                          Debit (₹)
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                          Credit (₹)
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-white" style={{ width: '15%' }}>
+                          Balance (₹)
+                        </th>
+                      </tr>
+                    </thead>
+                  </table>
+                </div>
 
-                        {/* Totals Row */}
-                        <tr className="bg-gradient-to-r from-slate-300 via-slate-200 to-slate-300 border-b-4 border-slate-500">
-                          <td className="px-6 py-4 text-left font-black text-slate-900 text-base uppercase tracking-wide" style={{ width: '55%' }}>
+                {/* Scrollable Transaction Rows Only */}
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <table className="w-full">
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {filteredEntries.map((entry) => (
+                        <tr
+                          key={entry.id}
+                          className="hover:bg-blue-50 transition-colors cursor-pointer group"
+                          onClick={() => handleTransactionClick(entry)}
+                          title="Click to view/edit voucher"
+                        >
+                          <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900" style={{ width: '12%' }}>
                             <div className="flex items-center gap-2">
-                              <BookOpen className="w-5 h-5" />
-                              Total
+                              {formatDateDisplay(entry.transaction_date)}
+                              {entry.voucher_id && (
+                                <Edit2 className="w-3 h-3 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              )}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-right" style={{ width: '15%' }}>
-                            <span className="text-lg font-black text-blue-800">
-                              ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
+                          <td className="px-6 py-3 whitespace-nowrap" style={{ width: '13%' }}>
+                            <div className="flex flex-col">
+                              <span className="font-mono text-sm text-blue-600 font-medium">
+                                {entry.voucher_number}
+                              </span>
+                              <span className="text-xs text-gray-500">{entry.voucher_type}</span>
+                            </div>
                           </td>
-                          <td className="px-6 py-4 text-right" style={{ width: '15%' }}>
-                            <span className="text-lg font-black text-red-800">
-                              ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
+                          <td className="px-6 py-3 text-sm font-medium text-gray-900" style={{ width: '30%' }}>
+                            {entry.particulars}
                           </td>
-                          <td className="px-6 py-4 text-right" style={{ width: '15%' }}></td>
-                        </tr>
-
-                        {/* Closing Balance Row */}
-                        <tr className="bg-gradient-to-r from-slate-50 to-blue-50">
-                          <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm" style={{ width: '55%' }}>
-                            Closing Balance
+                          <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
+                            {entry.debit > 0 ? (
+                              <span className="text-sm font-semibold text-blue-600">
+                                ₹{entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
                           </td>
-                          <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
-                          <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
-                          <td className="px-6 py-3 text-right" style={{ width: '15%' }}>
-                            <span className={`text-base font-bold ${
-                              closingBalance >= 0 ? 'text-green-700' : 'text-red-700'
+                          <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
+                            {entry.credit > 0 ? (
+                              <span className="text-sm font-semibold text-red-600">
+                                ₹{entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-3 text-right whitespace-nowrap" style={{ width: '15%' }}>
+                            <span className={`text-sm font-bold ${
+                              entry.balance >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
-                              ₹{Math.abs(closingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              <span className="text-xs ml-2 font-bold bg-white/60 px-2 py-0.5 rounded">{closingBalance >= 0 ? 'Dr' : 'Cr'}</span>
+                              ₹{Math.abs(entry.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              <span className="text-xs ml-1">{entry.balance >= 0 ? 'Dr' : 'Cr'}</span>
                             </span>
                           </td>
                         </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Fixed Bottom Summary Panel */}
+                <div className="flex-shrink-0 border-t-4 border-slate-700 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50">
+                  <table className="w-full">
+                    <tbody>
+                      {/* Opening Balance Row */}
+                      <tr className="border-b-2 border-slate-300 bg-gradient-to-r from-blue-50 to-slate-50">
+                        <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm" style={{ width: '55%' }}>
+                          Opening Balance
+                        </td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}>
+                          <span className={`text-base font-bold ${
+                            openingBalance >= 0 ? 'text-green-700' : 'text-red-700'
+                          }`}>
+                            ₹{Math.abs(openingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            <span className="text-xs ml-2 font-bold bg-white/60 px-2 py-0.5 rounded">{openingBalance >= 0 ? 'Dr' : 'Cr'}</span>
+                          </span>
+                        </td>
+                      </tr>
+
+                      {/* Totals Row */}
+                      <tr className="bg-gradient-to-r from-slate-300 via-slate-200 to-slate-300 border-b-4 border-slate-500">
+                        <td className="px-6 py-4 text-left font-black text-slate-900 text-base uppercase tracking-wide" style={{ width: '55%' }}>
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="w-5 h-5" />
+                            Total
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right" style={{ width: '15%' }}>
+                          <span className="text-lg font-black text-blue-800">
+                            ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right" style={{ width: '15%' }}>
+                          <span className="text-lg font-black text-red-800">
+                            ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right" style={{ width: '15%' }}></td>
+                      </tr>
+
+                      {/* Closing Balance Row */}
+                      <tr className="bg-gradient-to-r from-slate-50 to-blue-50">
+                        <td className="px-6 py-3 text-left font-semibold text-slate-800 text-sm" style={{ width: '55%' }}>
+                          Closing Balance
+                        </td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}></td>
+                        <td className="px-6 py-3 text-right" style={{ width: '15%' }}>
+                          <span className={`text-base font-bold ${
+                            closingBalance >= 0 ? 'text-green-700' : 'text-red-700'
+                          }`}>
+                            ₹{Math.abs(closingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            <span className="text-xs ml-2 font-bold bg-white/60 px-2 py-0.5 rounded">{closingBalance >= 0 ? 'Dr' : 'Cr'}</span>
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </>
             )}
