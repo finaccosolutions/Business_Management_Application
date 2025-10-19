@@ -24,6 +24,10 @@ interface VoucherEntry {
   debit_amount: number;
   credit_amount: number;
   narration: string;
+  chart_of_accounts?: {
+    account_code: string;
+    account_name: string;
+  };
 }
 
 interface Voucher {
@@ -416,15 +420,157 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
   };
 
   const handleEdit = async (voucher: Voucher) => {
-    toast.info('Edit functionality coming soon');
+    const voucherType = voucherTypes.find(t => t.id === voucher.voucher_type_id);
+    if (voucherType) {
+      setSelectedVoucher(voucher);
+      setSelectedVoucherType(voucherType);
+      setShowModal(true);
+    }
   };
 
   const handleView = async (voucher: Voucher) => {
-    setSelectedVoucher(voucher);
+    try {
+      const { data: entries } = await supabase
+        .from('voucher_entries')
+        .select('*, chart_of_accounts(account_code, account_name)')
+        .eq('voucher_id', voucher.id);
+
+      if (entries) {
+        setSelectedVoucher({ ...voucher, voucher_entries: entries });
+      }
+    } catch (error) {
+      console.error('Error loading voucher details:', error);
+      toast.error('Failed to load voucher details');
+    }
   };
 
   const handlePrint = async (voucher: Voucher) => {
-    toast.info('Print functionality coming soon');
+    try {
+      const { data: entries } = await supabase
+        .from('voucher_entries')
+        .select('*, chart_of_accounts(account_code, account_name)')
+        .eq('voucher_id', voucher.id);
+
+      if (!entries) {
+        toast.error('Failed to load voucher entries');
+        return;
+      }
+
+      const voucherType = voucherTypes.find(t => t.id === voucher.voucher_type_id);
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error('Please allow popups to print vouchers');
+        return;
+      }
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Voucher - ${voucher.voucher_number}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .header h1 { margin: 0; color: #333; }
+            .header h2 { margin: 5px 0; color: #666; }
+            .info-section { margin: 20px 0; }
+            .info-row { display: flex; justify-content: space-between; margin: 8px 0; }
+            .info-label { font-weight: bold; color: #555; }
+            .entries-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            .entries-table th { background: #f5f5f5; padding: 12px; text-align: left; border: 1px solid #ddd; font-weight: bold; }
+            .entries-table td { padding: 10px; border: 1px solid #ddd; }
+            .entries-table tr:nth-child(even) { background: #fafafa; }
+            .total-row { font-weight: bold; background: #f5f5f5 !important; }
+            .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; }
+            .signature-section { margin-top: 60px; display: flex; justify-content: space-between; }
+            .signature { text-align: center; }
+            .signature-line { width: 200px; border-top: 1px solid #333; margin-top: 50px; }
+            @media print {
+              body { margin: 20px; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>${voucherType?.name || 'Voucher'}</h1>
+            <h2>Voucher No: ${voucher.voucher_number}</h2>
+          </div>
+
+          <div class="info-section">
+            <div class="info-row">
+              <span><span class="info-label">Date:</span> ${formatDateDisplay(voucher.voucher_date)}</span>
+              <span><span class="info-label">Status:</span> ${voucher.status.toUpperCase()}</span>
+            </div>
+            ${voucher.reference_number ? `
+            <div class="info-row">
+              <span><span class="info-label">Reference:</span> ${voucher.reference_number}</span>
+            </div>
+            ` : ''}
+            ${voucher.narration ? `
+            <div class="info-row">
+              <span><span class="info-label">Narration:</span> ${voucher.narration}</span>
+            </div>
+            ` : ''}
+          </div>
+
+          <table class="entries-table">
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th style="text-align: right;">Debit (₹)</th>
+                <th style="text-align: right;">Credit (₹)</th>
+                <th>Particulars</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${entries.map((entry: any) => `
+                <tr>
+                  <td>${entry.chart_of_accounts?.account_code || ''} - ${entry.chart_of_accounts?.account_name || 'Unknown Account'}</td>
+                  <td style="text-align: right;">${entry.debit_amount > 0 ? entry.debit_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td style="text-align: right;">${entry.credit_amount > 0 ? entry.credit_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</td>
+                  <td>${entry.narration || '-'}</td>
+                </tr>
+              `).join('')}
+              <tr class="total-row">
+                <td>Total</td>
+                <td style="text-align: right;">${entries.reduce((sum: number, e: any) => sum + (e.debit_amount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right;">${entries.reduce((sum: number, e: any) => sum + (e.credit_amount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="signature-section">
+            <div class="signature">
+              <div class="signature-line"></div>
+              <p>Prepared By</p>
+            </div>
+            <div class="signature">
+              <div class="signature-line"></div>
+              <p>Approved By</p>
+            </div>
+          </div>
+
+          <div class="footer" style="text-align: center; color: #888; font-size: 12px;">
+            <p>This is a computer generated voucher</p>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } catch (error) {
+      console.error('Error printing voucher:', error);
+      toast.error('Failed to print voucher');
+    }
   };
 
   const handleCancel = async (id: string, voucherNumber: string) => {
@@ -672,7 +818,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
           </>
         )}
 
-        {selectedVoucher && (
+        {selectedVoucher && !showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-blue-600 to-cyan-600">
@@ -685,7 +831,80 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
                 </button>
               </div>
               <div className="p-6">
-                <p className="text-center text-gray-600 dark:text-gray-400">Voucher details view coming soon...</p>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Voucher Number</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedVoucher.voucher_number}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Date</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{formatDateDisplay(selectedVoucher.voucher_date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Type</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedVoucher.voucher_types.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedVoucher.status.toUpperCase()}</p>
+                    </div>
+                    {selectedVoucher.reference_number && (
+                      <div className="col-span-2">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Reference Number</p>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedVoucher.reference_number}</p>
+                      </div>
+                    )}
+                    {selectedVoucher.narration && (
+                      <div className="col-span-2">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Narration</p>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedVoucher.narration}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Entries</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 dark:bg-slate-700">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Debit</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Credit</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Narration</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
+                          {selectedVoucher.voucher_entries?.map((entry: any) => (
+                            <tr key={entry.id}>
+                              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                {entry.chart_of_accounts?.account_code || ''} - {entry.chart_of_accounts?.account_name || 'Loading...'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white font-medium">
+                                {entry.debit_amount > 0 ? `₹${entry.debit_amount.toLocaleString('en-IN')}` : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white font-medium">
+                                {entry.credit_amount > 0 ? `₹${entry.credit_amount.toLocaleString('en-IN')}` : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{entry.narration || '-'}</td>
+                            </tr>
+                          ))}
+                          <tr className="bg-gray-50 dark:bg-slate-700 font-bold">
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">Total</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                              ₹{selectedVoucher.voucher_entries?.reduce((sum: number, e: any) => sum + (e.debit_amount || 0), 0).toLocaleString('en-IN')}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                              ₹{selectedVoucher.voucher_entries?.reduce((sum: number, e: any) => sum + (e.credit_amount || 0), 0).toLocaleString('en-IN')}
+                            </td>
+                            <td></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
