@@ -345,37 +345,6 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
-            {/* Work Selection - Quick Fill */}
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Briefcase size={20} className="text-green-600" />
-                Quick Fill from Work (Optional)
-              </h3>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Completed Work
-                </label>
-                <select
-                  value={formData.work_id}
-                  onChange={(e) => {
-                    setFormData({ ...formData, work_id: e.target.value });
-                    if (e.target.value) {
-                      loadWorkDetails(e.target.value);
-                    }
-                  }}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                >
-                  <option value="">Select a work to auto-fill invoice details</option>
-                  {works.map((work) => (
-                    <option key={work.id} value={work.id}>
-                      {work.title} - {work.customers.name} ({work.services.name})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-2">Selecting a work will auto-fill customer and service details</p>
-              </div>
-            </div>
-
             <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Users size={20} className="text-amber-600" />

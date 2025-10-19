@@ -631,7 +631,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
 
         {showModal && selectedVoucherType && (
           <>
-            {selectedVoucherType.code.toUpperCase() === 'PV' ? (
+            {selectedVoucherType.code.toUpperCase() === 'ITMPMT' || selectedVoucherType.code.toUpperCase() === 'PV' ? (
               <PaymentVoucherModal
                 onClose={() => {
                   setShowModal(false);
@@ -640,7 +640,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
                 }}
                 voucherTypeId={selectedVoucherType.id}
               />
-            ) : selectedVoucherType.code.toUpperCase() === 'RV' ? (
+            ) : selectedVoucherType.code.toUpperCase() === 'ITMRCT' || selectedVoucherType.code.toUpperCase() === 'RV' ? (
               <ReceiptVoucherModal
                 onClose={() => {
                   setShowModal(false);
@@ -649,7 +649,7 @@ export default function Vouchers({ onNavigate }: VouchersProps) {
                 }}
                 voucherTypeId={selectedVoucherType.id}
               />
-            ) : selectedVoucherType.code.toUpperCase() === 'CV' ? (
+            ) : selectedVoucherType.code.toUpperCase() === 'ITMCNT' || selectedVoucherType.code.toUpperCase() === 'CV' ? (
               <ContraVoucherModal
                 onClose={() => {
                   setShowModal(false);
