@@ -74,6 +74,7 @@ interface ServiceTask {
   task_recurrence_type: string | null;
   due_offset_type: string | null;
   due_offset_value: number | null;
+  exact_due_date: string | null;
   specific_period_dates: Record<string, string> | null;
   staff?: { name: string } | null;
 }
@@ -859,7 +860,12 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                                 Est: {task.estimated_hours}h
                               </span>
                             )}
-                            {task.due_offset_value && (
+                            {task.exact_due_date ? (
+                              <span className="flex items-center gap-1 text-green-600 font-semibold">
+                                <Calendar size={14} />
+                                Due: {new Date(task.exact_due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                            ) : task.due_offset_value && (
                               <span className="flex items-center gap-1 text-orange-600">
                                 <Calendar size={14} />
                                 Due: {task.task_recurrence_type && (
@@ -1142,6 +1148,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                   due_offset_value: formData.get('due_offset_value')
                     ? parseInt(formData.get('due_offset_value') as string)
                     : 10,
+                  exact_due_date: (formData.get('exact_due_date') as string) || null,
                   specific_period_dates: editingTask?.specific_period_dates || {},
                   default_assigned_to: (formData.get('default_assigned_to') as string) || null,
                   is_active: true,
@@ -1331,18 +1338,31 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-orange-200">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
                     <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <Calendar size={16} className="text-orange-600" />
-                      Period-Specific Due Date Override
+                      <Calendar size={16} className="text-green-600" />
+                      Exact Due Date (Applies to All Works)
                     </h4>
                     <p className="text-xs text-gray-600 mb-3">
-                      Override due date for specific periods (e.g., September 2025 extended to 25th).
-                      This will be managed in work details after work creation.
+                      Set a fixed due date for this task. This will apply to ALL works using this service.
                     </p>
-                    <div className="bg-white border border-orange-200 rounded-lg p-3 text-xs text-gray-700">
-                      <p className="font-medium mb-1">Note:</p>
-                      <p>Period-specific overrides can be set when viewing work details in the Periods & Tasks tab. They will only apply to that specific period.</p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Exact Due Date (Optional)
+                      </label>
+                      <input
+                        type="date"
+                        name="exact_due_date"
+                        defaultValue={editingTask?.exact_due_date || ''}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        If set, this overrides the offset calculation. Leave empty to use offset-based calculation.
+                      </p>
+                    </div>
+                    <div className="bg-white border border-green-200 rounded-lg p-3 text-xs text-gray-700 mt-3">
+                      <p className="font-medium mb-1">Example:</p>
+                      <p>Set "2025-03-15" to make this task due on 15th March 2025 for all works.</p>
                     </div>
                   </div>
                 </div>
