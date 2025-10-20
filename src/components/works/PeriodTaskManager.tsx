@@ -22,6 +22,9 @@ interface PeriodTask {
   completed_by: string | null;
   remarks: string | null;
   sort_order: number;
+  is_overridden: boolean;
+  due_date_override: string | null;
+  override_reason: string | null;
   staff: { name: string } | null;
 }
 
@@ -42,7 +45,8 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
   const [editForm, setEditForm] = useState({
     due_date: '',
     assigned_to: '',
-    remarks: ''
+    remarks: '',
+    override_reason: ''
   });
   const [newTaskForm, setNewTaskForm] = useState({
     title: '',
@@ -180,7 +184,10 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
         updated_at: new Date().toISOString()
       };
 
-      if (editForm.due_date) updates.due_date = editForm.due_date;
+      if (editForm.due_date) {
+        updates.due_date = editForm.due_date;
+        updates.override_reason = editForm.override_reason || null;
+      }
       if (editForm.assigned_to) updates.assigned_to = editForm.assigned_to;
       if (editForm.remarks !== undefined) updates.remarks = editForm.remarks || null;
 
@@ -218,7 +225,8 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
     setEditForm({
       due_date: task.due_date,
       assigned_to: task.assigned_to || '',
-      remarks: task.remarks || ''
+      remarks: task.remarks || '',
+      override_reason: task.override_reason || ''
     });
   };
 
@@ -349,11 +357,16 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
 
                         <div className="flex flex-wrap items-center gap-3 text-sm">
                           <div className="flex items-center gap-1.5">
-                            <Calendar size={14} className={isOverdue ? 'text-red-500' : 'text-blue-500'} />
+                            <Calendar size={14} className={isOverdue ? 'text-red-500' : task.is_overridden ? 'text-orange-500' : 'text-blue-500'} />
                             <span className="text-gray-600">Due:</span>
-                            <span className={isOverdue ? 'text-red-600 font-medium' : 'text-gray-700'}>
+                            <span className={isOverdue ? 'text-red-600 font-medium' : task.is_overridden ? 'text-orange-700 font-medium' : 'text-gray-700'}>
                               {formatDateDisplay(task.due_date)}
                             </span>
+                            {task.is_overridden && (
+                              <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700" title={task.override_reason || 'Due date manually changed for this period'}>
+                                Modified
+                              </span>
+                            )}
                             {task.status !== 'completed' && (
                               daysUntilDue >= 0 ? (
                                 <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
@@ -431,6 +444,13 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
                         </div>
                       )}
 
+                      {task.is_overridden && task.override_reason && (
+                        <div className="bg-orange-50 border border-orange-200 rounded p-2">
+                          <span className="font-medium text-orange-700">Due Date Override:</span>
+                          <p className="text-orange-600 mt-1 text-xs">{task.override_reason}</p>
+                        </div>
+                      )}
+
                       {task.completed_at && (
                         <div className="text-gray-600">
                           <span className="font-medium">Completed:</span> {formatDateDisplay(task.completed_at.split('T')[0])}
@@ -488,6 +508,22 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
                           rows={2}
                           placeholder="Add notes or remarks..."
                         />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Due Date Override Reason (optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.override_reason}
+                          onChange={(e) => setEditForm({ ...editForm, override_reason: e.target.value })}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          placeholder="e.g., Government extended deadline to..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          If you changed the due date, explain why (e.g., government extension). This only affects this period.
+                        </p>
                       </div>
 
                       <div className="flex gap-2">

@@ -73,6 +73,11 @@ interface ServiceTask {
   due_date_offset_days: number | null;
   due_date_offset_type: string;
   default_assigned_to: string | null;
+  task_recurrence_type: string | null;
+  due_offset_type: string | null;
+  due_offset_value: number | null;
+  due_offset_month: number | null;
+  apply_to_month: string | null;
   staff?: { name: string } | null;
 }
 
@@ -840,12 +845,21 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                                 Est: {task.estimated_hours}h
                               </span>
                             )}
-                            {task.due_date_offset_days && (
+                            {(task.due_offset_value || task.due_date_offset_days) && (
                               <span className="flex items-center gap-1 text-orange-600">
                                 <Calendar size={14} />
-                                Due: {task.due_date_offset_type === 'month_start' ? `${task.due_date_offset_days}th of month` :
-                                     task.due_date_offset_type === 'period_start' ? `${task.due_date_offset_days}d after start` :
-                                     `${task.due_date_offset_days}d after end`}
+                                Due: {
+                                  task.task_recurrence_type && (
+                                    <span className="font-semibold">({task.task_recurrence_type}) </span>
+                                  )
+                                }
+                                {task.due_offset_type === 'day_of_month' ? `${task.due_offset_value}th of month` :
+                                 task.due_offset_type === 'days_after_period_end' ? `${task.due_offset_value}d after period end` :
+                                 task.due_offset_type === 'months_after_period_end' ? `${task.due_offset_value}mo after period end` :
+                                 task.due_offset_type === 'days_after_period_start' ? `${task.due_offset_value}d after period start` :
+                                 task.due_date_offset_type === 'month_start' ? `${task.due_date_offset_days}th of month` :
+                                 task.due_date_offset_type === 'period_start' ? `${task.due_date_offset_days}d after start` :
+                                 `${task.due_date_offset_days}d after end`}
                               </span>
                             )}
                             {task.staff && (
@@ -1111,10 +1125,15 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                     ? parseFloat(formData.get('estimated_hours') as string)
                     : null,
                   notes: (formData.get('notes') as string) || null,
-                  due_date_offset_days: formData.get('due_date_offset_days')
-                    ? parseInt(formData.get('due_date_offset_days') as string)
+                  task_recurrence_type: (formData.get('task_recurrence_type') as string) || null,
+                  due_offset_type: formData.get('due_offset_type') as string,
+                  due_offset_value: formData.get('due_offset_value')
+                    ? parseInt(formData.get('due_offset_value') as string)
                     : null,
-                  due_date_offset_type: formData.get('due_date_offset_type') as string,
+                  due_offset_month: formData.get('due_offset_month')
+                    ? parseInt(formData.get('due_offset_month') as string)
+                    : null,
+                  apply_to_month: (formData.get('apply_to_month') as string) || null,
                   default_assigned_to: (formData.get('default_assigned_to') as string) || null,
                   is_active: true,
                   sort_order: serviceTasks.length,
@@ -1207,41 +1226,115 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                 />
               </div>
 
-              <div className="border-t border-gray-200 pt-4 mt-4">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">Due Date Configuration</h4>
-                <p className="text-xs text-gray-600 mb-3">
-                  Configure when this task is due relative to the period. For example, if GSTR-1 is due on the 10th of each month, set offset to 10.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Due Date Offset
-                    </label>
-                    <input
-                      type="number"
-                      name="due_date_offset_days"
-                      min="1"
-                      max="31"
-                      defaultValue={editingTask?.due_date_offset_days || ''}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., 10 for 10th"
-                    />
+              <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Task Recurrence Configuration</h4>
+                  <p className="text-xs text-gray-600 mb-3">
+                    {service.is_recurring
+                      ? `Service is ${service.recurrence_type}. Tasks can have different recurrence periods (e.g., monthly tasks for quarterly service).`
+                      : 'Configure how often this task occurs within the service.'}
+                  </p>
+                  {service.is_recurring && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Task Recurrence Period
+                      </label>
+                      <select
+                        name="task_recurrence_type"
+                        defaultValue={editingTask?.task_recurrence_type || service.recurrence_type}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Same as Service ({service.recurrence_type})</option>
+                        <option value="monthly">Monthly (creates task every month)</option>
+                        <option value="quarterly">Quarterly (creates task every quarter)</option>
+                        <option value="half_yearly">Half Yearly (creates task every 6 months)</option>
+                        <option value="yearly">Yearly (creates task once a year)</option>
+                        <option value="one_time">One Time (single task)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Example: For quarterly GST, you can set monthly payment tasks
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Due Date Configuration</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Offset Type
+                      </label>
+                      <select
+                        id="due_offset_type"
+                        name="due_offset_type"
+                        defaultValue={editingTask?.due_offset_type || 'day_of_month'}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="day_of_month">Day of Month (e.g., 10th, 20th)</option>
+                        <option value="days_after_period_end">Days after Period End</option>
+                        <option value="months_after_period_end">Months after Period End</option>
+                        <option value="days_after_period_start">Days after Period Start</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Offset Value
+                      </label>
+                      <input
+                        type="number"
+                        name="due_offset_value"
+                        min="1"
+                        defaultValue={editingTask?.due_offset_value || ''}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., 10, 20, 31"
+                      />
+                    </div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Examples: 10 for 10th of month, 7 for 7 days after period end, 2 for 2 months after period end
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Day of Month (for months_after_period_end)
+                  </label>
+                  <input
+                    type="number"
+                    name="due_offset_month"
+                    min="1"
+                    max="31"
+                    defaultValue={editingTask?.due_offset_month || ''}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., 31 for last day"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Used with "Months after Period End". Example: 2 months after with day 31 = due on 31st of 2nd month
+                  </p>
+                </div>
+
+                {service.is_recurring && service.recurrence_type !== 'monthly' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Offset Type
+                      Apply to Month (for multi-month periods)
                     </label>
                     <select
-                      name="due_date_offset_type"
-                      defaultValue={editingTask?.due_date_offset_type || 'month_start'}
+                      name="apply_to_month"
+                      defaultValue={editingTask?.apply_to_month || ''}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="month_start">Day of Month (e.g., 10th)</option>
-                      <option value="period_start">Days after Period Start</option>
-                      <option value="period_end">Days after Period End</option>
+                      <option value="">-- Select if needed --</option>
+                      <option value="first">First month of period</option>
+                      <option value="second">Second month of period</option>
+                      <option value="third">Third month of period</option>
+                      <option value="last">Last month of period</option>
                     </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      For quarterly/half-yearly/yearly services with tasks in specific months
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="flex space-x-3 pt-4">
