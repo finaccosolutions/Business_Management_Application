@@ -256,6 +256,27 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         invoicesQuery = invoicesQuery.lte('invoice_date', dateRange.end);
       }
 
+      let pendingWorksQuery = supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'pending');
+      let overdueWorksQuery = supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'overdue');
+      let completedWorksQuery = supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'completed');
+      let inProgressWorksQuery = supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'in_progress');
+      let tasksCompletedQuery = supabase.from('work_tasks').select('id', { count: 'exact', head: true }).eq('status', 'completed');
+
+      if (dateRange.start) {
+        pendingWorksQuery = pendingWorksQuery.gte('created_at', dateRange.start);
+        overdueWorksQuery = overdueWorksQuery.gte('created_at', dateRange.start);
+        completedWorksQuery = completedWorksQuery.gte('created_at', dateRange.start);
+        inProgressWorksQuery = inProgressWorksQuery.gte('created_at', dateRange.start);
+        tasksCompletedQuery = tasksCompletedQuery.gte('created_at', dateRange.start);
+      }
+      if (dateRange.end) {
+        pendingWorksQuery = pendingWorksQuery.lte('created_at', dateRange.end);
+        overdueWorksQuery = overdueWorksQuery.lte('created_at', dateRange.end);
+        completedWorksQuery = completedWorksQuery.lte('created_at', dateRange.end);
+        inProgressWorksQuery = inProgressWorksQuery.lte('created_at', dateRange.end);
+        tasksCompletedQuery = tasksCompletedQuery.lte('created_at', dateRange.end);
+      }
+
       const [
         leadsResult,
         customersResult,
@@ -277,10 +298,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         leadsQuery,
         customersQuery,
         worksQuery,
-        supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
-        supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
-        supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
+        pendingWorksQuery,
+        overdueWorksQuery,
+        completedWorksQuery,
+        inProgressWorksQuery,
         invoicesQuery,
         (() => {
           let query = supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'paid');
@@ -304,7 +325,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         supabase.from('staff_members').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('services').select('id', { count: 'exact', head: true }),
         supabase.from('services').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('work_tasks').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
+        tasksCompletedQuery,
       ]);
 
       let paidInvoicesQuery = supabase

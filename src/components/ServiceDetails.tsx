@@ -108,6 +108,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
   const [editingTask, setEditingTask] = useState<ServiceTask | null>(null);
   const [editingDocument, setEditingDocument] = useState<ServiceDocument | null>(null);
   const [ledgers, setLedgers] = useState<Array<{id: string; account_code: string; account_name: string;}>>([]);
+  const [staffList, setStaffList] = useState<Array<{id: string; name: string}>>([]);
   const [savingLedgerMap, setSavingLedgerMap] = useState(false);
   const [statistics, setStatistics] = useState({
     totalCustomers: 0,
@@ -122,6 +123,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
     if (serviceId) {
       fetchServiceDetails();
       fetchLedgers();
+      fetchStaff();
     }
   }, [serviceId]);
 
@@ -137,6 +139,21 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
       setLedgers(data || []);
     } catch (error: any) {
       console.error('Error fetching ledgers:', error);
+    }
+  };
+
+  const fetchStaff = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('staff_members')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setStaffList(data || []);
+    } catch (error: any) {
+      console.error('Error fetching staff:', error);
     }
   };
 
@@ -1106,7 +1123,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
       {/* Task Modal */}
       {showTaskModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
               <h3 className="text-xl font-bold text-white">
                 {editingTask ? 'Edit Task Template' : 'Add Task Template'}
@@ -1185,7 +1202,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
                   <select
@@ -1213,6 +1230,22 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                     placeholder="0"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Default Assignee
+                  </label>
+                  <select
+                    name="default_assigned_to"
+                    defaultValue={editingTask?.default_assigned_to || ''}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Unassigned</option>
+                    {staffList.map(staff => (
+                      <option key={staff.id} value={staff.id}>{staff.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -1227,8 +1260,11 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
               </div>
 
               <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Task Recurrence Configuration</h4>
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <Repeat size={16} className="text-blue-600" />
+                    Task Recurrence Configuration
+                  </h4>
                   <p className="text-xs text-gray-600 mb-3">
                     {service.is_recurring
                       ? `Service is ${service.recurrence_type}. Tasks can have different recurrence periods (e.g., monthly tasks for quarterly service).`
@@ -1258,8 +1294,11 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                   )}
                 </div>
 
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Due Date Configuration</h4>
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 border border-orange-200">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Calendar size={16} className="text-orange-600" />
+                    Due Date Configuration
+                  </h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1296,7 +1335,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                   </p>
                 </div>
 
-                <div>
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Day of Month (for months_after_period_end)
                   </label>
@@ -1315,7 +1354,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                 </div>
 
                 {service.is_recurring && service.recurrence_type !== 'monthly' && (
-                  <div>
+                  <div className="bg-gradient-to-r from-violet-50 to-purple-50 rounded-lg p-4 border border-violet-200">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Apply to Month (for multi-month periods)
                     </label>
