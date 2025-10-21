@@ -454,11 +454,11 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                               daysUntilDue <= 3 ? 'bg-orange-100 text-orange-700' :
                               'bg-blue-100 text-blue-700'
                             }`}>
-                              {daysUntilDue === 0 ? 'Due Today!' : `${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`}
+                              {daysUntilDue === 0 ? 'Due Today!' : `${daysUntilDue} ${daysUntilDue === 1 ? 'day' : 'days'}`}
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                              {Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) > 1 ? 's' : ''} overdue
+                              {Math.abs(daysUntilDue)} {Math.abs(daysUntilDue) === 1 ? 'day' : 'days'} overdue
                             </span>
                           )
                         )}
