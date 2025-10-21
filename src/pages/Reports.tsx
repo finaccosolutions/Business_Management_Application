@@ -739,13 +739,17 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
         const balance = balances.get(account.id) || { debit: 0, credit: 0 };
         const openingBalance = Number(account.opening_balance) || 0;
 
-        let debit = balance.debit;
-        let credit = balance.credit;
+        // Calculate closing balance: Opening + Debit - Credit
+        let closingBalance = openingBalance + balance.debit - balance.credit;
 
-        if (openingBalance > 0) {
-          debit += openingBalance;
-        } else if (openingBalance < 0) {
-          credit += Math.abs(openingBalance);
+        // In trial balance, show as debit if positive, credit if negative
+        let debit = 0;
+        let credit = 0;
+
+        if (closingBalance > 0) {
+          debit = closingBalance;
+        } else if (closingBalance < 0) {
+          credit = Math.abs(closingBalance);
         }
 
         return {
