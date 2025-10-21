@@ -379,16 +379,32 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
         return matchesSearch && matchesType;
       });
 
-  const groupsByType = ['asset', 'liability', 'income', 'expense', 'equity'].map((type) => ({
-    type,
-    groups: groups.filter((g) => {
+  const buildHierarchy = (parentId: string | null, allGroups: AccountGroup[], level: number = 0): (AccountGroup & { level: number })[] => {
+    const children = allGroups.filter(g => g.parent_group_id === parentId);
+    const result: (AccountGroup & { level: number })[] = [];
+
+    children.forEach(child => {
+      result.push({ ...child, level });
+      result.push(...buildHierarchy(child.id, allGroups, level + 1));
+    });
+
+    return result;
+  };
+
+  const groupsByType = ['asset', 'liability', 'income', 'expense', 'equity'].map((type) => {
+    const typeGroups = groups.filter((g) => {
       const matchesType = groupFilterType === 'all' || g.account_type === groupFilterType;
       const matchesSearch = groupSearchQuery === '' ||
         g.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) ||
         g.description?.toLowerCase().includes(groupSearchQuery.toLowerCase());
       return g.account_type === type && matchesType && matchesSearch;
-    }),
-  }));
+    });
+
+    return {
+      type,
+      groups: buildHierarchy(null, typeGroups),
+    };
+  });
 
   if (loading) {
     return (
@@ -595,6 +611,7 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                           const isExpanded = expandedGroups.has(group.id);
                           const groupLedgers = accounts.filter((a) => a.account_group_id === group.id);
                           const subGroups = groups.filter((g) => g.parent_group_id === group.id);
+                          const hasChildren = subGroups.length > 0 || groupLedgers.length > 0;
 
                           return (
                             <>
@@ -604,11 +621,15 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                 onClick={() => handleGroupClick(group)}
                               >
                                 <td className="px-6 py-4">
-                                  <div className="flex items-center gap-2">
-                                    {isExpanded ? (
-                                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                                  <div className="flex items-center gap-2" style={{ paddingLeft: `${group.level * 24}px` }}>
+                                    {hasChildren ? (
+                                      isExpanded ? (
+                                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                                      )
                                     ) : (
-                                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                                      <div className="w-4" />
                                     )}
                                     <span className="font-semibold text-gray-900 dark:text-white">{group.name}</span>
                                   </div>
@@ -649,66 +670,40 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                   </div>
                                 </td>
                               </tr>
-                              {isExpanded && (
+                              {isExpanded && hasChildren && (
                                 <tr>
                                   <td colSpan={5} className="px-6 py-4 bg-gray-50 dark:bg-slate-900">
-                                    <div className="space-y-4">
-                                      <div className="flex gap-3">
+                                    <div className="space-y-4" style={{ paddingLeft: `${(group.level + 1) * 24}px` }}>
+                                      <div className="flex gap-2">
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleAddChildGroup(group);
                                           }}
-                                          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                                          className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
                                         >
-                                          <FolderPlus className="w-4 h-4" />
-                                          Add Child Group
+                                          <FolderPlus className="w-3.5 h-3.5" />
+                                          Add Subgroup
                                         </button>
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleAddLedgerToGroup(group);
                                           }}
-                                          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                          className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
                                         >
-                                          <Plus className="w-4 h-4" />
+                                          <Plus className="w-3.5 h-3.5" />
                                           Add Ledger
                                         </button>
                                       </div>
 
-                                      {subGroups.length > 0 && (
-                                        <div>
-                                          <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2">
-                                            Child Groups ({subGroups.length})
-                                          </h4>
-                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                            {subGroups.map((subGroup) => (
-                                              <div
-                                                key={subGroup.id}
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleGroupClick(subGroup);
-                                                }}
-                                                className="bg-white dark:bg-slate-700 p-3 rounded-lg border border-gray-200 dark:border-slate-600 hover:shadow-md transition-all cursor-pointer"
-                                              >
-                                                <div className="font-semibold text-gray-900 dark:text-white text-sm">
-                                                  {subGroup.name}
-                                                </div>
-                                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                  {subGroup.description}
-                                                </div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
 
-                                      {groupLedgers.length > 0 ? (
+                                      {groupLedgers.length > 0 && (
                                         <div>
-                                          <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2">
+                                          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
                                             Ledgers ({groupLedgers.length})
                                           </h4>
-                                          <div className="space-y-2">
+                                          <div className="space-y-1.5">
                                             {groupLedgers.map((ledger) => (
                                               <div
                                                 key={ledger.id}
@@ -716,28 +711,25 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                                   e.stopPropagation();
                                                   handleAccountClick(ledger);
                                                 }}
-                                                className="bg-white dark:bg-slate-700 p-3 rounded-lg border border-gray-200 dark:border-slate-600 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all cursor-pointer"
+                                                className="bg-white dark:bg-slate-700 p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-600 transition-all cursor-pointer"
                                               >
                                                 <div className="flex items-center justify-between">
-                                                  <div className="flex items-center gap-3">
+                                                  <div className="flex items-center gap-2.5">
+                                                    <BookOpen className="w-3.5 h-3.5 text-gray-400" />
                                                     <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
                                                       {ledger.account_code}
                                                     </span>
-                                                    <span className="font-semibold text-gray-900 dark:text-white text-sm">
+                                                    <span className="font-medium text-gray-900 dark:text-white text-sm">
                                                       {ledger.account_name}
                                                     </span>
                                                   </div>
-                                                  <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
                                                     ₹{ledger.current_balance.toLocaleString('en-IN')}
                                                   </span>
                                                 </div>
                                               </div>
                                             ))}
                                           </div>
-                                        </div>
-                                      ) : (
-                                        <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
-                                          No ledgers in this group yet
                                         </div>
                                       )}
                                     </div>
@@ -760,19 +752,24 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                       const isExpanded = expandedGroups.has(group.id);
                       const groupLedgers = accounts.filter((a) => a.account_group_id === group.id);
                       const subGroups = groups.filter((g) => g.parent_group_id === group.id);
+                      const hasChildren = subGroups.length > 0 || groupLedgers.length > 0;
 
                       return (
-                        <div key={group.id} className="bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden">
+                        <div key={group.id} className="bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden" style={{ marginLeft: `${group.level * 24}px` }}>
                           <div
                             onClick={() => handleGroupClick(group)}
                             className="p-4 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all cursor-pointer"
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex items-center gap-2 flex-1">
-                                {isExpanded ? (
-                                  <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                {hasChildren ? (
+                                  isExpanded ? (
+                                    <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                  ) : (
+                                    <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                  )
                                 ) : (
-                                  <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                  <div className="w-5" />
                                 )}
                                 <div className="flex-1">
                                   <h3 className="font-bold text-gray-900 dark:text-white text-lg">{group.name}</h3>
@@ -818,65 +815,38 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                             </div>
                           </div>
 
-                          {isExpanded && (
-                            <div className="px-4 py-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
-                              <div className="space-y-4">
-                                <div className="flex gap-3">
+                          {isExpanded && hasChildren && (
+                            <div className="px-4 py-3 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
+                              <div className="space-y-3">
+                                <div className="flex gap-2">
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleAddChildGroup(group);
                                     }}
-                                    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                                    className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
                                   >
-                                    <FolderPlus className="w-4 h-4" />
-                                    Add Child Group
+                                    <FolderPlus className="w-3.5 h-3.5" />
+                                    Add Subgroup
                                   </button>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleAddLedgerToGroup(group);
                                     }}
-                                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                    className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
                                   >
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="w-3.5 h-3.5" />
                                     Add Ledger
                                   </button>
                                 </div>
 
-                                {subGroups.length > 0 && (
+                                {groupLedgers.length > 0 && (
                                   <div>
-                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2">
-                                      Child Groups ({subGroups.length})
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                      {subGroups.map((subGroup) => (
-                                        <div
-                                          key={subGroup.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleGroupClick(subGroup);
-                                          }}
-                                          className="bg-white dark:bg-slate-700 p-3 rounded-lg border border-gray-200 dark:border-slate-600 hover:shadow-md transition-all cursor-pointer"
-                                        >
-                                          <div className="font-semibold text-gray-900 dark:text-white text-sm">
-                                            {subGroup.name}
-                                          </div>
-                                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                            {subGroup.description}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {groupLedgers.length > 0 ? (
-                                  <div>
-                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2">
+                                    <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
                                       Ledgers ({groupLedgers.length})
                                     </h4>
-                                    <div className="space-y-2">
+                                    <div className="space-y-1.5">
                                       {groupLedgers.map((ledger) => (
                                         <div
                                           key={ledger.id}
@@ -884,28 +854,25 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                             e.stopPropagation();
                                             handleAccountClick(ledger);
                                           }}
-                                          className="bg-white dark:bg-slate-700 p-3 rounded-lg border border-gray-200 dark:border-slate-600 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all cursor-pointer"
+                                          className="bg-white dark:bg-slate-700 p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-600 transition-all cursor-pointer"
                                         >
                                           <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2.5">
+                                              <BookOpen className="w-3.5 h-3.5 text-gray-400" />
                                               <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
                                                 {ledger.account_code}
                                               </span>
-                                              <span className="font-semibold text-gray-900 dark:text-white text-sm">
+                                              <span className="font-medium text-gray-900 dark:text-white text-sm">
                                                 {ledger.account_name}
                                               </span>
                                             </div>
-                                            <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
                                               ₹{ledger.current_balance.toLocaleString('en-IN')}
                                             </span>
                                           </div>
                                         </div>
                                       ))}
                                     </div>
-                                  </div>
-                                ) : (
-                                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
-                                    No ledgers in this group yet
                                   </div>
                                 )}
                               </div>
