@@ -80,10 +80,16 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
     try {
       const { data, error } = await supabase
         .from('work_recurring_instances')
-        .select('*')
+        .select(`
+          *,
+          next_task_due_date:recurring_period_tasks(
+            due_date,
+            status
+          )
+        `)
         .eq('work_id', workId)
         .order('period_start_date', { ascending: false });
-  
+
       if (error) throw error;
       setPeriods(data || []);
     } catch (error) {
@@ -384,9 +390,20 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
         <div className="space-y-3">
           <h4 className="font-medium text-gray-900">All Periods</h4>
           {periods.map(period => {
-            const isOverdue = period.status !== 'completed' && new Date(period.period_end_date) < new Date();
-            const daysUntilEnd = Math.ceil(
-              (new Date(period.period_end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+            // Find the next incomplete task's due date
+            const incompleteTasks = (period as any).next_task_due_date?.filter(
+              (t: any) => t.status !== 'completed'
+            ) || [];
+            const nextTaskDueDate = incompleteTasks.length > 0
+              ? incompleteTasks.reduce((earliest: any, task: any) =>
+                  !earliest || new Date(task.due_date) < new Date(earliest.due_date) ? task : earliest
+                ).due_date
+              : null;
+
+            const referenceDate = nextTaskDueDate || period.period_end_date;
+            const isOverdue = period.status !== 'completed' && new Date(referenceDate) < new Date();
+            const daysUntilDue = Math.ceil(
+              (new Date(referenceDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
             );
 
             return (
@@ -426,22 +443,22 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock size={14} className={isOverdue ? 'text-red-500' : 'text-gray-500'} />
-                        <span className="font-medium text-gray-700">End:</span>
+                        <span className="font-medium text-gray-700">{nextTaskDueDate ? 'Next Due' : 'End'}:</span>
                         <span className={isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}>
-                          {formatDateDisplay(period.period_end_date)}
+                          {formatDateDisplay(referenceDate)}
                         </span>
                         {period.status !== 'completed' && (
-                          daysUntilEnd >= 0 ? (
+                          daysUntilDue >= 0 ? (
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                              daysUntilEnd === 0 ? 'bg-red-100 text-red-700' :
-                              daysUntilEnd <= 3 ? 'bg-orange-100 text-orange-700' :
+                              daysUntilDue === 0 ? 'bg-red-100 text-red-700' :
+                              daysUntilDue <= 3 ? 'bg-orange-100 text-orange-700' :
                               'bg-blue-100 text-blue-700'
                             }`}>
-                              {daysUntilEnd === 0 ? 'Ends Today!' : `${daysUntilEnd} day${daysUntilEnd > 1 ? 's' : ''} left`}
+                              {daysUntilDue === 0 ? 'Due Today!' : `${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`}
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                              {Math.abs(daysUntilEnd)} day${Math.abs(daysUntilEnd) > 1 ? 's' : ''} overdue
+                              {Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) > 1 ? 's' : ''} overdue
                             </span>
                           )
                         )}

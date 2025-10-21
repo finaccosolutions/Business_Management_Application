@@ -5,14 +5,73 @@ import { RecurringPeriodManager } from './RecurringPeriodManager';
 
 interface OverviewTabProps {
   work: any;
+  tasks: any[];
+  timeLogs: any[];
   onStatusChange?: (status: string) => void;
   onNavigateToCustomer?: (customerId: string) => void;
   onNavigateToService?: (serviceId: string) => void;
+  onAssignClick?: () => void;
 }
 
-export function OverviewTab({ work, onStatusChange, onNavigateToCustomer, onNavigateToService }: OverviewTabProps) {
+export function OverviewTab({ work, tasks, timeLogs, onStatusChange, onNavigateToCustomer, onNavigateToService, onAssignClick }: OverviewTabProps) {
+  const totalHours = timeLogs.reduce((sum, log) => sum + (log.duration_hours || 0), 0);
+  const completedTasks = tasks.filter(t => t.status === 'completed').length;
+
   return (
     <div className="space-y-6">
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <Clock size={16} className="text-orange-600" />
+            <p className="text-xs font-medium text-gray-600">Time Tracked</p>
+          </div>
+          <p className="text-2xl font-bold text-orange-600">{totalHours.toFixed(1)}h</p>
+          {work.estimated_hours && (
+            <p className="text-xs text-gray-500 mt-1">of {work.estimated_hours}h estimated</p>
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <CheckCircle size={16} className="text-green-600" />
+            <p className="text-xs font-medium text-gray-600">Tasks</p>
+          </div>
+          <p className="text-2xl font-bold text-green-600">
+            {completedTasks}/{tasks.length}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">completed</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <Users size={16} className="text-blue-600" />
+            <p className="text-xs font-medium text-gray-600">Assigned To</p>
+          </div>
+          <p className="text-lg font-semibold text-blue-600 truncate">
+            {work.staff_members?.name || 'Unassigned'}
+          </p>
+          {onAssignClick && (
+            <button
+              onClick={onAssignClick}
+              className="text-xs text-blue-600 hover:text-blue-700 mt-1 hover:underline"
+            >
+              {work.assigned_to ? 'Reassign' : 'Assign'}
+            </button>
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <DollarSign size={16} className="text-teal-600" />
+            <p className="text-xs font-medium text-gray-600">Billing Amount</p>
+          </div>
+          <p className="text-2xl font-bold text-teal-600">
+            {work.billing_amount ? `₹${work.billing_amount.toLocaleString('en-IN')}` : 'N/A'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1 capitalize">{work.billing_status?.replace('_', ' ')}</p>
+        </div>
+      </div>
       {/* Work Information */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">

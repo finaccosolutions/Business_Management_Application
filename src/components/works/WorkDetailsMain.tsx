@@ -787,83 +787,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
           </div>
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <span
-              className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 ${
-                statusColors[work.status] || 'bg-gray-100 text-gray-700 border-gray-200'
-              }`}
-            >
-              {work.status.replace('_', ' ').charAt(0).toUpperCase() + work.status.replace('_', ' ').slice(1)}
-            </span>
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                priorityColors[work.priority] || priorityColors.medium
-              }`}
-            >
-              {work.priority.charAt(0).toUpperCase() + work.priority.slice(1)} Priority
-            </span>
-            {work.due_date && (
-              <span className="text-sm text-gray-700 flex items-center gap-2">
-                <Calendar size={14} />
-                Due: {formatDateDisplay(work.due_date)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-4 p-6 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 flex-shrink-0">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock size={16} className="text-orange-600" />
-              <p className="text-xs font-medium text-gray-600">Time Tracked</p>
-            </div>
-            <p className="text-2xl font-bold text-orange-600">{work.actual_duration_hours || 0}h</p>
-            {work.estimated_hours && (
-              <p className="text-xs text-gray-500 mt-1">of {work.estimated_hours}h estimated</p>
-            )}
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle size={16} className="text-green-600" />
-              <p className="text-xs font-medium text-gray-600">Tasks</p>
-            </div>
-            <p className="text-2xl font-bold text-green-600">
-              {tasks.filter((t) => t.status === 'completed').length}/{tasks.length}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">completed</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Users size={16} className="text-blue-600" />
-              <p className="text-xs font-medium text-gray-600">Assigned To</p>
-            </div>
-            <p className="text-lg font-semibold text-blue-600 truncate">
-              {work.staff_members?.name || 'Unassigned'}
-            </p>
-            <button
-              onClick={() => setShowAssignModal(true)}
-              className="text-xs text-blue-600 hover:text-blue-700 mt-1 hover:underline"
-            >
-              {work.assigned_to ? 'Reassign' : 'Assign'}
-            </button>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign size={16} className="text-teal-600" />
-              <p className="text-xs font-medium text-gray-600">Billing Amount</p>
-            </div>
-            <p className="text-2xl font-bold text-teal-600">
-              {work.billing_amount ? `₹${work.billing_amount.toLocaleString('en-IN')}` : 'N/A'}
-            </p>
-            <p className="text-xs text-gray-500 mt-1 capitalize">{work.billing_status?.replace('_', ' ')}</p>
-          </div>
-        </div>
-
-        <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50 flex-shrink-0">
+        <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-white flex-shrink-0">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -892,9 +816,12 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
           {activeTab === 'overview' && (
             <OverviewTab
               work={work}
+              tasks={tasks}
+              timeLogs={timeLogs}
               onStatusChange={handleUpdateWorkStatus}
               onNavigateToCustomer={onNavigateToCustomer}
               onNavigateToService={onNavigateToService}
+              onAssignClick={() => setShowAssignModal(true)}
             />
           )}
 
