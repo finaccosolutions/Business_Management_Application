@@ -199,8 +199,19 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
         runningBalance += (Number(txn.debit) || 0) - (Number(txn.credit) || 0);
 
         let particularsName = txn.narration || '-';
+        let voucherNumber = 'N/A';
+        let voucherType = 'Unknown';
+        let voucherTypeCode = '';
+        let voucherId = '';
 
+        // Handle regular voucher entries
         if (txn.vouchers?.id) {
+          voucherNumber = txn.vouchers.voucher_number;
+          voucherType = txn.vouchers.voucher_types?.name || 'Voucher';
+          voucherTypeCode = txn.vouchers.voucher_types?.code || '';
+          voucherId = txn.vouchers.id;
+
+          // Get the opposite account name for Particulars
           const { data: otherTxns } = await supabase
             .from('ledger_transactions')
             .select(`
@@ -217,14 +228,38 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
             particularsName = chartOfAccounts.account_name;
           }
         }
+        // Handle invoice entries (voucher_id is NULL but invoice_number exists)
+        else if (txn.invoice_number) {
+          voucherNumber = txn.invoice_number;
+          voucherType = 'Invoice';
+          voucherTypeCode = 'ITMINV';
+          voucherId = txn.invoice_number;
+
+          // Get the opposite account name for invoice entries
+          const { data: otherTxns } = await supabase
+            .from('ledger_transactions')
+            .select(`
+              account_id,
+              chart_of_accounts(account_name)
+            `)
+            .eq('invoice_number', txn.invoice_number)
+            .neq('account_id', selectedAccount.id)
+            .limit(1)
+            .maybeSingle();
+
+          const chartOfAccounts = otherTxns?.chart_of_accounts as any;
+          if (chartOfAccounts?.account_name) {
+            particularsName = chartOfAccounts.account_name;
+          }
+        }
 
         processedEntries.push({
           id: txn.id,
           transaction_date: txn.transaction_date,
-          voucher_number: txn.vouchers?.voucher_number || 'N/A',
-          voucher_type: txn.vouchers?.voucher_types?.name || 'Unknown',
-          voucher_type_code: txn.vouchers?.voucher_types?.code || '',
-          voucher_id: txn.vouchers?.id || '',
+          voucher_number: voucherNumber,
+          voucher_type: voucherType,
+          voucher_type_code: voucherTypeCode,
+          voucher_id: voucherId,
           particulars: particularsName,
           narration: txn.narration || '-',
           debit: Number(txn.debit) || 0,
@@ -367,7 +402,38 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
     if (!entry.voucher_id) return;
 
     try {
-      // Fetch full voucher details
+      // Handle invoice entries (voucher_type_code is 'ITMINV' but no actual voucher)
+      if (entry.voucher_type_code === 'ITMINV' && typeof entry.voucher_id === 'string') {
+        // This is an invoice ledger entry, fetch invoice by invoice_number
+        const { data: invoiceData, error: invoiceError } = await supabase
+          .from('invoices')
+          .select('*')
+          .eq('invoice_number', entry.voucher_id)
+          .maybeSingle();
+
+        if (invoiceError) throw invoiceError;
+
+        if (!invoiceData) {
+          toast.error('Invoice not found');
+          return;
+        }
+
+        // Fetch invoice items
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('invoice_items')
+          .select('*')
+          .eq('invoice_id', invoiceData.id)
+          .order('id');
+
+        if (itemsError) throw itemsError;
+
+        setSelectedVoucher(invoiceData);
+        setInvoiceItems(itemsData || []);
+        setShowInvoiceModal(true);
+        return;
+      }
+
+      // Handle regular voucher entries
       const { data: voucherData, error } = await supabase
         .from('vouchers')
         .select(`
@@ -389,21 +455,34 @@ export default function Ledger({ onNavigate }: LedgerProps = {}) {
 
       setSelectedVoucher(voucherData);
 
-      // Check if it's an invoice voucher
-      if (voucherData.voucher_types?.code === 'ITMINV') {
-        // Fetch invoice items
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('invoice_items')
+      // Check if it's an invoice receipt voucher (has invoice_id)
+      if (voucherData.invoice_id) {
+        // Fetch the linked invoice
+        const { data: invoiceData, error: invoiceError } = await supabase
+          .from('invoices')
           .select('*')
-          .eq('invoice_id', entry.voucher_id)
-          .order('id');
+          .eq('id', voucherData.invoice_id)
+          .maybeSingle();
 
-        if (itemsError) throw itemsError;
-        setInvoiceItems(itemsData || []);
-        setShowInvoiceModal(true);
-      } else {
-        setShowVoucherModal(true);
+        if (!invoiceError && invoiceData) {
+          // Fetch invoice items
+          const { data: itemsData, error: itemsError } = await supabase
+            .from('invoice_items')
+            .select('*')
+            .eq('invoice_id', invoiceData.id)
+            .order('id');
+
+          if (!itemsError) {
+            setSelectedVoucher(invoiceData);
+            setInvoiceItems(itemsData || []);
+            setShowInvoiceModal(true);
+            return;
+          }
+        }
       }
+
+      // Default: show voucher modal
+      setShowVoucherModal(true);
     } catch (error) {
       console.error('Error fetching voucher:', error);
       toast.error('Failed to load voucher details');
