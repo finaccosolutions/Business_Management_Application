@@ -959,23 +959,23 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           </div>
         </div>
 
-        <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50 flex-shrink-0">
+        <div className="flex gap-2 px-6 pt-4 border-b-2 border-gray-300 bg-white flex-shrink-0">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all ${
+                className={`flex items-center gap-2 px-4 py-2.5 font-medium rounded-t-lg transition-all border-b-2 -mb-0.5 ${
                   activeTab === tab.id
-                    ? 'bg-white text-orange-700 shadow-sm border-t-2 border-orange-600'
-                    : 'text-gray-600 hover:bg-white/50'
+                    ? 'bg-orange-50 text-orange-700 border-orange-600'
+                    : 'text-gray-600 hover:bg-gray-50 border-transparent'
                 }`}
               >
                 <Icon size={18} />
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
+                  <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-semibold">
                     {tab.count}
                   </span>
                 )}
