@@ -386,7 +386,7 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
           </div>
         </div>
 
-        {subGroupExpanded && hasSubChildren && (
+        {subGroupExpanded && (
           <div className="mt-2 ml-4 space-y-2">
             <div className="flex gap-2">
               <button
@@ -420,6 +420,12 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                   {nestedSubGroups.map((nested) => renderNestedGroup(nested, nestLevel + 1))}
                 </div>
               </div>
+            )}
+
+            {nestedSubGroups.length === 0 && subGroupLedgers.length === 0 && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                No subgroups or ledgers yet. Add one using the buttons above.
+              </p>
             )}
 
             {subGroupLedgers.length > 0 && (
@@ -785,7 +791,7 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                   </div>
                                 </td>
                               </tr>
-                              {isExpanded && hasChildren && (
+                              {isExpanded && (
                                 <tr>
                                   <td colSpan={5} className="px-6 py-4 bg-gray-50 dark:bg-slate-900">
                                     <div className="space-y-4" style={{ paddingLeft: `${(group.level + 1) * 24}px` }}>
@@ -822,6 +828,12 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                             {subGroups.map((subGroup) => renderNestedGroup(subGroup, 1))}
                                           </div>
                                         </div>
+                                      )}
+
+                                      {subGroups.length === 0 && groupLedgers.length === 0 && (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                          No subgroups or ledgers yet. Add one using the buttons above.
+                                        </p>
                                       )}
 
                                       {groupLedgers.length > 0 && (
@@ -941,7 +953,7 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                             </div>
                           </div>
 
-                          {isExpanded && hasChildren && (
+                          {isExpanded && (
                             <div className="px-4 py-3 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
                               <div className="space-y-3">
                                 <div className="flex gap-2">
@@ -976,6 +988,12 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                       {subGroups.map((subGroup) => renderNestedGroup(subGroup, 1))}
                                     </div>
                                   </div>
+                                )}
+
+                                {subGroups.length === 0 && groupLedgers.length === 0 && (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                    No subgroups or ledgers yet. Add one using the buttons above.
+                                  </p>
                                 )}
 
                                 {groupLedgers.length > 0 && (
