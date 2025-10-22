@@ -485,12 +485,13 @@ export default function Customers() {
               <div
                 key={customer.id}
                 onClick={() => setSelectedCustomerId(customer.id)}
-                className={`bg-white rounded-xl shadow-sm border-l-4 ${borderColor} border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
+                className={`bg-white rounded-lg shadow-sm border-l-4 ${borderColor} border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
               >
-                <div className="p-5">
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-4 flex-shrink-0" style={{ width: '280px' }}>
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
+                <div className="p-3">
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Left: Avatar + Name + Company */}
+                    <div className="flex items-center gap-3 flex-shrink-0 min-w-0" style={{ width: '220px' }}>
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
                         {customer.image_url ? (
                           <img
                             src={customer.image_url}
@@ -502,73 +503,61 @@ export default function Customers() {
                               const parent = target.parentElement;
                               if (parent) {
                                 const initials = document.createElement('span');
-                                initials.className = 'text-2xl font-bold';
+                                initials.className = 'text-xl font-bold';
                                 initials.textContent = customer.name?.charAt(0).toUpperCase() || 'C';
                                 parent.appendChild(initials);
                               }
                             }}
                           />
                         ) : (
-                          <span className="text-2xl font-bold">
+                          <span className="text-xl font-bold">
                             {customer.name?.charAt(0).toUpperCase() || 'C'}
                           </span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-gray-900 text-lg truncate" title={customer.name}>{customer.name}</h3>
+                        <h3 className="font-bold text-gray-900 text-sm truncate" title={customer.name}>{customer.name}</h3>
                         {customer.company_name && (
-                          <p className="text-sm text-gray-600 truncate flex items-center gap-1" title={customer.company_name}>
-                            <Building size={14} />
+                          <p className="text-xs text-gray-600 truncate flex items-center gap-1" title={customer.company_name}>
+                            <Building size={11} />
                             {customer.company_name}
                           </p>
                         )}
                         {(customer.entity_type || customer.legal_form) && (
                           <p className="text-xs text-blue-600 truncate flex items-center gap-1">
-                            <Briefcase size={12} />
+                            <Briefcase size={10} />
                             {customer.entity_type || customer.legal_form}
                           </p>
                         )}
-                        <div className="flex items-center gap-2 mt-1">
-                          {daysSinceCreated <= 30 && (
-                            <span className="inline-block text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">
-                              New
-                            </span>
-                          )}
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <Calendar size={11} />
-                            <span>Since {new Date(customer.created_at).toLocaleDateString()}</span>
-                          </div>
-                        </div>
                       </div>
                     </div>
 
-                    <div className="h-16 w-px bg-gray-200"></div>
-
-                    <div className="flex-1 min-w-0" style={{ maxWidth: '450px' }}>
-                      <div className="space-y-2">
+                    {/* Center-Left: Contact Info */}
+                    <div className="flex-1 min-w-0" style={{ maxWidth: '280px' }}>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                         {customer.email && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Mail size={16} className="flex-shrink-0 text-blue-500" />
+                          <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
+                            <Mail size={12} className="flex-shrink-0 text-blue-500" />
                             <span className="truncate" title={customer.email}>{customer.email}</span>
                           </div>
                         )}
                         {customer.phone && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Phone size={16} className="flex-shrink-0 text-green-500" />
+                          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                            <Phone size={12} className="flex-shrink-0 text-green-500" />
                             <span>{customer.phone}</span>
                           </div>
                         )}
                         {(customer.city || customer.state) && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <MapPin size={16} className="flex-shrink-0 text-orange-500" />
-                            <span className="truncate">
+                          <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
+                            <MapPin size={12} className="flex-shrink-0 text-orange-500" />
+                            <span className="truncate" title={[customer.city, customer.state].filter(Boolean).join(', ')}>
                               {[customer.city, customer.state].filter(Boolean).join(', ')}
                             </span>
                           </div>
                         )}
                         {customer.website && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Globe size={16} className="flex-shrink-0 text-cyan-500" />
+                          <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
+                            <Globe size={12} className="flex-shrink-0 text-cyan-500" />
                             <a
                               href={customer.website}
                               target="_blank"
@@ -584,99 +573,80 @@ export default function Customers() {
                       </div>
                     </div>
 
-                    <div className="h-16 w-px bg-gray-200"></div>
-
-                    <div className="flex-shrink-0" style={{ width: '140px' }}>
-                      <div className="space-y-2">
-                        {customer.gstin && (
-                          <div className="flex items-center gap-1.5">
-                            <FileText size={13} className="text-green-600 flex-shrink-0" />
-                            <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded truncate">
-                              GST: {customer.gstin.substring(0, 8)}...
-                            </span>
-                          </div>
-                        )}
-                        {customer.pan_number && (
-                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                            <FileText size={13} className="text-gray-400 flex-shrink-0" />
-                            <span className="text-xs">PAN: {customer.pan_number}</span>
-                          </div>
-                        )}
-                      </div>
+                    {/* Center-Right: Registration Numbers */}
+                    <div className="flex flex-col gap-1.5 flex-shrink-0" style={{ width: '140px' }}>
+                      {customer.gstin && (
+                        <div className="flex items-center gap-1.5">
+                          <FileText size={11} className="text-green-600 flex-shrink-0" />
+                          <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded truncate" title={customer.gstin}>
+                            GST: {customer.gstin.substring(0, 8)}...
+                          </span>
+                        </div>
+                      )}
+                      {customer.pan_number && (
+                        <div className="flex items-center gap-1.5">
+                          <FileText size={11} className="text-gray-400 flex-shrink-0" />
+                          <span className="text-xs text-gray-600">PAN: {customer.pan_number}</span>
+                        </div>
+                      )}
+                      {daysSinceCreated <= 30 && (
+                        <span className="inline-block text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full text-center">
+                          New
+                        </span>
+                      )}
                     </div>
 
-                    <div className="h-16 w-px bg-gray-200"></div>
-
-                    <div className="flex-shrink-0" style={{ width: '280px' }}>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-blue-50 rounded-lg p-2">
-                          <div className="flex items-center gap-1 mb-1">
-                            <Briefcase size={14} className="text-blue-600" />
-                            <p className="text-xs text-blue-600 font-medium">Services</p>
-                          </div>
-                          <p className="text-lg font-bold text-blue-700">
-                            {customer.active_services || 0}
-                          </p>
-                        </div>
-                        <div className="bg-green-50 rounded-lg p-2">
-                          <div className="flex items-center gap-1 mb-1">
-                            <DollarSign size={14} className="text-green-600" />
-                            <p className="text-xs text-green-600 font-medium">Revenue</p>
-                          </div>
-                          <p className="text-lg font-bold text-green-700">
-                            ₹{((customer.total_revenue || 0) / 1000).toFixed(0)}k
-                          </p>
-                        </div>
-                        <div className="bg-orange-50 rounded-lg p-2">
-                          <div className="flex items-center gap-1 mb-1">
-                            <Clock size={14} className="text-orange-600" />
-                            <p className="text-xs text-orange-600 font-medium">Pending</p>
-                          </div>
-                          <p className="text-lg font-bold text-orange-700">
-                            {customer.pending_works || 0}
-                          </p>
-                        </div>
-                        <div className="bg-red-50 rounded-lg p-2">
-                          <div className="flex items-center gap-1 mb-1">
-                            <AlertCircle size={14} className="text-red-600" />
-                            <p className="text-xs text-red-600 font-medium">Overdue</p>
-                          </div>
-                          <p className="text-lg font-bold text-red-700">
-                            {customer.overdue_invoices || 0}
-                          </p>
-                        </div>
+                    {/* Right: Stats */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-1 bg-blue-50 rounded px-2 py-1" title="Active Services">
+                        <Briefcase size={12} className="text-blue-600" />
+                        <span className="text-xs font-bold text-blue-700">{customer.active_services || 0}</span>
                       </div>
+                      <div className="flex items-center gap-1 bg-green-50 rounded px-2 py-1" title="Total Revenue">
+                        <DollarSign size={12} className="text-green-600" />
+                        <span className="text-xs font-bold text-green-700">
+                          ₹{((customer.total_revenue || 0) / 1000).toFixed(0)}k
+                        </span>
+                      </div>
+                      {(customer.pending_works || 0) > 0 && (
+                        <div className="flex items-center gap-1 bg-orange-50 rounded px-2 py-1" title="Pending Works">
+                          <Clock size={12} className="text-orange-600" />
+                          <span className="text-xs font-bold text-orange-700">{customer.pending_works}</span>
+                        </div>
+                      )}
+                      {(customer.overdue_invoices || 0) > 0 && (
+                        <div className="flex items-center gap-1 bg-red-50 rounded px-2 py-1" title="Overdue Invoices">
+                          <AlertCircle size={12} className="text-red-600" />
+                          <span className="text-xs font-bold text-red-700">{customer.overdue_invoices}</span>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="h-16 w-px bg-gray-200"></div>
-
-                    <div className="flex flex-col gap-2 flex-shrink-0">
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedCustomerId(customer.id);
                         }}
-                        className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         title="View Details"
                       >
-                        <Eye size={18} />
-                        View
+                        <Eye size={16} />
                       </button>
                       <button
                         onClick={(e) => handleEdit(customer.id, e)}
-                        className="flex items-center gap-2 px-3 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors text-sm font-medium"
+                        className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
                         title="Edit Customer"
                       >
-                        <Edit2 size={18} />
-                        Edit
+                        <Edit2 size={16} />
                       </button>
                       <button
                         onClick={(e) => handleDelete(customer.id, e)}
-                        className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                         title="Delete Customer"
                       >
-                        <Trash2 size={18} />
-                        Delete
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
