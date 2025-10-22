@@ -113,6 +113,8 @@ export default function Works() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [filterCustomer, setFilterCustomer] = useState('');
   const [filterService, setFilterService] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -566,6 +568,17 @@ export default function Works() {
 
   // Filter works based on active view
 const filteredWorks = works.filter((work) => {
+  // Search filter
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase();
+    const matchesSearch =
+      work.title.toLowerCase().includes(query) ||
+      work.customers.name.toLowerCase().includes(query) ||
+      work.services.name.toLowerCase().includes(query) ||
+      (work.description && work.description.toLowerCase().includes(query));
+    if (!matchesSearch) return false;
+  }
+
   // Status filter
   if (activeView !== 'statistics' && activeView !== 'all') {
     if (activeView === 'overdue') {
@@ -629,9 +642,42 @@ const filteredWorks = works.filter((work) => {
         </button>
       </div>
 
-      {/* Tabs for Views */}
+      {/* Tabs and Search/Filter Bar */}
 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
   <div className="flex flex-col gap-4">
+    {/* Search and Filter Row */}
+    <div className="flex gap-3 items-center">
+      <div className="flex-1 relative">
+        <input
+          type="text"
+          placeholder="Search works by title, customer, service..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+        />
+        <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+      <button
+        onClick={() => setShowFilters(!showFilters)}
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+          showFilters || filterCustomer || filterService || filterCategory || filterSubcategory || filterPriority || filterBillingStatus
+            ? 'bg-orange-100 text-orange-700 border-2 border-orange-300'
+            : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+        }`}
+      >
+        <Filter size={18} />
+        <span>Filters</span>
+        {(filterCustomer || filterService || filterCategory || filterSubcategory || filterPriority || filterBillingStatus) && (
+          <span className="ml-1 px-2 py-0.5 bg-orange-600 text-white text-xs rounded-full">
+            {[filterCustomer, filterService, filterCategory, filterSubcategory, filterPriority, filterBillingStatus].filter(Boolean).length}
+          </span>
+        )}
+      </button>
+    </div>
+
+    {/* Status Tabs */}
     <div className="flex flex-wrap gap-2">
       <button
         onClick={() => setActiveView('statistics')}
@@ -700,9 +746,10 @@ const filteredWorks = works.filter((work) => {
         Overdue ({stats.overdue})
       </button>
     </div>
-    
-    {/* Additional Filters */}
-    <div className="flex flex-wrap gap-3 items-center">
+
+    {/* Collapsible Additional Filters */}
+    {showFilters && (
+    <div className="flex flex-wrap gap-3 items-center pt-3 border-t border-gray-200">
       <select
         value={filterCustomer}
         onChange={(e) => setFilterCustomer(e.target.value)}
@@ -789,12 +836,13 @@ const filteredWorks = works.filter((work) => {
             setFilterPriority('');
             setFilterBillingStatus('');
           }}
-          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          className="px-4 py-2 text-sm font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors border border-orange-300"
         >
-          Clear Filters
+          Clear All Filters
         </button>
       )}
     </div>
+    )}
   </div>
 </div>
 
@@ -1056,22 +1104,7 @@ const filteredWorks = works.filter((work) => {
                   Work Details
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {editingWork && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                    </div>
-                  )}
-
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
                     <select
@@ -1247,24 +1280,7 @@ const filteredWorks = works.filter((work) => {
                   Billing Information
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {editingWork && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Billing Status
-                      </label>
-                      <select
-                        value={formData.billing_status}
-                        onChange={(e) => setFormData({ ...formData, billing_status: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      >
-                        <option value="not_billed">Not Billed</option>
-                        <option value="billed">Billed</option>
-                        <option value="paid">Paid</option>
-                      </select>
-                    </div>
-                  )}
-
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Billing Amount

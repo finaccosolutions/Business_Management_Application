@@ -787,23 +787,27 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
           </div>
         </div>
 
-        <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="flex gap-2 px-6 pt-4 bg-gray-50 border-b-2 border-gray-200 flex-shrink-0 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all ${
+                className={`flex items-center gap-2 px-5 py-3.5 font-semibold rounded-t-xl transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-white text-orange-700 shadow-sm border-t-2 border-orange-600'
-                    : 'text-gray-600 hover:bg-white/50'
+                    ? 'bg-white text-orange-600 shadow-md border-t-4 border-orange-500 -mb-0.5 z-10'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 border-t-4 border-transparent'
                 }`}
               >
-                <Icon size={18} />
-                {tab.label}
+                <Icon size={18} className={activeTab === tab.id ? 'text-orange-600' : 'text-gray-500'} />
+                <span>{tab.label}</span>
                 {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                    activeTab === tab.id
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'bg-gray-200 text-gray-600'
+                  }`}>
                     {tab.count}
                   </span>
                 )}

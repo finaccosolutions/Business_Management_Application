@@ -116,15 +116,13 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
                   {work.priority}
                 </span>
               </div>
-              {work.billing_status && (
-                <span
-                  className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                    billingStatusColors[work.billing_status as keyof typeof billingStatusColors]
-                  }`}
-                >
-                  {work.billing_status.replace('_', ' ')}
-                </span>
-              )}
+              <span
+                className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                  billingStatusColors[work.billing_status as keyof typeof billingStatusColors] || 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {work.billing_status ? work.billing_status.replace('_', ' ') : 'not billed'}
+              </span>
             </div>
           </div>
 
