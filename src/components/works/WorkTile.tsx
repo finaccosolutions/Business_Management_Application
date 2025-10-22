@@ -32,8 +32,8 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
   const StatusIcon = statusConfig[work.status as keyof typeof statusConfig]?.icon || Clock;
   const isOverdue = work.status !== 'completed' && work.due_date && new Date(work.due_date) < new Date();
 
-  // Get pending task info
-  const pendingTasks = work.work_tasks?.filter((t: any) => t.status === 'pending' || t.status === 'in_progress') || [];
+  // Get pending task info - only count incomplete tasks
+  const pendingTasks = work.work_tasks?.filter((t: any) => t.status !== 'completed') || [];
   const firstPendingTask = pendingTasks[0];
   const pendingCount = pendingTasks.length;
 
@@ -51,156 +51,129 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
 
   return (
     <div
-      className={`bg-white rounded-xl shadow-sm border-l-4 ${
+      className={`bg-white rounded-lg shadow-sm border-l-4 ${
         work.is_recurring_instance ? 'border-l-emerald-500' : 'border-l-orange-500'
       } border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md hover:bg-orange-50/30`}
       onClick={onClick}
     >
-      <div className="p-5">
-        <div className="flex flex-col lg:flex-row items-start gap-4">
-          {/* Work Title & Customer Section - More Space */}
-          <div className="flex items-start gap-3 w-full lg:w-auto lg:min-w-[340px] lg:max-w-[340px]">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white flex-shrink-0">
-              <Briefcase size={20} />
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          {/* Work Icon & Title Section */}
+          <div className="flex items-start gap-2.5 flex-1 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white flex-shrink-0">
+              <Briefcase size={18} />
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="font-bold text-gray-900 text-base mb-1 line-clamp-2" title={work.title}>{work.title}</h3>
-              <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-1">
-                <Users size={12} className="flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <h3 className="font-bold text-gray-900 text-sm line-clamp-1" title={work.title}>{work.title}</h3>
+                {work.billing_amount && (
+                  <div className="flex items-center gap-1 text-sm text-teal-700 font-bold whitespace-nowrap">
+                    <DollarSign size={14} />
+                    ₹{work.billing_amount.toLocaleString('en-IN')}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-gray-600 mb-1.5">
+                <Users size={11} className="flex-shrink-0" />
                 <span className="truncate">{work.customers.name}</span>
+                <span className="text-gray-400">•</span>
+                <span className="truncate font-medium text-gray-700">{work.services.name}</span>
               </div>
-              {work.is_recurring_instance && (
-                <span className="inline-flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
-                  <Repeat size={11} />
-                  Recurring
-                </span>
-              )}
-            </div>
-          </div>
 
-          {/* Divider */}
-          <div className="hidden lg:block h-12 w-px bg-gray-200"></div>
-
-          {/* Service & Details */}
-          <div className="flex-1 min-w-0 w-full lg:w-auto">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Briefcase size={14} className="flex-shrink-0 text-orange-500" />
-                <span className="truncate font-medium">{work.services.name}</span>
-              </div>
-              {work.description && (
-                <p className="text-xs text-gray-600 line-clamp-1">{work.description}</p>
-              )}
-              <div className="flex items-center gap-3 flex-wrap">
-                {work.staff_members && (
-                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <Users size={13} className="flex-shrink-0 text-blue-500" />
-                    <span className="truncate">{work.staff_members.name}</span>
-                  </div>
-                )}
-                {work.work_location && (
-                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <MapPin size={13} className="flex-shrink-0 text-green-500" />
-                    <span className="truncate">{work.work_location}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="hidden lg:block h-12 w-px bg-gray-200"></div>
-
-          {/* Status & Priority */}
-          <div className="w-full lg:w-auto lg:min-w-[240px]">
-            <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${
                     isOverdue
                       ? statusConfig.overdue.color
                       : statusConfig[work.status as keyof typeof statusConfig]?.color || 'bg-gray-100 text-gray-700'
                   }`}
                 >
-                  <StatusIcon size={12} />
-                  <span className="truncate max-w-[160px]" title={getStatusDisplay()}>
+                  <StatusIcon size={11} />
+                  <span className="truncate max-w-[140px]" title={getStatusDisplay()}>
                     {getStatusDisplay()}
                   </span>
                 </span>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
+
                 <span
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                  className={`px-2 py-0.5 rounded text-xs font-medium ${
                     priorityColors[work.priority as keyof typeof priorityColors] || priorityColors.medium
                   }`}
                 >
                   {work.priority}
                 </span>
+
                 <span
-                  className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                  className={`px-2 py-0.5 rounded text-xs font-medium ${
                     billingStatusColors[work.billing_status as keyof typeof billingStatusColors] || 'bg-gray-100 text-gray-700'
                   }`}
                 >
                   {work.billing_status ? work.billing_status.replace('_', ' ') : 'not billed'}
                 </span>
+
+                {work.is_recurring_instance && (
+                  <span className="inline-flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">
+                    <Repeat size={10} />
+                    Recurring
+                  </span>
+                )}
+
+                {work.due_date && (
+                  <div className="flex items-center gap-1 text-xs text-gray-700">
+                    <Calendar size={11} className="text-blue-500" />
+                    <span className="font-medium">Due: {new Date(work.due_date).toLocaleDateString()}</span>
+                  </div>
+                )}
+
+                {work.staff_members && (
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                    <Users size={11} className="text-blue-500" />
+                    <span className="truncate">{work.staff_members.name}</span>
+                  </div>
+                )}
+
+                {work.work_location && (
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                    <MapPin size={11} className="text-green-500" />
+                    <span className="truncate">{work.work_location}</span>
+                  </div>
+                )}
+
+                {work.estimated_hours && (
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                    <Clock size={10} />
+                    <span>{work.estimated_hours}h</span>
+                  </div>
+                )}
+
+                {pendingCount > 1 && (
+                  <div className="flex items-center gap-1 text-xs text-orange-600 font-medium">
+                    <ListTodo size={11} />
+                    <span>+{pendingCount - 1} more</span>
+                  </div>
+                )}
               </div>
-              {pendingCount > 1 && (
-                <div className="flex items-center gap-1.5 text-xs text-orange-600">
-                  <ListTodo size={13} />
-                  <span>+{pendingCount - 1} more task{pendingCount - 1 > 1 ? 's' : ''}</span>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="hidden lg:block h-12 w-px bg-gray-200"></div>
-
-          {/* Due Date & Amount */}
-          <div className="w-full lg:w-auto lg:min-w-[140px]">
-            <div className="space-y-1.5">
-              {work.due_date && (
-                <div className="flex items-center gap-1.5 text-xs text-gray-700">
-                  <Calendar size={13} className="flex-shrink-0 text-blue-500" />
-                  <span className="font-medium">Due: {new Date(work.due_date).toLocaleDateString()}</span>
-                </div>
-              )}
-              {work.billing_amount && (
-                <div className="flex items-center gap-1.5 text-sm text-teal-700 bg-teal-50 px-2 py-1 rounded-lg font-semibold">
-                  <DollarSign size={13} />
-                  <span>₹{work.billing_amount.toLocaleString('en-IN')}</span>
-                </div>
-              )}
-              {work.estimated_hours && (
-                <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                  <Clock size={11} />
-                  <span>{work.estimated_hours}h est.</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="hidden lg:block h-12 w-px bg-gray-200"></div>
-
-          {/* Actions - Stacked */}
-          <div className="w-full lg:w-auto flex lg:flex-col items-center gap-2 lg:ml-auto">
+          {/* Actions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit(work);
               }}
-              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
               title="Edit work"
             >
-              <Edit2 size={16} />
+              <Edit2 size={14} />
             </button>
             <button
               onClick={(e) => onDelete(work.id, e)}
-              className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+              className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
               title="Delete work"
             >
-              <Trash2 size={16} />
+              <Trash2 size={14} />
             </button>
           </div>
         </div>
