@@ -107,6 +107,18 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
     }))
   );
 
+  // Set income account from existing service mapping when modal opens
+  useEffect(() => {
+    if (services.length > 0 && lineItems.length > 0 && lineItems[0].service_id && !formData.income_account_id) {
+      const firstService = services.find(s => s.id === lineItems[0].service_id);
+      if (firstService?.income_account_id) {
+        setFormData(prev => ({ ...prev, income_account_id: firstService.income_account_id! }));
+      } else if (defaultIncomeAccountId) {
+        setFormData(prev => ({ ...prev, income_account_id: defaultIncomeAccountId }));
+      }
+    }
+  }, [services, defaultIncomeAccountId]);
+
   useEffect(() => {
     fetchServices();
     fetchCustomers();
@@ -242,10 +254,10 @@ export default function EditInvoiceModal({ invoice, items, onClose, onSave }: Ed
           custom_description: '',
         };
 
-        // Auto-set income account from service or default
-        if (service.income_account_id && !formData.income_account_id) {
+        // Auto-set income account from service or default (ALWAYS update when service changes)
+        if (service.income_account_id) {
           setFormData(prev => ({ ...prev, income_account_id: service.income_account_id! }));
-        } else if (!service.income_account_id && defaultIncomeAccountId && !formData.income_account_id) {
+        } else if (defaultIncomeAccountId) {
           setFormData(prev => ({ ...prev, income_account_id: defaultIncomeAccountId }));
         }
       }

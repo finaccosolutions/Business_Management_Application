@@ -82,9 +82,12 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
         .from('work_recurring_instances')
         .select(`
           *,
-          next_task_due_date:recurring_period_tasks(
+          recurring_period_tasks(
+            id,
+            title,
             due_date,
-            status
+            status,
+            display_order
           )
         `)
         .eq('work_id', workId)
@@ -390,16 +393,30 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
         <div className="space-y-3">
           <h4 className="font-medium text-gray-900">All Periods</h4>
           {periods.map(period => {
-            // Find the next incomplete task's due date
-            const incompleteTasks = (period as any).next_task_due_date?.filter(
-              (t: any) => t.status !== 'completed'
-            ) || [];
-            const nextTaskDueDate = incompleteTasks.length > 0
-              ? incompleteTasks.reduce((earliest: any, task: any) =>
-                  !earliest || new Date(task.due_date) < new Date(earliest.due_date) ? task : earliest
-                ).due_date
-              : null;
+            // Get all tasks and sort by display order
+            const allTasks = ((period as any).recurring_period_tasks || []).sort(
+              (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
+            );
+            const incompleteTasks = allTasks.filter((t: any) => t.status !== 'completed');
+            const completedTasks = allTasks.filter((t: any) => t.status === 'completed');
+            const firstIncompleteTask = incompleteTasks[0];
 
+            // Determine status text
+            let statusText = '';
+            let statusTaskName = '';
+            if (period.status === 'completed') {
+              statusText = 'Completed';
+            } else if (incompleteTasks.length === 0 && allTasks.length > 0) {
+              statusText = 'All Tasks Done';
+            } else if (firstIncompleteTask) {
+              const taskIndex = allTasks.findIndex((t: any) => t.id === firstIncompleteTask.id) + 1;
+              statusText = period.status === 'in_progress' ? 'Processing' : 'Pending';
+              statusTaskName = `Task ${taskIndex}: ${firstIncompleteTask.title}`;
+            } else {
+              statusText = period.status === 'in_progress' ? 'In Progress' : 'Pending';
+            }
+
+            const nextTaskDueDate = firstIncompleteTask?.due_date || null;
             const referenceDate = nextTaskDueDate || period.period_end_date;
             const isOverdue = period.status !== 'completed' && new Date(referenceDate) < new Date();
             const daysUntilDue = Math.ceil(
@@ -441,6 +458,44 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                         <span className="font-medium text-gray-700">Period:</span>
                         <span>{formatDateDisplay(period.period_start_date)} to {formatDateDisplay(period.period_end_date)}</span>
                       </div>
+
+                      {/* Status with Task Info */}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${
+                            period.status === 'completed'
+                              ? 'bg-green-100 text-green-700 border-green-200'
+                              : period.status === 'in_progress'
+                              ? 'bg-blue-100 text-blue-700 border-blue-200'
+                              : 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                          }`}
+                        >
+                          {statusText}
+                        </span>
+                        {statusTaskName && (
+                          <span className="text-xs text-gray-600 font-medium">{statusTaskName}</span>
+                        )}
+                      </div>
+
+                      {/* Task Progress */}
+                      {allTasks.length > 0 && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <ListTodo size={13} className="text-blue-500" />
+                          <span className="text-gray-600">
+                            <span className="font-semibold text-green-600">{completedTasks.length}</span>
+                            <span className="text-gray-500"> / </span>
+                            <span className="font-semibold text-gray-700">{allTasks.length}</span>
+                            <span className="text-gray-500"> tasks completed</span>
+                          </span>
+                          {incompleteTasks.length > 1 && (
+                            <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded font-medium">
+                              +{incompleteTasks.length - 1} pending
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Due Date Info */}
                       <div className="flex items-center gap-2">
                         <Clock size={14} className={isOverdue ? 'text-red-500' : 'text-gray-500'} />
                         <span className="font-medium text-gray-700">{nextTaskDueDate ? 'Next Due' : 'End'}:</span>
@@ -463,12 +518,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                           )
                         )}
                       </div>
-                      {period.all_tasks_completed && (
-                        <div className="flex items-center gap-1 text-green-600 font-medium text-xs">
-                          <ListTodo size={14} />
-                          All Tasks Completed
-                        </div>
-                      )}
+
                       {period.is_billed && (
                         <div className="flex items-center gap-1 text-green-600 font-medium text-xs">
                           <CheckCircle size={14} />

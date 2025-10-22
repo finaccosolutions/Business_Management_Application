@@ -35,17 +35,23 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
   // Get pending task info - only count incomplete tasks
   const pendingTasks = work.work_tasks?.filter((t: any) => t.status !== 'completed') || [];
   const firstPendingTask = pendingTasks[0];
-  const pendingCount = pendingTasks.length;
+  const additionalPendingCount = pendingTasks.length > 1 ? pendingTasks.length - 1 : 0;
 
   // Format status display
   const getStatusDisplay = () => {
     if (isOverdue) return 'Overdue';
-    if (work.status === 'pending' && firstPendingTask) {
-      return `Pending: ${firstPendingTask.title}`;
+
+    // Show completed if all tasks are done
+    if (pendingTasks.length === 0 && work.work_tasks?.length > 0) {
+      return 'Completed';
     }
-    if (work.status === 'in_progress' && firstPendingTask) {
-      return `In Progress: ${firstPendingTask.title}`;
+
+    // Show pending/in-progress with first pending task
+    if (firstPendingTask) {
+      const statusText = work.status === 'in_progress' ? 'Processing' : 'Pending';
+      return `${statusText}: ${firstPendingTask.title}`;
     }
+
     return work.status.replace('_', ' ');
   };
 
@@ -140,10 +146,10 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
               </div>
             )}
 
-            {pendingCount > 1 && (
+            {additionalPendingCount > 0 && (
               <div className="flex items-center gap-1 text-xs text-orange-600 font-medium">
                 <ListTodo size={10} />
-                <span>+{pendingCount - 1}</span>
+                <span>+{additionalPendingCount}</span>
               </div>
             )}
           </div>

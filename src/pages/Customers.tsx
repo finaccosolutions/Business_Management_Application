@@ -488,10 +488,10 @@ export default function Customers() {
                 className={`bg-white rounded-lg shadow-sm border-l-4 ${borderColor} border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
               >
                 <div className="p-3">
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
                     {/* Left: Avatar + Name + Company */}
-                    <div className="flex items-center gap-3 flex-shrink-0 min-w-0" style={{ width: '220px' }}>
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
+                    <div className="flex items-center gap-3 flex-shrink-0" style={{ width: '260px' }}>
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
                         {customer.image_url ? (
                           <img
                             src={customer.image_url}
@@ -503,81 +503,65 @@ export default function Customers() {
                               const parent = target.parentElement;
                               if (parent) {
                                 const initials = document.createElement('span');
-                                initials.className = 'text-xl font-bold';
+                                initials.className = 'text-lg font-bold';
                                 initials.textContent = customer.name?.charAt(0).toUpperCase() || 'C';
                                 parent.appendChild(initials);
                               }
                             }}
                           />
                         ) : (
-                          <span className="text-xl font-bold">
+                          <span className="text-lg font-bold">
                             {customer.name?.charAt(0).toUpperCase() || 'C'}
                           </span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-gray-900 text-sm truncate" title={customer.name}>{customer.name}</h3>
-                        {customer.company_name && (
-                          <p className="text-xs text-gray-600 truncate flex items-center gap-1" title={customer.company_name}>
-                            <Building size={11} />
-                            {customer.company_name}
-                          </p>
-                        )}
-                        {(customer.entity_type || customer.legal_form) && (
-                          <p className="text-xs text-blue-600 truncate flex items-center gap-1">
-                            <Briefcase size={10} />
-                            {customer.entity_type || customer.legal_form}
-                          </p>
-                        )}
+                        <h3 className="font-bold text-gray-900 text-base leading-tight mb-1" title={customer.name}>{customer.name}</h3>
+                        <div className="space-y-0.5">
+                          {customer.company_name && (
+                            <p className="text-xs text-gray-600 truncate flex items-center gap-1" title={customer.company_name}>
+                              <Building size={10} />
+                              {customer.company_name}
+                            </p>
+                          )}
+                          {(customer.entity_type || customer.legal_form) && (
+                            <p className="text-xs text-blue-600 truncate flex items-center gap-1">
+                              <Briefcase size={9} />
+                              {customer.entity_type || customer.legal_form}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Center-Left: Contact Info */}
-                    <div className="flex-1 min-w-0" style={{ maxWidth: '280px' }}>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                        {customer.email && (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
-                            <Mail size={12} className="flex-shrink-0 text-blue-500" />
-                            <span className="truncate" title={customer.email}>{customer.email}</span>
-                          </div>
-                        )}
-                        {customer.phone && (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                            <Phone size={12} className="flex-shrink-0 text-green-500" />
-                            <span>{customer.phone}</span>
-                          </div>
-                        )}
-                        {(customer.city || customer.state) && (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
-                            <MapPin size={12} className="flex-shrink-0 text-orange-500" />
-                            <span className="truncate" title={[customer.city, customer.state].filter(Boolean).join(', ')}>
-                              {[customer.city, customer.state].filter(Boolean).join(', ')}
-                            </span>
-                          </div>
-                        )}
-                        {customer.website && (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
-                            <Globe size={12} className="flex-shrink-0 text-cyan-500" />
-                            <a
-                              href={customer.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="truncate hover:text-blue-600"
-                              title={customer.website}
-                            >
-                              {customer.website}
-                            </a>
-                          </div>
-                        )}
-                      </div>
+                    {/* Center-Left: Contact Info - Compact Column */}
+                    <div className="flex flex-col gap-1 min-w-0" style={{ width: '200px' }}>
+                      {customer.phone && (
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                          <Phone size={11} className="flex-shrink-0 text-green-500" />
+                          <span className="truncate">{customer.phone}</span>
+                        </div>
+                      )}
+                      {customer.email && (
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
+                          <Mail size={11} className="flex-shrink-0 text-blue-500" />
+                          <span className="truncate" title={customer.email}>{customer.email}</span>
+                        </div>
+                      )}
+                      {(customer.city || customer.state) && (
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
+                          <MapPin size={11} className="flex-shrink-0 text-orange-500" />
+                          <span className="truncate" title={[customer.city, customer.state].filter(Boolean).join(', ')}>
+                            {[customer.city, customer.state].filter(Boolean).join(', ')}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Center-Right: Registration Numbers */}
-                    <div className="flex flex-col gap-1.5 flex-shrink-0" style={{ width: '140px' }}>
+                    <div className="flex flex-col gap-1 flex-shrink-0" style={{ width: '150px' }}>
                       {customer.gstin && (
                         <div className="flex items-center gap-1.5">
-                          <FileText size={11} className="text-green-600 flex-shrink-0" />
                           <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded truncate" title={customer.gstin}>
                             GST: {customer.gstin.substring(0, 8)}...
                           </span>
@@ -585,8 +569,7 @@ export default function Customers() {
                       )}
                       {customer.pan_number && (
                         <div className="flex items-center gap-1.5">
-                          <FileText size={11} className="text-gray-400 flex-shrink-0" />
-                          <span className="text-xs text-gray-600">PAN: {customer.pan_number}</span>
+                          <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded truncate">PAN: {customer.pan_number}</span>
                         </div>
                       )}
                       {daysSinceCreated <= 30 && (
@@ -622,8 +605,8 @@ export default function Customers() {
                       )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* Actions - Vertical Stack */}
+                    <div className="flex flex-col gap-1 flex-shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -632,21 +615,21 @@ export default function Customers() {
                         className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         title="View Details"
                       >
-                        <Eye size={16} />
+                        <Eye size={15} />
                       </button>
                       <button
                         onClick={(e) => handleEdit(customer.id, e)}
                         className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
                         title="Edit Customer"
                       >
-                        <Edit2 size={16} />
+                        <Edit2 size={15} />
                       </button>
                       <button
                         onClick={(e) => handleDelete(customer.id, e)}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                         title="Delete Customer"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </div>
