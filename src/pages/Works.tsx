@@ -239,7 +239,8 @@ export default function Works() {
             customers(name),
             services!service_id(name, is_recurring),
             staff_members(name),
-            work_recurring_instances(status, all_tasks_completed)
+            work_recurring_instances(status, all_tasks_completed),
+            work_tasks(id, title, status, due_date)
           `)
           .order('created_at', { ascending: false }),
         supabase.from('customers').select('id, name').order('name'),

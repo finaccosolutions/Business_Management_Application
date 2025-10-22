@@ -312,7 +312,7 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
 
         {/* Service Info Badge */}
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             {service.is_recurring && (
               <span className="px-4 py-2 rounded-lg text-sm font-semibold border-2 bg-blue-100 text-blue-700 border-blue-200 flex items-center gap-2">
                 <Calendar size={16} />
@@ -328,94 +328,21 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 p-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-200 flex-shrink-0">
-          <button
-            onClick={() => setActiveTab('customers')}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Users size={16} className="text-blue-600" />
-              <p className="text-xs font-medium text-gray-600">Total Customers</p>
-            </div>
-            <p className="text-xl font-bold text-blue-600">{statistics.totalCustomers}</p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('customers')}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle size={16} className="text-green-600" />
-              <p className="text-xs font-medium text-gray-600">Active</p>
-            </div>
-            <p className="text-xl font-bold text-green-600">{statistics.activeCustomers}</p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('works')}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Clock size={16} className="text-orange-600" />
-              <p className="text-xs font-medium text-gray-600">Total Works</p>
-            </div>
-            <p className="text-xl font-bold text-orange-600">{statistics.totalWorks}</p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('works')}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle size={16} className="text-emerald-600" />
-              <p className="text-xs font-medium text-gray-600">Completed</p>
-            </div>
-            <p className="text-xl font-bold text-emerald-600">{statistics.completedWorks}</p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('revenue')}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign size={16} className="text-teal-600" />
-              <p className="text-xs font-medium text-gray-600">Total Revenue</p>
-            </div>
-            <p className="text-xl font-bold text-teal-600">
-              ₹{statistics.totalRevenue.toLocaleString('en-IN')}
-            </p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('revenue')}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp size={16} className="text-purple-600" />
-              <p className="text-xs font-medium text-gray-600">Avg Price</p>
-            </div>
-            <p className="text-xl font-bold text-purple-600">
-              ₹{statistics.averagePrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            </p>
-          </button>
-        </div>
-
         {/* Tabs */}
-        <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50 flex-shrink-0 overflow-x-auto">
+        <div className="flex gap-1 px-6 pt-3 pb-0 bg-white flex-shrink-0 overflow-x-auto border-b border-gray-200">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-5 py-2.5 font-medium rounded-t-lg transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-white text-blue-700 shadow-sm border-t-2 border-blue-600'
-                    : 'text-gray-600 hover:bg-white/50'
+                    ? 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border-t-2 border-l border-r border-blue-300'
+                    : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                <Icon size={18} className="text-blue-600" />
+                <Icon size={18} className={activeTab === tab.id ? 'text-blue-600' : 'text-gray-500'} />
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
                   <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
@@ -431,6 +358,79 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
+              {/* Statistics Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <button
+                  onClick={() => setActiveTab('customers')}
+                  className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left border border-gray-200"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users size={16} className="text-blue-600" />
+                    <p className="text-xs font-medium text-gray-600">Total Customers</p>
+                  </div>
+                  <p className="text-xl font-bold text-blue-600">{statistics.totalCustomers}</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('customers')}
+                  className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left border border-gray-200"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle size={16} className="text-green-600" />
+                    <p className="text-xs font-medium text-gray-600">Active</p>
+                  </div>
+                  <p className="text-xl font-bold text-green-600">{statistics.activeCustomers}</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('works')}
+                  className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left border border-gray-200"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock size={16} className="text-orange-600" />
+                    <p className="text-xs font-medium text-gray-600">Total Works</p>
+                  </div>
+                  <p className="text-xl font-bold text-orange-600">{statistics.totalWorks}</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('works')}
+                  className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left border border-gray-200"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle size={16} className="text-emerald-600" />
+                    <p className="text-xs font-medium text-gray-600">Completed</p>
+                  </div>
+                  <p className="text-xl font-bold text-emerald-600">{statistics.completedWorks}</p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('revenue')}
+                  className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left border border-gray-200"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign size={16} className="text-teal-600" />
+                    <p className="text-xs font-medium text-gray-600">Total Revenue</p>
+                  </div>
+                  <p className="text-xl font-bold text-teal-600">
+                    ₹{statistics.totalRevenue.toLocaleString('en-IN')}
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('revenue')}
+                  className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left border border-gray-200"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingUp size={16} className="text-gray-600" />
+                    <p className="text-xs font-medium text-gray-600">Avg Price</p>
+                  </div>
+                  <p className="text-xl font-bold text-gray-600">
+                    ₹{statistics.averagePrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </p>
+                </button>
+              </div>
+
               {/* Service Information */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -1259,6 +1259,34 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                   placeholder="Any additional notes or instructions..."
                 />
               </div>
+
+              {!service.is_recurring && (
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Calendar size={16} className="text-green-600" />
+                      Task Due Date
+                    </h4>
+                    <p className="text-xs text-gray-600 mb-3">
+                      Set a fixed due date for this task when work is created.
+                    </p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Due Date
+                      </label>
+                      <input
+                        type="date"
+                        name="exact_due_date"
+                        defaultValue={editingTask?.exact_due_date || ''}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        This due date will be applied when this task is copied to a work.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {service.is_recurring && (
                 <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">

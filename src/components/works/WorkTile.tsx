@@ -1,4 +1,4 @@
-import { Calendar, Users, Briefcase, DollarSign, Clock, AlertCircle, CheckCircle, Repeat, Edit2, Trash2, MapPin } from 'lucide-react';
+import { Calendar, Users, Briefcase, DollarSign, Clock, AlertCircle, CheckCircle, Repeat, Edit2, Trash2, MapPin, ListTodo } from 'lucide-react';
 
 interface WorkTileProps {
   work: any;
@@ -32,6 +32,23 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
   const StatusIcon = statusConfig[work.status as keyof typeof statusConfig]?.icon || Clock;
   const isOverdue = work.status !== 'completed' && work.due_date && new Date(work.due_date) < new Date();
 
+  // Get pending task info
+  const pendingTasks = work.work_tasks?.filter((t: any) => t.status === 'pending' || t.status === 'in_progress') || [];
+  const firstPendingTask = pendingTasks[0];
+  const pendingCount = pendingTasks.length;
+
+  // Format status display
+  const getStatusDisplay = () => {
+    if (isOverdue) return 'Overdue';
+    if (work.status === 'pending' && firstPendingTask) {
+      return `Pending: ${firstPendingTask.title}`;
+    }
+    if (work.status === 'in_progress' && firstPendingTask) {
+      return `In Progress: ${firstPendingTask.title}`;
+    }
+    return work.status.replace('_', ' ');
+  };
+
   return (
     <div
       className={`bg-white rounded-xl shadow-sm border-l-4 ${
@@ -41,13 +58,13 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
     >
       <div className="p-5">
         <div className="flex flex-col lg:flex-row items-start gap-4">
-          {/* Work Title & Customer Section */}
-          <div className="flex items-start gap-3 w-full lg:w-auto lg:min-w-[280px] lg:max-w-[280px]">
+          {/* Work Title & Customer Section - More Space */}
+          <div className="flex items-start gap-3 w-full lg:w-auto lg:min-w-[340px] lg:max-w-[340px]">
             <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white flex-shrink-0">
               <Briefcase size={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-bold text-gray-900 text-base mb-1 line-clamp-1" title={work.title}>{work.title}</h3>
+              <h3 className="font-bold text-gray-900 text-base mb-1 line-clamp-2" title={work.title}>{work.title}</h3>
               <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-1">
                 <Users size={12} className="flex-shrink-0" />
                 <span className="truncate">{work.customers.name}</span>
@@ -95,7 +112,7 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
           <div className="hidden lg:block h-12 w-px bg-gray-200"></div>
 
           {/* Status & Priority */}
-          <div className="w-full lg:w-auto lg:min-w-[200px]">
+          <div className="w-full lg:w-auto lg:min-w-[240px]">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <span
@@ -106,8 +123,12 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
                   }`}
                 >
                   <StatusIcon size={12} />
-                  {isOverdue ? 'Overdue' : work.status.replace('_', ' ')}
+                  <span className="truncate max-w-[160px]" title={getStatusDisplay()}>
+                    {getStatusDisplay()}
+                  </span>
                 </span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
                 <span
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
                     priorityColors[work.priority as keyof typeof priorityColors] || priorityColors.medium
@@ -115,14 +136,20 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
                 >
                   {work.priority}
                 </span>
+                <span
+                  className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                    billingStatusColors[work.billing_status as keyof typeof billingStatusColors] || 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {work.billing_status ? work.billing_status.replace('_', ' ') : 'not billed'}
+                </span>
               </div>
-              <span
-                className={`inline-block px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                  billingStatusColors[work.billing_status as keyof typeof billingStatusColors] || 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                {work.billing_status ? work.billing_status.replace('_', ' ') : 'not billed'}
-              </span>
+              {pendingCount > 1 && (
+                <div className="flex items-center gap-1.5 text-xs text-orange-600">
+                  <ListTodo size={13} />
+                  <span>+{pendingCount - 1} more task{pendingCount - 1 > 1 ? 's' : ''}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -130,7 +157,7 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
           <div className="hidden lg:block h-12 w-px bg-gray-200"></div>
 
           {/* Due Date & Amount */}
-          <div className="w-full lg:w-auto lg:min-w-[160px]">
+          <div className="w-full lg:w-auto lg:min-w-[140px]">
             <div className="space-y-1.5">
               {work.due_date && (
                 <div className="flex items-center gap-1.5 text-xs text-gray-700">
@@ -156,17 +183,17 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
           {/* Divider */}
           <div className="hidden lg:block h-12 w-px bg-gray-200"></div>
 
-          {/* Actions */}
-          <div className="w-full lg:w-auto flex items-center gap-2 lg:ml-auto">
+          {/* Actions - Stacked */}
+          <div className="w-full lg:w-auto flex lg:flex-col items-center gap-2 lg:ml-auto">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit(work);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              title="Edit work"
             >
-              <Edit2 size={14} />
-              <span className="hidden sm:inline">Edit</span>
+              <Edit2 size={16} />
             </button>
             <button
               onClick={(e) => onDelete(work.id, e)}
