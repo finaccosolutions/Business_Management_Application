@@ -239,7 +239,12 @@ export default function Works() {
             customers(name),
             services!service_id(name, is_recurring),
             staff_members(name),
-            work_recurring_instances(status, all_tasks_completed),
+            work_recurring_instances(
+              id,
+              status,
+              all_tasks_completed,
+              recurring_period_tasks(id, title, status, due_date)
+            ),
             work_tasks(id, title, status, due_date)
           `)
           .order('created_at', { ascending: false }),
@@ -270,7 +275,10 @@ export default function Works() {
           else if (hasPending) overallStatus = 'pending';
           else if (!allCompleted) overallStatus = 'in_progress';
 
-          return { ...work, status: overallStatus };
+          // For recurring works, flatten all period tasks into work_tasks array for display
+          const allPeriodTasks = periods.flatMap((p: any) => p.recurring_period_tasks || []);
+
+          return { ...work, status: overallStatus, work_tasks: allPeriodTasks };
         }
         return work;
       });

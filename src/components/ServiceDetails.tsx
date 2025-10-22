@@ -20,6 +20,8 @@ import {
   Upload,
   Repeat,
   Landmark,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
@@ -875,6 +877,67 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                           )}
                         </div>
                         <div className="flex items-center gap-2">
+                          {/* Reorder buttons */}
+                          <div className="flex flex-col gap-1 border-r pr-2">
+                            <button
+                              onClick={async () => {
+                                if (index === 0) return;
+                                try {
+                                  const { error } = await supabase.rpc('reorder_tasks', {
+                                    p_table_name: 'service_tasks',
+                                    p_task_id: task.id,
+                                    p_new_sort_order: task.sort_order - 1,
+                                    p_parent_id_column: 'service_id',
+                                    p_parent_id: serviceId
+                                  });
+                                  if (error) throw error;
+                                  fetchServiceDetails();
+                                  toast.success('Task order updated');
+                                } catch (error) {
+                                  console.error('Error reordering task:', error);
+                                  toast.error('Failed to reorder task');
+                                }
+                              }}
+                              disabled={index === 0}
+                              className={`p-1 rounded transition-colors ${
+                                index === 0
+                                  ? 'text-gray-300 cursor-not-allowed'
+                                  : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                              title="Move up"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (index === serviceTasks.length - 1) return;
+                                try {
+                                  const { error } = await supabase.rpc('reorder_tasks', {
+                                    p_table_name: 'service_tasks',
+                                    p_task_id: task.id,
+                                    p_new_sort_order: task.sort_order + 1,
+                                    p_parent_id_column: 'service_id',
+                                    p_parent_id: serviceId
+                                  });
+                                  if (error) throw error;
+                                  fetchServiceDetails();
+                                  toast.success('Task order updated');
+                                } catch (error) {
+                                  console.error('Error reordering task:', error);
+                                  toast.error('Failed to reorder task');
+                                }
+                              }}
+                              disabled={index === serviceTasks.length - 1}
+                              className={`p-1 rounded transition-colors ${
+                                index === serviceTasks.length - 1
+                                  ? 'text-gray-300 cursor-not-allowed'
+                                  : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                              title="Move down"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
                           <button
                             onClick={() => {
                               setEditingTask(task);
@@ -898,8 +961,10 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                                   .eq('id', task.id);
                                 if (error) throw error;
                                 fetchServiceDetails();
+                                toast.success('Task deleted successfully');
                               } catch (error) {
                                 console.error('Error deleting task:', error);
+                                toast.error('Failed to delete task');
                               }
                             }}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
