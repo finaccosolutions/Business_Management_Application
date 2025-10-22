@@ -279,12 +279,12 @@ export function TasksTab({ tasks, isRecurring = false, onAddTask, onEditTask, on
                     <span className={`flex items-center gap-1 ${
                       task.status !== 'completed' && new Date(task.due_date) < new Date()
                         ? 'text-red-600 font-medium'
-                        : ''
+                        : 'text-blue-600'
                     }`}>
                       <Calendar size={14} />
                       Due: {new Date(task.due_date).toLocaleDateString()}
                       {task.status !== 'completed' && new Date(task.due_date) < new Date() && (
-                        <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">Overdue</span>
+                        <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded ml-1">Overdue</span>
                       )}
                     </span>
                   )}

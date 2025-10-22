@@ -747,54 +747,65 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
       <div className="fixed top-16 left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600 flex-shrink-0">
-          <div>
-            <h2 className="text-3xl font-bold text-white">
-              {work.title}
-            </h2>
-            <p className="text-orange-100 text-base mt-2 flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <Users size={16} />
-                {work.customers?.name}
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <Briefcase size={16} />
-                {work.services?.name}
-              </span>
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {work.is_recurring && (
-              <span className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium">
-                <Repeat size={18} />
-                Recurring Work
-              </span>
-            )}
-            <button
-              onClick={onEdit}
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
-            >
-              <Edit2 size={18} />
-              Edit
-            </button>
-            <button
-              onClick={onClose}
-              className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-            >
-              <X size={24} />
-            </button>
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1">
+              <h2 className="text-3xl font-bold text-white">
+                {work.title}
+              </h2>
+              <p className="text-orange-100 text-base mt-2 flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <Users size={16} />
+                  {work.customers?.name}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Briefcase size={16} />
+                  {work.services?.name}
+                </span>
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {work.is_recurring && (
+                <span className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium">
+                  <Repeat size={18} />
+                  Recurring Work
+                </span>
+              )}
+              {!work.is_recurring && work.billing_amount && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg">
+                  <DollarSign size={18} />
+                  <div className="text-left">
+                    <p className="text-xs text-orange-100">Default Price</p>
+                    <p className="text-sm font-bold">₹{work.billing_amount.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+              >
+                <Edit2 size={18} />
+                Edit
+              </button>
+              <button
+                onClick={onClose}
+                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-2 px-6 pt-4 bg-gray-50 border-b-2 border-gray-200 flex-shrink-0 overflow-x-auto">
+        <div className="flex gap-2 px-6 pt-3 bg-gray-50 border-b-2 border-gray-200 flex-shrink-0 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-3.5 font-semibold rounded-t-xl transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-5 py-3 font-semibold rounded-t-xl transition-all whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'bg-white text-orange-600 shadow-md border-t-4 border-orange-500 -mb-0.5 z-10'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 border-t-4 border-transparent'

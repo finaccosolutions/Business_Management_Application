@@ -850,40 +850,52 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
       <div className="fixed top-16 left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600 flex-shrink-0">
-          <div>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              <Briefcase size={28} />
-              Work Details
-            </h2>
-            <p className="text-orange-100 text-sm mt-1">
-              {work.customers?.name} • {work.services?.name}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {work.is_recurring && (
-              <span className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium">
-                <Repeat size={18} />
-                Recurring Work
-              </span>
-            )}
-            <button
-              onClick={onEdit}
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
-            >
-              <Edit2 size={18} />
-              Edit
-            </button>
-            <button
-              onClick={onClose}
-              className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-            >
-              <X size={24} />
-            </button>
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <Briefcase size={28} />
+                Work Details
+              </h2>
+              <p className="text-orange-100 text-sm mt-1">
+                {work.customers?.name} • {work.services?.name}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {work.is_recurring && (
+                <span className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium">
+                  <Repeat size={18} />
+                  Recurring Work
+                </span>
+              )}
+              {!work.is_recurring && work.billing_amount && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg">
+                  <DollarSign size={18} />
+                  <div className="text-left">
+                    <p className="text-xs text-orange-100">Default Price</p>
+                    <p className="text-sm font-bold">₹{work.billing_amount.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+              >
+                <Edit2 size={18} />
+                Edit
+              </button>
+              <button
+                onClick={onClose}
+                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+
+        <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-4">
             <span
               className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 ${
@@ -908,65 +920,14 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 p-6 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 flex-shrink-0">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock size={16} className="text-orange-600" />
-              <p className="text-xs font-medium text-gray-600">Time Tracked</p>
-            </div>
-            <p className="text-2xl font-bold text-orange-600">{work.actual_duration_hours || 0}h</p>
-            {work.estimated_hours && (
-              <p className="text-xs text-gray-500 mt-1">of {work.estimated_hours}h estimated</p>
-            )}
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle size={16} className="text-green-600" />
-              <p className="text-xs font-medium text-gray-600">Tasks</p>
-            </div>
-            <p className="text-2xl font-bold text-green-600">
-              {tasks.filter((t) => t.status === 'completed').length}/{tasks.length}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">completed</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Users size={16} className="text-blue-600" />
-              <p className="text-xs font-medium text-gray-600">Assigned To</p>
-            </div>
-            <p className="text-lg font-semibold text-blue-600 truncate">
-              {work.staff_members?.name || 'Unassigned'}
-            </p>
-            <button
-              onClick={() => setShowAssignModal(true)}
-              className="text-xs text-blue-600 hover:text-blue-700 mt-1 hover:underline"
-            >
-              {work.assigned_to ? 'Reassign' : 'Assign'}
-            </button>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign size={16} className="text-teal-600" />
-              <p className="text-xs font-medium text-gray-600">Billing Amount</p>
-            </div>
-            <p className="text-2xl font-bold text-teal-600">
-              {work.billing_amount ? `₹${work.billing_amount.toLocaleString('en-IN')}` : 'N/A'}
-            </p>
-            <p className="text-xs text-gray-500 mt-1 capitalize">{work.billing_status?.replace('_', ' ')}</p>
-          </div>
-        </div>
-
-        <div className="flex gap-2 px-6 pt-4 border-b-2 border-gray-300 bg-white flex-shrink-0">
+        <div className="flex gap-2 px-6 pt-3 border-b-2 border-gray-300 bg-gray-50 flex-shrink-0">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 font-medium rounded-t-lg transition-all border-b-2 -mb-0.5 ${
+                className={`flex items-center gap-2 px-4 py-2 font-medium rounded-t-lg transition-all border-b-2 -mb-0.5 ${
                   activeTab === tab.id
                     ? 'bg-orange-50 text-orange-700 border-orange-600'
                     : 'text-gray-600 hover:bg-gray-50 border-transparent'
@@ -987,6 +948,57 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock size={16} className="text-orange-600" />
+                    <p className="text-xs font-medium text-gray-600">Time Tracked</p>
+                  </div>
+                  <p className="text-2xl font-bold text-orange-600">{work.actual_duration_hours || 0}h</p>
+                  {work.estimated_hours && (
+                    <p className="text-xs text-gray-500 mt-1">of {work.estimated_hours}h estimated</p>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle size={16} className="text-green-600" />
+                    <p className="text-xs font-medium text-gray-600">Tasks</p>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {tasks.filter((t) => t.status === 'completed').length}/{tasks.length}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">completed</p>
+                </div>
+
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users size={16} className="text-blue-600" />
+                    <p className="text-xs font-medium text-gray-600">Assigned To</p>
+                  </div>
+                  <p className="text-lg font-semibold text-blue-600 truncate">
+                    {work.staff_members?.name || 'Unassigned'}
+                  </p>
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    className="text-xs text-blue-600 hover:text-blue-700 mt-1 hover:underline"
+                  >
+                    {work.assigned_to ? 'Reassign' : 'Assign'}
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign size={16} className="text-teal-600" />
+                    <p className="text-xs font-medium text-gray-600">Billing Amount</p>
+                  </div>
+                  <p className="text-2xl font-bold text-teal-600">
+                    {work.billing_amount ? `₹${work.billing_amount.toLocaleString('en-IN')}` : 'N/A'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1 capitalize">{work.billing_status?.replace('_', ' ')}</p>
+                </div>
+              </div>
+
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Briefcase size={20} className="text-orange-600" />
@@ -1068,9 +1080,16 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit }: WorkD
                             </span>
                           )}
                           {task.due_date && (
-                            <span className="flex items-center gap-1">
+                            <span className={`flex items-center gap-1 ${
+                              task.status !== 'completed' && new Date(task.due_date) < new Date()
+                                ? 'text-red-600 font-medium'
+                                : 'text-blue-600'
+                            }`}>
                               <Calendar size={14} />
-                              {formatDateDisplay(task.due_date)}
+                              Due: {formatDateDisplay(task.due_date)}
+                              {task.status !== 'completed' && new Date(task.due_date) < new Date() && (
+                                <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded ml-1">Overdue</span>
+                              )}
                             </span>
                           )}
                           {task.estimated_hours && (
