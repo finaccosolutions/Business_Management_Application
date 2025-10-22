@@ -187,6 +187,7 @@ export default function Reminders() {
           works!work_id (
             id,
             title,
+            user_id,
             customers (name, email, phone),
             services (name),
             staff_members (name)
@@ -195,7 +196,10 @@ export default function Reminders() {
         .in('status', ['pending', 'in_progress', 'overdue'])
         .order('period_end_date', { ascending: true });
 
-      (periodsData || []).forEach((period: any) => {
+      // Filter periods by user_id from works
+      const userPeriodsData = (periodsData || []).filter((period: any) => period.works?.user_id === user?.id);
+
+      (userPeriodsData || []).forEach((period: any) => {
         const work = period.works;
         if (!work) return;
 
@@ -448,13 +452,13 @@ export default function Reminders() {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       const { data: staffData } = await supabase
-        .from('staff')
+        .from('staff_members')
         .select(`
           *,
           works!works_assigned_to_fkey (id, status, due_date, completed_date)
         `)
         .eq('user_id', user?.id)
-        .eq('status', 'active');
+        .eq('is_active', true);
 
       (staffData || []).forEach((staff: any) => {
         const works = staff.works || [];
@@ -552,7 +556,101 @@ export default function Reminders() {
         }
       });
 
-      // 12. Overdue invoice payments (more detailed)
+      // 12. Overdue/Upcoming Recurring Period Tasks
+      const { data: recurringTasksData } = await supabase
+        .from('recurring_period_tasks')
+        .select(`
+          *,
+          work_recurring_instances!instance_id (
+            period_name,
+            works!work_id (
+              title,
+              user_id,
+              customers (name, email, phone),
+              services (name)
+            )
+          )
+        `)
+        .eq('status', 'pending')
+        .not('due_date', 'is', null)
+        .order('due_date', { ascending: true });
+
+      (recurringTasksData || []).forEach((task: any) => {
+        const instance = task.work_recurring_instances;
+        const work = instance?.works;
+        if (!work || work.user_id !== user?.id) return;
+
+        const dueDate = new Date(task.due_date);
+        const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        let urgency: 'critical' | 'high' | 'medium' | 'low' = 'low';
+        const isOverdue = daysUntil < 0;
+        if (daysUntil < -7) urgency = 'critical';
+        else if (daysUntil < 0) urgency = 'high';
+        else if (daysUntil === 0) urgency = 'critical';
+        else if (daysUntil === 1) urgency = 'high';
+        else if (daysUntil <= 3) urgency = 'medium';
+
+        if (isOverdue || daysUntil <= 7) {
+          alertsList.push({
+            id: task.id + '-recurring-task',
+            type: isOverdue ? 'overdue_work' : 'upcoming_due_date',
+            title: `${isOverdue ? 'Overdue' : 'Upcoming'} Task: ${task.title}`,
+            description: `${instance.period_name} - ${work.services?.name} for ${work.customers?.name} - Due ${daysUntil < 0 ? Math.abs(daysUntil) + ' days overdue' : daysUntil === 0 ? 'today' : 'in ' + daysUntil + ' days'}`,
+            date: task.due_date,
+            urgency,
+            category: isOverdue ? 'Overdue Tasks' : 'Upcoming Tasks',
+            metadata: { task, instance, work, customer: work.customers, service: work.services, days_until: daysUntil },
+          });
+        }
+      });
+
+      // 13. Overdue/Upcoming Work Tasks (Non-Recurring)
+      const { data: workTasksData } = await supabase
+        .from('work_tasks')
+        .select(`
+          *,
+          works!work_id (
+            title,
+            user_id,
+            customers (name, email, phone),
+            services (name)
+          )
+        `)
+        .eq('status', 'pending')
+        .not('due_date', 'is', null)
+        .order('due_date', { ascending: true });
+
+      (workTasksData || []).forEach((task: any) => {
+        const work = task.works;
+        if (!work || work.user_id !== user?.id) return;
+
+        const dueDate = new Date(task.due_date);
+        const daysUntil = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        let urgency: 'critical' | 'high' | 'medium' | 'low' = 'low';
+        const isOverdue = daysUntil < 0;
+        if (daysUntil < -7) urgency = 'critical';
+        else if (daysUntil < 0) urgency = 'high';
+        else if (daysUntil === 0) urgency = 'critical';
+        else if (daysUntil === 1) urgency = 'high';
+        else if (daysUntil <= 3) urgency = 'medium';
+
+        if (isOverdue || daysUntil <= 7) {
+          alertsList.push({
+            id: task.id + '-work-task',
+            type: isOverdue ? 'overdue_work' : 'upcoming_due_date',
+            title: `${isOverdue ? 'Overdue' : 'Upcoming'} Task: ${task.title}`,
+            description: `${work.services?.name} for ${work.customers?.name} - Due ${daysUntil < 0 ? Math.abs(daysUntil) + ' days overdue' : daysUntil === 0 ? 'today' : 'in ' + daysUntil + ' days'}`,
+            date: task.due_date,
+            urgency,
+            category: isOverdue ? 'Overdue Tasks' : 'Upcoming Tasks',
+            metadata: { task, work, customer: work.customers, service: work.services, days_until: daysUntil },
+          });
+        }
+      });
+
+      // 14. Overdue invoice payments (more detailed)
       const { data: overduePaymentsData } = await supabase
         .from('invoices')
         .select(`
@@ -727,7 +825,7 @@ export default function Reminders() {
   const categoryGroups = {
     'Lead Management': ['Lead Follow-ups', 'Lead Management'],
     'Customer Relations': ['Customer Engagement', 'Data Quality'],
-    'Work & Projects': ['Works & Tasks', 'Work Scheduling', 'Overdue Works', 'Recurring Work Periods', 'Overdue Periods'],
+    'Work & Projects': ['Works & Tasks', 'Work Scheduling', 'Overdue Works', 'Recurring Work Periods', 'Overdue Periods', 'Overdue Tasks', 'Upcoming Tasks'],
     'Financial': ['Payments & Invoices', 'Upcoming Payments', 'Billing Required', 'Overdue Payments'],
     'Staff & Team': ['Staff Performance', 'Staff Workload'],
     'General': ['Manual Reminders']

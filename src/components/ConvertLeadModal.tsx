@@ -95,7 +95,7 @@ export default function ConvertLeadModal({
   const fetchStaff = async () => {
     try {
       const { data, error } = await supabase
-        .from('staff')
+        .from('staff_members')
         .select('id, name')
         .eq('user_id', user?.id)
         .eq('is_active', true)
