@@ -32,27 +32,56 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
   const StatusIcon = statusConfig[work.status as keyof typeof statusConfig]?.icon || Clock;
   const isOverdue = work.status !== 'completed' && work.due_date && new Date(work.due_date) < new Date();
 
-  // Get pending task info - only count incomplete tasks
-  const pendingTasks = work.work_tasks?.filter((t: any) => t.status !== 'completed') || [];
-  const firstPendingTask = pendingTasks[0];
-  const additionalPendingCount = pendingTasks.length > 1 ? pendingTasks.length - 1 : 0;
+  // Get task info - check if recurring work or regular work
+  const allTasks = work.work_tasks || [];
+  const completedTasks = allTasks.filter((t: any) => t.status === 'completed');
+  const pendingTasks = allTasks.filter((t: any) => t.status !== 'completed');
+
+  // Sort pending tasks by due_date to get the truly next task
+  const sortedPendingTasks = [...pendingTasks].sort((a: any, b: any) => {
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+  });
+
+  const firstPendingTask = sortedPendingTasks[0];
 
   // Format status display
   const getStatusDisplay = () => {
     if (isOverdue) return 'Overdue';
 
-    // Show completed if all tasks are done
-    if (pendingTasks.length === 0 && work.work_tasks?.length > 0) {
-      return 'Completed';
+    // Check if all tasks are completed
+    const allCompleted = allTasks.length > 0 && completedTasks.length === allTasks.length;
+
+    if (allCompleted) {
+      return 'All Tasks Completed';
     }
 
-    // Show pending/in-progress with first pending task
+    // Show next pending task
     if (firstPendingTask) {
-      const statusText = work.status === 'in_progress' ? 'Processing' : 'Pending';
-      return `${statusText}: ${firstPendingTask.title}`;
+      return `Next: ${firstPendingTask.title}`;
+    }
+
+    // If no tasks at all, show work status
+    if (allTasks.length === 0) {
+      return work.status.replace('_', ' ');
     }
 
     return work.status.replace('_', ' ');
+  };
+
+  // Format task progress
+  const getTaskProgress = () => {
+    if (allTasks.length === 0) return null;
+
+    const completed = completedTasks.length;
+    const total = allTasks.length;
+
+    if (completed === total) {
+      return `${total}/${total} completed`;
+    }
+
+    return `${completed}/${total} tasks`;
   };
 
   return (
@@ -146,10 +175,10 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
               </div>
             )}
 
-            {additionalPendingCount > 0 && (
-              <div className="flex items-center gap-1 text-xs text-orange-600 font-medium">
+            {getTaskProgress() && (
+              <div className="flex items-center gap-1 text-xs font-medium bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
                 <ListTodo size={10} />
-                <span>+{additionalPendingCount}</span>
+                <span>{getTaskProgress()}</span>
               </div>
             )}
           </div>

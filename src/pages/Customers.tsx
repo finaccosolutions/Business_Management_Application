@@ -488,9 +488,9 @@ export default function Customers() {
                 className={`bg-white rounded-lg shadow-sm border-l-4 ${borderColor} border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
               >
                 <div className="p-3">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-6">
                     {/* Left: Avatar + Name + Company */}
-                    <div className="flex items-center gap-3 flex-shrink-0" style={{ width: '260px' }}>
+                    <div className="flex items-center gap-3 flex-shrink-0 w-64">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
                         {customer.image_url ? (
                           <img
@@ -534,8 +534,8 @@ export default function Customers() {
                       </div>
                     </div>
 
-                    {/* Center-Left: Contact Info - Compact Column */}
-                    <div className="flex flex-col gap-1 min-w-0" style={{ width: '200px' }}>
+                    {/* Center-Left: Contact Info */}
+                    <div className="flex flex-col gap-1 min-w-0 w-52">
                       {customer.phone && (
                         <div className="flex items-center gap-1.5 text-xs text-gray-600">
                           <Phone size={11} className="flex-shrink-0 text-green-500" />
@@ -558,28 +558,24 @@ export default function Customers() {
                       )}
                     </div>
 
-                    {/* Center-Right: Registration Numbers */}
-                    <div className="flex flex-col gap-1 flex-shrink-0" style={{ width: '150px' }}>
+                    {/* Center: Registration Numbers */}
+                    <div className="flex flex-col gap-1 flex-shrink-0 w-40">
                       {customer.gstin && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded truncate" title={customer.gstin}>
-                            GST: {customer.gstin.substring(0, 8)}...
-                          </span>
-                        </div>
+                        <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded truncate" title={customer.gstin}>
+                          GST: {customer.gstin.substring(0, 8)}...
+                        </span>
                       )}
                       {customer.pan_number && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded truncate">PAN: {customer.pan_number}</span>
-                        </div>
+                        <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded truncate">PAN: {customer.pan_number}</span>
                       )}
                       {daysSinceCreated <= 30 && (
-                        <span className="inline-block text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full text-center">
+                        <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full text-center">
                           New
                         </span>
                       )}
                     </div>
 
-                    {/* Right: Stats */}
+                    {/* Center-Right: Stats */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <div className="flex items-center gap-1 bg-blue-50 rounded px-2 py-1" title="Active Services">
                         <Briefcase size={12} className="text-blue-600" />
@@ -605,8 +601,8 @@ export default function Customers() {
                       )}
                     </div>
 
-                    {/* Actions - Vertical Stack */}
-                    <div className="flex flex-col gap-1 flex-shrink-0">
+                    {/* Right: Actions - Always at the right edge */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
