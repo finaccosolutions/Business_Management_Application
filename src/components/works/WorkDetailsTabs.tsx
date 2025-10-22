@@ -144,6 +144,15 @@ export function OverviewTab({ work, tasks, timeLogs, onStatusChange, onNavigateT
                 <p className="text-gray-900 mt-1">{new Date(work.due_date).toLocaleDateString()}</p>
               </div>
             )}
+            {work.completion_date && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Completion Date</label>
+                <p className="text-green-600 font-semibold mt-1 flex items-center gap-1">
+                  <CheckCircle size={16} />
+                  {new Date(work.completion_date).toLocaleDateString()}
+                </p>
+              </div>
+            )}
             {work.work_location && (
               <div>
                 <label className="text-sm font-medium text-gray-500">Work Location</label>
