@@ -979,7 +979,7 @@ const filteredWorks = works.filter((work) => {
       {/* Add/Edit Work Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header with Gradient */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
               <h2 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -1026,7 +1026,7 @@ const filteredWorks = works.filter((work) => {
                   Basic Information
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {!editingWork && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1043,7 +1043,7 @@ const filteredWorks = works.filter((work) => {
                     </div>
                   )}
 
-                  <div className="md:col-span-2">
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Customer *
                     </label>
@@ -1061,26 +1061,26 @@ const filteredWorks = works.filter((work) => {
                       ))}
                     </select>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Service *
-                    </label>
-                    <select
-                      required
-                      value={formData.service_id}
-                      onChange={(e) => handleServiceChange(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    >
-                      <option value="">Select Service</option>
-                      {services.map((service) => (
-                        <option key={service.id} value={service.id}>
-                          {service.name}
-                          {service.is_recurring && ' (Recurring)'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Service *
+                  </label>
+                  <select
+                    required
+                    value={formData.service_id}
+                    onChange={(e) => handleServiceChange(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Select Service</option>
+                    {services.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name}
+                        {service.is_recurring && ' (Recurring)'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -1105,6 +1105,14 @@ const filteredWorks = works.filter((work) => {
                     placeholder="Work description"
                   />
                 </div>
+
+                {!formData.is_recurring && formData.service_id && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> Tasks, staff assignments, and due dates will be managed in the Work Details page after creation.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Work Details Section */}
@@ -1125,24 +1133,6 @@ const filteredWorks = works.filter((work) => {
                       <option value="medium">Medium</option>
                       <option value="high">High</option>
                       <option value="urgent">Urgent</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Assign to Staff
-                    </label>
-                    <select
-                      value={formData.assigned_to}
-                      onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    >
-                      <option value="">Unassigned</option>
-                      {staffMembers.map((staff) => (
-                        <option key={staff.id} value={staff.id}>
-                          {staff.name} ({staff.role})
-                        </option>
-                      ))}
                     </select>
                   </div>
                 </div>
@@ -1182,105 +1172,22 @@ const filteredWorks = works.filter((work) => {
                   Schedule
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {formData.is_recurring ? (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Start Date *
-                          <span className="text-xs text-orange-600 ml-2">(Required for recurring work)</span>
-                        </label>
-                        <input
-                          type="date"
-                          required={formData.is_recurring}
-                          value={formData.start_date}
-                          onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Estimated Duration
-                        </label>
-                        <div className="flex space-x-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={formData.estimated_duration_value}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                estimated_duration_value: parseInt(e.target.value) || 0,
-                              })
-                            }
-                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                            placeholder="Duration"
-                          />
-                          <select
-                            value={formData.estimated_duration_unit}
-                            onChange={(e) =>
-                              setFormData({ ...formData, estimated_duration_unit: e.target.value })
-                            }
-                            className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                          >
-                            <option value="hours">Hours</option>
-                            <option value="days">Days</option>
-                            <option value="weeks">Weeks</option>
-                            <option value="months">Months</option>
-                          </select>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Due Date *
-                          <span className="text-xs text-blue-600 ml-2">(Required for one-time work)</span>
-                        </label>
-                        <input
-                          type="date"
-                          required={!formData.is_recurring}
-                          value={formData.due_date}
-                          onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Estimated Duration
-                        </label>
-                        <div className="flex space-x-2">
-                          <input
-                            type="number"
-                            min="0"
-                            value={formData.estimated_duration_value}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                estimated_duration_value: parseInt(e.target.value) || 0,
-                              })
-                            }
-                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Duration"
-                          />
-                          <select
-                            value={formData.estimated_duration_unit}
-                            onChange={(e) =>
-                              setFormData({ ...formData, estimated_duration_unit: e.target.value })
-                            }
-                            className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="hours">Hours</option>
-                            <option value="days">Days</option>
-                            <option value="weeks">Weeks</option>
-                            <option value="months">Months</option>
-                          </select>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                {formData.is_recurring && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Start Date *
+                      <span className="text-xs text-orange-600 ml-2">(Required for recurring work)</span>
+                    </label>
+                    <input
+                      type="date"
+                      required={formData.is_recurring}
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Tasks and their due dates will be managed in the work details page</p>
+                  </div>
+                )}
               </div>
 
               {/* Billing Section */}

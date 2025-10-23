@@ -1305,33 +1305,6 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                 />
               </div>
 
-              {!service.is_recurring && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <Calendar size={16} className="text-green-600" />
-                      Task Due Date
-                    </h4>
-                    <p className="text-xs text-gray-600 mb-3">
-                      Set a fixed due date for this task when work is created.
-                    </p>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Due Date
-                      </label>
-                      <input
-                        type="date"
-                        name="exact_due_date"
-                        defaultValue={editingTask?.exact_due_date || ''}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                      />
-                      <p className="text-xs text-gray-500 mt-2">
-                        This due date will be applied when this task is copied to a work.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {service.is_recurring && (
                 <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
