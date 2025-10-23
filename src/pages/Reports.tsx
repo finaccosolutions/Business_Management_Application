@@ -24,6 +24,7 @@ import {
 import TrialBalanceReport from '../components/reports/TrialBalanceReport';
 import BalanceSheetReport from '../components/reports/BalanceSheetReport';
 import ProfitLossReport from '../components/reports/ProfitLossReport';
+import ReceivablesReport from '../components/reports/ReceivablesReport';
 import ReportFilters from '../components/reports/ReportFilters';
 import { exportToXLSX, exportToPDF } from '../lib/exportUtils';
 
@@ -1041,6 +1042,15 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
       icon: DollarSign,
       reports: [
         {
+          id: 'receivables',
+          name: 'Accounts Receivable',
+          description: 'Outstanding invoices, payment tracking, and aging analysis',
+          icon: Wallet,
+          action: () => {
+            setActiveReport('receivables');
+          },
+        },
+        {
           id: 'revenue',
           name: 'Revenue Analysis',
           description: 'Monthly revenue trends and growth analysis',
@@ -1188,6 +1198,10 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
             </div>
           </div>
         </div>
+
+        {activeReport === 'receivables' && (
+          <ReceivablesReport />
+        )}
 
         {activeReport === 'trial_balance' && (
           <TrialBalanceReport

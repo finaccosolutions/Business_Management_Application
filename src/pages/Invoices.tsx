@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, FileText, DollarSign, Calendar, Users, Trash2, Search, Filter, Eye, Edit2, Printer, Download, TrendingUp, Clock, CheckCircle, AlertCircle, X, ChevronDown } from 'lucide-react';
+import { Plus, FileText, DollarSign, Calendar, Users, Trash2, Search, Filter, Eye, Edit2, Printer, Download, TrendingUp, Clock, CheckCircle, AlertCircle, X, ChevronDown, Receipt } from 'lucide-react';
 import { generateEnhancedInvoiceHTML, previewEnhancedInvoice, printEnhancedInvoice, downloadEnhancedPDF } from '../lib/enhancedInvoicePDF';
 import { useToast } from '../contexts/ToastContext';
 import EditInvoiceModal from '../components/EditInvoiceModal';
 import InvoiceFormModal from '../components/InvoiceFormModal';
+import InvoicePaymentModal from '../components/InvoicePaymentModal';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { formatDateDisplay } from '../lib/dateUtils';
 
@@ -18,6 +19,8 @@ interface Invoice {
   subtotal: number;
   tax_amount: number;
   total_amount: number;
+  paid_amount?: number;
+  balance_amount?: number;
   status: string;
   work_id?: string;
   notes?: string;
@@ -67,6 +70,7 @@ export default function Invoices() {
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'customer'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [editingInvoice, setEditingInvoice] = useState<{ invoice: Invoice; items: InvoiceItem[] } | null>(null);
+  const [paymentLinkingInvoice, setPaymentLinkingInvoice] = useState<Invoice | null>(null);
   const { showConfirmation } = useConfirmation();
   const [stats, setStats] = useState<InvoiceStats>({
     totalAmount: 0,
@@ -546,6 +550,21 @@ export default function Invoices() {
                       </div>
                     </div>
 
+                    {(invoice.paid_amount !== undefined && invoice.paid_amount > 0) && (
+                      <div className="flex items-center gap-4 mt-2 text-sm">
+                        <span className="text-green-600 flex items-center gap-1">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Paid: ₹{invoice.paid_amount.toLocaleString('en-IN')}
+                        </span>
+                        {(invoice.balance_amount ?? 0) > 0 && (
+                          <span className="text-orange-600 font-medium flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            Balance: ₹{invoice.balance_amount?.toLocaleString('en-IN')}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {invoice.status === 'paid' && invoice.paid_at && (
                       <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
                         <CheckCircle className="w-3.5 h-3.5" />
@@ -558,6 +577,18 @@ export default function Invoices() {
                 {/* Right Section - Actions */}
                 <div className="flex flex-col gap-2 lg:flex-shrink-0 lg:ml-auto">
                   <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setPaymentLinkingInvoice({
+                        ...invoice,
+                        paid_amount: invoice.paid_amount || 0,
+                        balance_amount: invoice.balance_amount || invoice.total_amount
+                      })}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-xs font-medium"
+                      title="Link Payments"
+                    >
+                      <Receipt className="w-4 h-4" />
+                      <span>Payments</span>
+                    </button>
                     <button
                       onClick={() => handlePreview(invoice)}
                       className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium"
@@ -660,6 +691,19 @@ export default function Invoices() {
           onSave={() => {
             fetchInvoices();
             setEditingInvoice(null);
+          }}
+        />
+      )}
+
+      {paymentLinkingInvoice && (
+        <InvoicePaymentModal
+          invoice={{
+            ...paymentLinkingInvoice,
+            customer_name: paymentLinkingInvoice.customers.name,
+          }}
+          onClose={() => setPaymentLinkingInvoice(null)}
+          onSave={() => {
+            fetchInvoices();
           }}
         />
       )}
