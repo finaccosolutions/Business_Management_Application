@@ -1188,11 +1188,13 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                     ? parseFloat(formData.get('estimated_hours') as string)
                     : null,
                   notes: (formData.get('notes') as string) || null,
-                  task_recurrence_type: null,
-                  due_offset_type: null,
-                  due_offset_value: null,
-                  exact_due_date: null,
-                  specific_period_dates: null,
+                  task_recurrence_type: (formData.get('task_recurrence_type') as string) || null,
+                  due_offset_type: (formData.get('due_offset_type') as string) || 'days',
+                  due_offset_value: formData.get('due_offset_value')
+                    ? parseInt(formData.get('due_offset_value') as string)
+                    : 10,
+                  exact_due_date: (formData.get('exact_due_date') as string) || null,
+                  specific_period_dates: editingTask?.specific_period_dates || {},
                   default_assigned_to: (formData.get('default_assigned_to') as string) || null,
                   is_active: true,
                   sort_order: editingTask?.sort_order ?? serviceTasks.length,
@@ -1303,20 +1305,141 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                 />
               </div>
 
-              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
-                <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                  <Calendar size={16} className="text-blue-600" />
-                  Task Due Dates
-                </h4>
-                <p className="text-sm text-gray-700">
-                  Due dates are not set at the template level. When you create a work from this service, these tasks will be copied to the work's task list, where you can assign individual due dates for each task.
-                </p>
-                {service.is_recurring && (
-                  <p className="text-xs text-gray-600 mt-2">
-                    For recurring services, tasks are automatically copied to each period and due dates can be set individually for each period's tasks.
-                  </p>
-                )}
-              </div>
+              {!service.is_recurring && (
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Calendar size={16} className="text-green-600" />
+                      Task Due Date
+                    </h4>
+                    <p className="text-xs text-gray-600 mb-3">
+                      Set a fixed due date for this task when work is created.
+                    </p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Due Date
+                      </label>
+                      <input
+                        type="date"
+                        name="exact_due_date"
+                        defaultValue={editingTask?.exact_due_date || ''}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        This due date will be applied when this task is copied to a work.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {service.is_recurring && (
+                <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Repeat size={16} className="text-blue-600" />
+                      Task Frequency & Due Date
+                    </h4>
+                    <p className="text-xs text-gray-600 mb-3">
+                      Service recurrence: <strong>{service.recurrence_type}</strong>. Task frequency cannot exceed service recurrence.
+                    </p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          How Often Should This Task Be Due?
+                        </label>
+                        <select
+                          name="task_recurrence_type"
+                          defaultValue={editingTask?.task_recurrence_type || service.recurrence_type}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Same as Service ({service.recurrence_type})</option>
+                          {service.recurrence_type === 'yearly' && (
+                            <>
+                              <option value="monthly">Monthly</option>
+                              <option value="quarterly">Quarterly</option>
+                              <option value="half-yearly">Half Yearly</option>
+                            </>
+                          )}
+                          {service.recurrence_type === 'half-yearly' && (
+                            <>
+                              <option value="monthly">Monthly</option>
+                              <option value="quarterly">Quarterly</option>
+                            </>
+                          )}
+                          {service.recurrence_type === 'quarterly' && (
+                            <option value="monthly">Monthly</option>
+                          )}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Example: For quarterly GST, GSTR-3B might be monthly while GSTR-1 is quarterly
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Offset Type
+                          </label>
+                          <select
+                            name="due_offset_type"
+                            defaultValue={editingTask?.due_offset_type || 'days'}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="days">Days</option>
+                            <option value="months">Months</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Offset from Period End
+                          </label>
+                          <input
+                            type="number"
+                            name="due_offset_value"
+                            min="0"
+                            defaultValue={editingTask?.due_offset_value || 10}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="e.g., 10, 20"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Examples: 10 days = 10 days after period end, 1 month = 1 month + 10 days after period end
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Calendar size={16} className="text-green-600" />
+                      Exact Due Date (Applies to All Works)
+                    </h4>
+                    <p className="text-xs text-gray-600 mb-3">
+                      Set a fixed due date for this task. This will apply to ALL works using this service.
+                    </p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Exact Due Date (Optional)
+                      </label>
+                      <input
+                        type="date"
+                        name="exact_due_date"
+                        defaultValue={editingTask?.exact_due_date || ''}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        If set, this overrides the offset calculation. Leave empty to use offset-based calculation.
+                      </p>
+                    </div>
+                    <div className="bg-white border border-green-200 rounded-lg p-3 text-xs text-gray-700 mt-3">
+                      <p className="font-medium mb-1">Example:</p>
+                      <p>Set "2025-03-15" to make this task due on 15th March 2025 for all works.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex space-x-3 pt-4">
                 <button
