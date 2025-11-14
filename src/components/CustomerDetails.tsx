@@ -344,91 +344,6 @@ export default function CustomerDetails({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 p-6 bg-gray-50 border-b border-gray-200">
-          <button
-            onClick={() => {
-              setActiveTab('invoices');
-            }}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign size={16} className="text-blue-600" />
-              <p className="text-xs font-medium text-gray-600">Total Invoiced</p>
-            </div>
-            <p className="text-xl font-bold text-blue-600">
-              ₹{statistics.totalInvoiced.toLocaleString('en-IN')}
-            </p>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('invoices');
-            }}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle size={16} className="text-green-600" />
-              <p className="text-xs font-medium text-gray-600">Total Paid</p>
-            </div>
-            <p className="text-xl font-bold text-green-600">
-              ₹{statistics.totalPaid.toLocaleString('en-IN')}
-            </p>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('invoices');
-            }}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <AlertCircle size={16} className="text-orange-600" />
-              <p className="text-xs font-medium text-gray-600">Pending</p>
-            </div>
-            <p className="text-xl font-bold text-orange-600">
-              ₹{statistics.totalPending.toLocaleString('en-IN')}
-            </p>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('services');
-            }}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Briefcase size={16} className="text-teal-600" />
-              <p className="text-xs font-medium text-gray-600">Active Services</p>
-            </div>
-            <p className="text-xl font-bold text-teal-600">{statistics.activeServices}</p>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('works');
-            }}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle size={16} className="text-emerald-600" />
-              <p className="text-xs font-medium text-gray-600">Completed</p>
-            </div>
-            <p className="text-xl font-bold text-emerald-600">{statistics.completedWorks}</p>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('works');
-            }}
-            className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Clock size={16} className="text-yellow-600" />
-              <p className="text-xs font-medium text-gray-600">Pending Works</p>
-            </div>
-            <p className="text-xl font-bold text-yellow-600">{statistics.pendingWorks}</p>
-          </button>
-        </div>
 
         <div className="flex border-b border-gray-200 bg-gray-50 px-6 overflow-x-auto">
           {tabs.map((tab) => {
@@ -457,7 +372,7 @@ export default function CustomerDetails({
 
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'overview' && (
-            <OverviewTab customer={customer} />
+            <OverviewTab customer={customer} statistics={statistics} />
           )}
 
           {activeTab === 'services' && (
@@ -485,7 +400,16 @@ export default function CustomerDetails({
           )}
 
           {activeTab === 'invoices' && (
-            <InvoicesTab invoices={invoices} statistics={statistics} customerId={customerId} />
+            <InvoicesTab
+              invoices={invoices}
+              statistics={statistics}
+              customerId={customerId}
+              onNavigateToInvoice={(invoiceId) => {
+                // Close customer details and navigate to invoice
+                onClose();
+                window.location.href = `/invoices?id=${invoiceId}`;
+              }}
+            />
           )}
 
           {activeTab === 'communications' && (
@@ -575,9 +499,65 @@ export default function CustomerDetails({
   );
 }
 
-function OverviewTab({ customer }: { customer: Customer }) {
+function OverviewTab({ customer, statistics }: { customer: Customer; statistics: any }) {
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign size={16} className="text-blue-600" />
+            <p className="text-xs font-medium text-gray-600">Total Invoiced</p>
+          </div>
+          <p className="text-lg font-bold text-blue-600">
+            ₹{statistics.totalInvoiced.toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle size={16} className="text-green-600" />
+            <p className="text-xs font-medium text-gray-600">Total Paid</p>
+          </div>
+          <p className="text-lg font-bold text-green-600">
+            ₹{statistics.totalPaid.toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle size={16} className="text-orange-600" />
+            <p className="text-xs font-medium text-gray-600">Pending</p>
+          </div>
+          <p className="text-lg font-bold text-orange-600">
+            ₹{statistics.totalPending.toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2 mb-2">
+            <Briefcase size={16} className="text-teal-600" />
+            <p className="text-xs font-medium text-gray-600">Active Services</p>
+          </div>
+          <p className="text-lg font-bold text-teal-600">{statistics.activeServices}</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle size={16} className="text-emerald-600" />
+            <p className="text-xs font-medium text-gray-600">Completed</p>
+          </div>
+          <p className="text-lg font-bold text-emerald-600">{statistics.completedWorks}</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock size={16} className="text-yellow-600" />
+            <p className="text-xs font-medium text-gray-600">Pending Works</p>
+          </div>
+          <p className="text-lg font-bold text-yellow-600">{statistics.pendingWorks}</p>
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <User size={20} className="text-green-600" />
@@ -767,11 +747,7 @@ function ServicesTab({
   };
 
   const handleAddService = () => {
-    if (onNavigateToService) {
-      onNavigateToService(customerId);
-    } else {
-      window.location.href = `/services?customer_id=${customerId}`;
-    }
+    window.location.href = `/services?customer_id=${customerId}&action=add`;
   };
 
   return (
@@ -893,11 +869,7 @@ function WorksTab({
       : works.filter((work) => work.status === filterStatus);
 
   const handleAddWork = () => {
-    if (onNavigateToWork) {
-      onNavigateToWork(customerId);
-    } else {
-      window.location.href = `/works?customer_id=${customerId}`;
-    }
+    window.location.href = `/works?customer_id=${customerId}&action=add`;
   };
 
   return (
@@ -1002,10 +974,12 @@ function InvoicesTab({
   invoices,
   statistics,
   customerId,
+  onNavigateToInvoice,
 }: {
   invoices: Invoice[];
   statistics: any;
   customerId: string;
+  onNavigateToInvoice?: (invoiceId: string) => void;
 }) {
   const [filterStatus, setFilterStatus] = useState('all');
 
@@ -1024,6 +998,14 @@ function InvoicesTab({
 
   const handleCreateInvoice = () => {
     window.location.href = `/invoices?customer_id=${customerId}`;
+  };
+
+  const handleInvoiceClick = (invoiceId: string) => {
+    if (onNavigateToInvoice) {
+      onNavigateToInvoice(invoiceId);
+    } else {
+      window.location.href = `/invoices?id=${invoiceId}`;
+    }
   };
 
   return (
@@ -1103,9 +1085,10 @@ function InvoicesTab({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredInvoices.map((invoice) => (
-            <div
+            <button
               key={invoice.id}
-              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
+              onClick={() => handleInvoiceClick(invoice.id)}
+              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg hover:border-green-300 transition-all text-left cursor-pointer"
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -1125,7 +1108,7 @@ function InvoicesTab({
                 </span>
               </div>
 
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Due Date:</span>
                   <span className="font-medium text-gray-900">
@@ -1147,11 +1130,7 @@ function InvoicesTab({
                   </div>
                 )}
               </div>
-
-              <button className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">
-                View Details
-              </button>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -1304,8 +1283,12 @@ function CommunicationsTab({
                       {comm.type}
                     </span>
                     <button
-                      onClick={() => handleDelete(comm.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(comm.id);
+                      }}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete communication"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -1593,14 +1576,22 @@ function NotesTab({
                     <Pin size={18} />
                   </button>
                   <button
-                    onClick={() => onEdit(note)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(note);
+                    }}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit note"
                   >
                     <Edit2 size={18} />
                   </button>
                   <button
-                    onClick={() => handleDelete(note.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(note.id);
+                    }}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete note"
                   >
                     <Trash2 size={18} />
                   </button>

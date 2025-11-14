@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { X, Plus, FileText, Users, DollarSign, Trash2, AlertCircle, Eye, Landmark } from 'lucide-react';
 import { generateEnhancedInvoiceHTML, previewEnhancedInvoice } from '../lib/enhancedInvoicePDF';
 import { getNextVoucherNumber } from '../lib/voucherNumberGenerator';
+import SearchableSelect from './SearchableSelect';
 
 interface Customer {
   id: string;
@@ -396,27 +397,18 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Customer *
-                  </label>
-                  <select
-                    required
+                  <SearchableSelect
+                    label="Customer"
+                    options={customers}
                     value={formData.customer_id}
-                    onChange={(e) => {
-                      setFormData({ ...formData, customer_id: e.target.value });
-                      loadCustomerDetails(e.target.value);
+                    onChange={(value) => {
+                      setFormData({ ...formData, customer_id: value });
+                      loadCustomerDetails(value);
                     }}
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                  >
-                    <option value="">
-                      {customers.length === 0 ? 'No customers available' : 'Select customer'}
-                    </option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Select customer"
+                    required
+                    disabled={customers.length === 0}
+                  />
                   {customers.length === 0 && (
                     <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />

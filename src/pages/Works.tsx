@@ -23,6 +23,7 @@ import WorkDetails from '../components/works/WorkDetailsMain';
 import WorkTile from '../components/works/WorkTile';
 import CustomerDetails from '../components/CustomerDetails';
 import ServiceDetails from '../components/ServiceDetails';
+import SearchableSelect from '../components/SearchableSelect';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { useToast } from '../contexts/ToastContext';
 
@@ -1044,43 +1045,29 @@ const filteredWorks = works.filter((work) => {
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Customer *
-                    </label>
-                    <select
-                      required
+                    <SearchableSelect
+                      label="Customer"
+                      options={customers}
                       value={formData.customer_id}
-                      onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    >
-                      <option value="">Select Customer</option>
-                      {customers.map((customer) => (
-                        <option key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => setFormData({ ...formData, customer_id: value })}
+                      placeholder="Select Customer"
+                      required
+                    />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Service *
-                  </label>
-                  <select
-                    required
+                  <SearchableSelect
+                    label="Service"
+                    options={services.map(service => ({
+                      ...service,
+                      name: `${service.name}${service.is_recurring ? ' (Recurring)' : ''}`
+                    }))}
                     value={formData.service_id}
-                    onChange={(e) => handleServiceChange(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Select Service</option>
-                    {services.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name}
-                        {service.is_recurring && ' (Recurring)'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => handleServiceChange(value)}
+                    placeholder="Select Service"
+                    required
+                  />
                 </div>
 
                 <div>
