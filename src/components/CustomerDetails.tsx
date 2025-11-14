@@ -7,6 +7,10 @@ import CustomerFormModal from './CustomerFormModal';
 import CommunicationModal from './CommunicationModal';
 import DocumentUploadModal from './DocumentUploadModal';
 import NoteModal from './NoteModal';
+import InvoiceFormModal from './InvoiceFormModal';
+import EditInvoiceModal from './EditInvoiceModal';
+import AddServiceModal from './AddServiceModal';
+import AddWorkModal from './AddWorkModal';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { formatDateDisplay, formatDateDisplayLong } from '../lib/dateUtils';
@@ -143,6 +147,10 @@ export default function CustomerDetails({
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [showInvoiceFormModal, setShowInvoiceFormModal] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [showWorkModal, setShowWorkModal] = useState(false);
   const [statistics, setStatistics] = useState({
     totalInvoiced: 0,
     totalPaid: 0,
@@ -384,6 +392,7 @@ export default function CustomerDetails({
                 onNavigateToService?.(serviceId);
                 onClose();
               }}
+              onAdd={() => setShowServiceModal(true)}
             />
           )}
 
@@ -396,6 +405,7 @@ export default function CustomerDetails({
                 onNavigateToWork?.(workId);
                 onClose();
               }}
+              onAdd={() => setShowWorkModal(true)}
             />
           )}
 
@@ -404,11 +414,8 @@ export default function CustomerDetails({
               invoices={invoices}
               statistics={statistics}
               customerId={customerId}
-              onNavigateToInvoice={(invoiceId) => {
-                // Close customer details and navigate to invoice
-                onClose();
-                window.location.href = `/invoices?id=${invoiceId}`;
-              }}
+              onEdit={(invoiceId) => setEditingInvoiceId(invoiceId)}
+              onAdd={() => setShowInvoiceFormModal(true)}
             />
           )}
 
@@ -493,6 +500,42 @@ export default function CustomerDetails({
             setEditingNote(null);
           }}
           onSuccess={fetchCustomerDetails}
+        />
+      )}
+
+      {showInvoiceFormModal && (
+        <InvoiceFormModal
+          customerId={customerId}
+          onClose={() => setShowInvoiceFormModal(false)}
+          onSuccess={fetchCustomerDetails}
+        />
+      )}
+
+      {showServiceModal && (
+        <AddServiceModal
+          customerId={customerId}
+          onClose={() => setShowServiceModal(false)}
+          onSuccess={fetchCustomerDetails}
+        />
+      )}
+
+      {showWorkModal && (
+        <AddWorkModal
+          customerId={customerId}
+          customerName={customer.name}
+          onClose={() => setShowWorkModal(false)}
+          onSuccess={fetchCustomerDetails}
+        />
+      )}
+
+      {editingInvoiceId && (
+        <EditInvoiceModal
+          invoiceId={editingInvoiceId}
+          onClose={() => setEditingInvoiceId(null)}
+          onSuccess={() => {
+            setEditingInvoiceId(null);
+            fetchCustomerDetails();
+          }}
         />
       )}
     </div>
@@ -734,11 +777,13 @@ function ServicesTab({
   customerId,
   onUpdate,
   onNavigateToService,
+  onAdd,
 }: {
   services: CustomerService[];
   customerId: string;
   onUpdate: () => void;
   onNavigateToService?: (serviceId: string) => void;
+  onAdd?: () => void;
 }) {
   const statusColors: Record<string, string> = {
     active: 'bg-green-100 text-green-700',
@@ -747,7 +792,7 @@ function ServicesTab({
   };
 
   const handleAddService = () => {
-    window.location.href = `/services?customer_id=${customerId}&action=add`;
+    onAdd?.();
   };
 
   return (
@@ -841,11 +886,13 @@ function WorksTab({
   customerId,
   onUpdate,
   onNavigateToWork,
+  onAdd,
 }: {
   works: Work[];
   customerId: string;
   onUpdate: () => void;
   onNavigateToWork?: (workId: string) => void;
+  onAdd?: () => void;
 }) {
   const [filterStatus, setFilterStatus] = useState('all');
 
@@ -869,7 +916,7 @@ function WorksTab({
       : works.filter((work) => work.status === filterStatus);
 
   const handleAddWork = () => {
-    window.location.href = `/works?customer_id=${customerId}&action=add`;
+    onAdd?.();
   };
 
   return (
@@ -974,12 +1021,14 @@ function InvoicesTab({
   invoices,
   statistics,
   customerId,
-  onNavigateToInvoice,
+  onEdit,
+  onAdd,
 }: {
   invoices: Invoice[];
   statistics: any;
   customerId: string;
-  onNavigateToInvoice?: (invoiceId: string) => void;
+  onEdit?: (invoiceId: string) => void;
+  onAdd?: () => void;
 }) {
   const [filterStatus, setFilterStatus] = useState('all');
 
@@ -997,15 +1046,11 @@ function InvoicesTab({
       : invoices.filter((invoice) => invoice.status === filterStatus);
 
   const handleCreateInvoice = () => {
-    window.location.href = `/invoices?customer_id=${customerId}`;
+    onAdd?.();
   };
 
   const handleInvoiceClick = (invoiceId: string) => {
-    if (onNavigateToInvoice) {
-      onNavigateToInvoice(invoiceId);
-    } else {
-      window.location.href = `/invoices?id=${invoiceId}`;
-    }
+    onEdit?.(invoiceId);
   };
 
   return (
@@ -1165,8 +1210,7 @@ function CommunicationsTab({
         const { error } = await supabase
           .from('communications')
           .delete()
-          .eq('id', id)
-          .eq('user_id', user?.id);
+          .eq('id', id);
         if (error) throw error;
         showToast('Communication deleted successfully', 'success');
         onRefresh();
@@ -1489,8 +1533,7 @@ function NotesTab({
         const { error } = await supabase
           .from('customer_notes')
           .delete()
-          .eq('id', id)
-          .eq('user_id', user?.id);
+          .eq('id', id);
         if (error) throw error;
         showToast('Note deleted successfully', 'success');
         onRefresh();
