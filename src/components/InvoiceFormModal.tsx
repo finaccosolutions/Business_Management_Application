@@ -42,9 +42,11 @@ interface Work {
 interface InvoiceFormModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  customerId?: string;
+  customerName?: string;
 }
 
-export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModalProps) {
+export default function InvoiceFormModal({ onClose, onSuccess, customerId, customerName }: InvoiceFormModalProps) {
   const { user } = useAuth();
   const toast = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -75,6 +77,13 @@ export default function InvoiceFormModal({ onClose, onSuccess }: InvoiceFormModa
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (customerId && customers.length > 0) {
+      setFormData(prev => ({ ...prev, customer_id: customerId }));
+      loadCustomerDetails(customerId);
+    }
+  }, [customerId, customers]);
 
   const fetchData = async () => {
     try {

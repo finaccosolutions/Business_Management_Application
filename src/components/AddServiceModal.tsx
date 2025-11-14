@@ -15,9 +15,10 @@ interface AddServiceModalProps {
   customerId: string;
   onClose: () => void;
   onSuccess: () => void;
+  service?: any;
 }
 
-export default function AddServiceModal({ customerId, onClose, onSuccess }: AddServiceModalProps) {
+export default function AddServiceModal({ customerId, onClose, onSuccess, service }: AddServiceModalProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [services, setServices] = useState<Service[]>([]);

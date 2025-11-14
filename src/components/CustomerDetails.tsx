@@ -537,6 +537,7 @@ export default function CustomerDetails({
       {showInvoiceFormModal && (
         <InvoiceFormModal
           customerId={customerId}
+          customerName={customer.name}
           onClose={() => setShowInvoiceFormModal(false)}
           onSuccess={fetchCustomerDetails}
         />
@@ -554,6 +555,7 @@ export default function CustomerDetails({
         <AddWorkModal
           customerId={customerId}
           customerName={customer.name}
+          autoFillCustomerName={true}
           onClose={() => setShowWorkModal(false)}
           onSuccess={fetchCustomerDetails}
         />

@@ -14,9 +14,10 @@ interface AddWorkModalProps {
   customerName: string;
   onClose: () => void;
   onSuccess: () => void;
+  autoFillCustomerName?: boolean;
 }
 
-export default function AddWorkModal({ customerId, customerName, onClose, onSuccess }: AddWorkModalProps) {
+export default function AddWorkModal({ customerId, customerName, onClose, onSuccess, autoFillCustomerName = false }: AddWorkModalProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [services, setServices] = useState<Service[]>([]);
@@ -31,6 +32,15 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
   useEffect(() => {
     fetchServices();
   }, [user]);
+
+  useEffect(() => {
+    if (autoFillCustomerName && customerName && selectedServiceId && services.length > 0) {
+      const service = services.find(s => s.id === selectedServiceId);
+      if (service && !title) {
+        setTitle(`${service.name} - ${customerName}`);
+      }
+    }
+  }, [autoFillCustomerName, customerName, selectedServiceId, services]);
 
   const fetchServices = async () => {
     try {
