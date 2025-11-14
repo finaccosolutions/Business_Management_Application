@@ -15,6 +15,33 @@ import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { formatDateDisplay, formatDateDisplayLong } from '../lib/dateUtils';
 
+interface EditInvoiceItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  tax_rate?: number;
+  service_id?: string;
+}
+
+interface EditInvoiceData {
+  id: string;
+  customer_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string;
+  subtotal: number;
+  tax_amount: number;
+  total_amount: number;
+  status: string;
+  notes?: string;
+  work_id?: string;
+  income_account_id?: string;
+  customer_account_id?: string;
+  customers: { name: string };
+}
+
 interface CustomerDetailsProps {
   customerId: string;
   onClose: () => void;
@@ -290,6 +317,10 @@ export default function CustomerDetails({
     onUpdate();
   };
 
+  const handleInvoiceEdit = (invoiceId: string) => {
+    setEditingInvoiceId(invoiceId);
+  };
+
   const tabs: Array<{ id: TabType; label: string; icon: any; count?: number }> = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'services', label: 'Services', icon: Briefcase, count: services.length },
@@ -414,7 +445,7 @@ export default function CustomerDetails({
               invoices={invoices}
               statistics={statistics}
               customerId={customerId}
-              onEdit={(invoiceId) => setEditingInvoiceId(invoiceId)}
+              onEdit={handleInvoiceEdit}
               onAdd={() => setShowInvoiceFormModal(true)}
             />
           )}
@@ -529,7 +560,7 @@ export default function CustomerDetails({
       )}
 
       {editingInvoiceId && (
-        <EditInvoiceModal
+        <EditInvoiceModalWrapper
           invoiceId={editingInvoiceId}
           onClose={() => setEditingInvoiceId(null)}
           onSuccess={() => {
@@ -1210,7 +1241,8 @@ function CommunicationsTab({
         const { error } = await supabase
           .from('communications')
           .delete()
-          .eq('id', id);
+          .eq('id', id)
+          .eq('user_id', user?.id);
         if (error) throw error;
         showToast('Communication deleted successfully', 'success');
         onRefresh();
@@ -1533,7 +1565,8 @@ function NotesTab({
         const { error } = await supabase
           .from('customer_notes')
           .delete()
-          .eq('id', id);
+          .eq('id', id)
+          .eq('user_id', user?.id);
         if (error) throw error;
         showToast('Note deleted successfully', 'success');
         onRefresh();
@@ -1653,6 +1686,77 @@ function NotesTab({
         </div>
       )}
     </div>
+  );
+}
+
+function EditInvoiceModalWrapper({
+  invoiceId,
+  onClose,
+  onSuccess
+}: {
+  invoiceId: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [invoice, setInvoice] = useState<EditInvoiceData | null>(null);
+  const [items, setItems] = useState<EditInvoiceItem[]>([]);
+
+  useEffect(() => {
+    fetchInvoiceData();
+  }, [invoiceId]);
+
+  const fetchInvoiceData = async () => {
+    try {
+      setLoading(true);
+      const [invoiceRes, itemsRes] = await Promise.all([
+        supabase
+          .from('invoices')
+          .select('*, customers(name)')
+          .eq('id', invoiceId)
+          .single(),
+        supabase
+          .from('invoice_items')
+          .select('*')
+          .eq('invoice_id', invoiceId)
+          .order('created_at', { ascending: true }),
+      ]);
+
+      if (invoiceRes.error) throw invoiceRes.error;
+      if (itemsRes.error) throw itemsRes.error;
+
+      setInvoice(invoiceRes.data);
+      setItems(itemsRes.data || []);
+    } catch (error: any) {
+      console.error('Error fetching invoice:', error);
+      showToast('Failed to load invoice', 'error');
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+
+  if (!invoice) {
+    return null;
+  }
+
+  return (
+    <EditInvoiceModal
+      invoice={invoice}
+      items={items}
+      onClose={onClose}
+      onSave={onSuccess}
+    />
   );
 }
 
