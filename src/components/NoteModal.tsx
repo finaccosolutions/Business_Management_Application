@@ -4,11 +4,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { X, StickyNote } from 'lucide-react';
 
 interface NoteModalProps {
-  customerId: string | null;
-  leadId: string | null;
+  customerId?: string;
+  leadId?: string;
   noteId?: string;
   initialData?: {
-    note: string;
+    title?: string;
+    content?: string;
+    is_pinned?: boolean;
   };
   onClose: () => void;
   onSuccess: () => void;
@@ -25,7 +27,9 @@ export default function NoteModal({
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    note: initialData?.note || '',
+    title: initialData?.title || '',
+    content: initialData?.content || '',
+    is_pinned: initialData?.is_pinned || false,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,8 +42,9 @@ export default function NoteModal({
         const { error } = await supabase
           .from('customer_notes')
           .update({
-            note: formData.note,
-            content: formData.note,
+            title: formData.title,
+            content: formData.content,
+            is_pinned: formData.is_pinned,
             updated_at: new Date().toISOString(),
           })
           .eq('id', noteId);
@@ -52,15 +57,15 @@ export default function NoteModal({
             customer_id: customerId,
             activity_type: 'note',
             activity_title: 'Note updated',
-            activity_description: formData.note.substring(0, 100),
+            activity_description: formData.content.substring(0, 100),
           });
         }
       } else {
         const noteData: any = {
           user_id: user.id,
-          note: formData.note,
-          title: 'Note',
-          content: formData.note,
+          title: formData.title || 'Note',
+          content: formData.content,
+          is_pinned: formData.is_pinned,
         };
 
         if (customerId) {
@@ -79,7 +84,7 @@ export default function NoteModal({
             customer_id: customerId,
             activity_type: 'note',
             activity_title: 'Note created',
-            activity_description: formData.note.substring(0, 100),
+            activity_description: formData.content.substring(0, 100),
           });
         }
       }
@@ -114,16 +119,42 @@ export default function NoteModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              Title
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              placeholder="Enter note title..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Note <span className="text-red-500">*</span>
             </label>
             <textarea
-              value={formData.note}
-              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
               placeholder="Enter your note..."
               rows={8}
               required
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="is_pinned"
+              checked={formData.is_pinned}
+              onChange={(e) => setFormData({ ...formData, is_pinned: e.target.checked })}
+              className="w-4 h-4 text-yellow-600 rounded border-gray-300 focus:ring-2 focus:ring-yellow-500"
+            />
+            <label htmlFor="is_pinned" className="text-sm font-medium text-gray-700">
+              Pin this note
+            </label>
           </div>
 
           <div className="flex gap-3 pt-4">

@@ -465,7 +465,10 @@ export default function CustomerDetails({
               services={services}
               customerId={customerId}
               onUpdate={fetchCustomerDetails}
-              onNavigateToService={onNavigateToService}
+              onNavigateToService={(serviceId) => {
+                onNavigateToService?.(serviceId);
+                onClose();
+              }}
             />
           )}
 
@@ -474,7 +477,10 @@ export default function CustomerDetails({
               works={works}
               customerId={customerId}
               onUpdate={fetchCustomerDetails}
-              onNavigateToWork={onNavigateToWork}
+              onNavigateToWork={(workId) => {
+                onNavigateToWork?.(workId);
+                onClose();
+              }}
             />
           )}
 
@@ -761,7 +767,11 @@ function ServicesTab({
   };
 
   const handleAddService = () => {
-    window.location.href = `/services?customer_id=${customerId}`;
+    if (onNavigateToService) {
+      onNavigateToService(customerId);
+    } else {
+      window.location.href = `/services?customer_id=${customerId}`;
+    }
   };
 
   return (
@@ -799,7 +809,6 @@ function ServicesTab({
               key={service.id}
               onClick={() => {
                 if (onNavigateToService) {
-                  onClose();
                   onNavigateToService(service.service_id);
                 }
               }}
@@ -884,7 +893,11 @@ function WorksTab({
       : works.filter((work) => work.status === filterStatus);
 
   const handleAddWork = () => {
-    window.location.href = `/works?customer_id=${customerId}`;
+    if (onNavigateToWork) {
+      onNavigateToWork(customerId);
+    } else {
+      window.location.href = `/works?customer_id=${customerId}`;
+    }
   };
 
   return (
@@ -939,7 +952,6 @@ function WorksTab({
               key={work.id}
               onClick={() => {
                 if (onNavigateToWork) {
-                  onClose();
                   onNavigateToWork(work.id);
                 }
               }}
@@ -1011,7 +1023,7 @@ function InvoicesTab({
       : invoices.filter((invoice) => invoice.status === filterStatus);
 
   const handleCreateInvoice = () => {
-    window.location.href = '/invoices';
+    window.location.href = `/invoices?customer_id=${customerId}`;
   };
 
   return (
@@ -1171,11 +1183,16 @@ function CommunicationsTab({
 
     if (confirmed) {
       try {
-        const { error } = await supabase.from('communications').delete().eq('id', id);
+        const { error } = await supabase
+          .from('communications')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', user?.id);
         if (error) throw error;
         showToast('Communication deleted successfully', 'success');
         onRefresh();
       } catch (error: any) {
+        console.error('Delete error:', error);
         showToast('Error: ' + error.message, 'error');
       }
     }
@@ -1486,11 +1503,16 @@ function NotesTab({
 
     if (confirmed) {
       try {
-        const { error } = await supabase.from('customer_notes').delete().eq('id', id);
+        const { error } = await supabase
+          .from('customer_notes')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', user?.id);
         if (error) throw error;
         showToast('Note deleted successfully', 'success');
         onRefresh();
       } catch (error: any) {
+        console.error('Delete error:', error);
         showToast('Error: ' + error.message, 'error');
       }
     }

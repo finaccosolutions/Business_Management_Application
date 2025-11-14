@@ -4,8 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { X, Mail, Phone, MessageSquare, FileText } from 'lucide-react';
 
 interface CommunicationModalProps {
-  customerId: string | null;
-  leadId: string | null;
+  customerId?: string;
+  leadId?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
