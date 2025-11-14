@@ -29,12 +29,14 @@ export default function TrialBalanceReport({
   const [viewType, setViewType] = useState<ViewType>('horizontal');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredData = data.filter(
-    (entry) =>
-      entry.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.account_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.group_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredData = data
+    .filter(
+      (entry) =>
+        entry.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.account_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.group_name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .filter(entry => entry.debit > 0 || entry.credit > 0);
 
   const totalDebit = filteredData.reduce((sum, e) => sum + e.debit, 0);
   const totalCredit = filteredData.reduce((sum, e) => sum + e.credit, 0);

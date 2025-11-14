@@ -736,32 +736,30 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
         balances.set(txn.account_id, existing);
       });
 
-      const trialBalanceData: TrialBalanceEntry[] = accounts.map((account: any) => {
-        const balance = balances.get(account.id) || { debit: 0, credit: 0 };
-        const openingBalance = Number(account.opening_balance) || 0;
+      const trialBalanceData: TrialBalanceEntry[] = accounts
+        .map((account: any) => {
+          const balance = balances.get(account.id) || { debit: 0, credit: 0 };
+          const openingBalance = Number(account.opening_balance) || 0;
 
-        // Calculate closing balance: Opening + Debit - Credit
-        let closingBalance = openingBalance + balance.debit - balance.credit;
+          let debit = balance.debit;
+          let credit = balance.credit;
 
-        // In trial balance, show as debit if positive, credit if negative
-        let debit = 0;
-        let credit = 0;
+          if (openingBalance > 0) {
+            debit += openingBalance;
+          } else if (openingBalance < 0) {
+            credit += Math.abs(openingBalance);
+          }
 
-        if (closingBalance > 0) {
-          debit = closingBalance;
-        } else if (closingBalance < 0) {
-          credit = Math.abs(closingBalance);
-        }
-
-        return {
-          account_id: account.id,
-          account_code: account.account_code,
-          account_name: account.account_name,
-          group_name: account.account_groups?.name || 'Uncategorized',
-          debit: debit,
-          credit: credit,
-        };
-      });
+          return {
+            account_id: account.id,
+            account_code: account.account_code,
+            account_name: account.account_name,
+            group_name: account.account_groups?.name || 'Uncategorized',
+            debit: debit,
+            credit: credit,
+          };
+        })
+        .filter(entry => entry.debit > 0 || entry.credit > 0);
 
       setTrialBalance(trialBalanceData);
     } catch (error) {
@@ -789,12 +787,15 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
       const balances = new Map<string, number>();
 
       accounts.forEach((account: any) => {
-        balances.set(account.id, Number(account.opening_balance) || 0);
+        const openingBalance = Number(account.opening_balance) || 0;
+        balances.set(account.id, openingBalance);
       });
 
       transactions?.forEach((txn: any) => {
         const existing = balances.get(txn.account_id) || 0;
-        balances.set(txn.account_id, existing + (Number(txn.debit) || 0) - (Number(txn.credit) || 0));
+        const debit = Number(txn.debit) || 0;
+        const credit = Number(txn.credit) || 0;
+        balances.set(txn.account_id, existing + debit - credit);
       });
 
       // Calculate profit/loss for the period
@@ -928,7 +929,9 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
 
       transactions?.forEach((txn: any) => {
         const existing = balances.get(txn.account_id) || 0;
-        balances.set(txn.account_id, existing + (Number(txn.credit) || 0) - (Number(txn.debit) || 0));
+        const debit = Number(txn.debit) || 0;
+        const credit = Number(txn.credit) || 0;
+        balances.set(txn.account_id, existing + credit - debit);
       });
 
       const income: ProfitLossEntry[] = [];
@@ -942,6 +945,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
         const accountType = account.account_groups?.account_type;
 
         if (accountType !== 'income' && accountType !== 'expense') return;
+        if (balance === 0) return;
 
         if (!grouped.has(groupName)) {
           grouped.set(groupName, []);
@@ -1196,6 +1200,21 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+            <button
+              onClick={() => {
+                if (activeReport === 'trial_balance') {
+                  fetchTrialBalance();
+                } else if (activeReport === 'balance_sheet') {
+                  fetchBalanceSheet();
+                } else if (activeReport === 'profit_loss') {
+                  fetchProfitLoss();
+                }
+              }}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors"
+            >
+              {loading ? 'Loading...' : 'Generate Report'}
+            </button>
           </div>
         </div>
 
@@ -1217,7 +1236,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
             data={balanceSheet}
             asOnDate={dateRange.end}
             startDate={dateRange.start}
-            onAccountClick={(accountId, asOnDate) => handleAccountClick(accountId, '', asOnDate)}
+            onAccountClick={(accountId, asOnDate) => handleAccountClick(accountId, dateRange.start, asOnDate)}
           />
         )}
 
