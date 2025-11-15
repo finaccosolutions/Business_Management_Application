@@ -79,7 +79,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
 
   const fetchWorkDetails = async () => {
     try {
-      const [workRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes, documentsRes, communicationsRes, notesRes] = await Promise.all([
+      const [workRes, periodGenRes, tasksRes, timeLogsRes, assignmentsRes, recurringRes, documentsRes, communicationsRes, notesRes] = await Promise.all([
         supabase
           .from('works')
           .select(`
@@ -91,7 +91,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
           .eq('id', workId)
           .single(),
 
-        supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId }).catch(() => null),
+        supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId }),
 
         supabase
           .from('work_tasks')
@@ -137,6 +137,7 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
       ]);
 
       if (workRes.data) setWork(workRes.data);
+      if (periodGenRes.error) console.error('Error generating next period:', periodGenRes.error);
       if (tasksRes.data) setTasks(tasksRes.data);
       if (timeLogsRes.data) setTimeLogs(timeLogsRes.data);
       if (documentsRes.data) setDocuments(documentsRes.data);
