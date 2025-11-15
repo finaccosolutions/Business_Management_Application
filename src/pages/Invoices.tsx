@@ -71,6 +71,8 @@ export default function Invoices() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [editingInvoice, setEditingInvoice] = useState<{ invoice: Invoice; items: InvoiceItem[] } | null>(null);
   const [paymentLinkingInvoice, setPaymentLinkingInvoice] = useState<Invoice | null>(null);
+  const [invoiceCustomerId, setInvoiceCustomerId] = useState<string | null>(null);
+  const [invoiceCustomerName, setInvoiceCustomerName] = useState<string>('');
   const { showConfirmation } = useConfirmation();
   const [stats, setStats] = useState<InvoiceStats>({
     totalAmount: 0,
@@ -88,7 +90,37 @@ export default function Invoices() {
     if (user) {
       fetchInvoices();
     }
+
+    const prefilledCustomerId = sessionStorage.getItem('prefilledCustomerId');
+    if (prefilledCustomerId) {
+      setInvoiceCustomerId(prefilledCustomerId);
+      setShowModal(true);
+      sessionStorage.removeItem('prefilledCustomerId');
+    }
   }, [user]);
+
+  useEffect(() => {
+    if (invoiceCustomerId) {
+      const fetchCustomerName = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('customers')
+            .select('name')
+            .eq('id', invoiceCustomerId)
+            .maybeSingle();
+
+          if (error) throw error;
+          if (data) {
+            setInvoiceCustomerName(data.name);
+          }
+        } catch (error) {
+          console.error('Error fetching customer name:', error);
+        }
+      };
+
+      fetchCustomerName();
+    }
+  }, [invoiceCustomerId]);
 
   const fetchInvoices = async () => {
     try {
@@ -675,10 +707,18 @@ export default function Invoices() {
 
       {showModal && (
         <InvoiceFormModal
-          onClose={() => setShowModal(false)}
+          customerId={invoiceCustomerId || undefined}
+          customerName={invoiceCustomerName || undefined}
+          onClose={() => {
+            setShowModal(false);
+            setInvoiceCustomerId(null);
+            setInvoiceCustomerName('');
+          }}
           onSuccess={() => {
             fetchInvoices();
             setShowModal(false);
+            setInvoiceCustomerId(null);
+            setInvoiceCustomerName('');
           }}
         />
       )}

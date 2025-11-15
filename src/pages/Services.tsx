@@ -73,6 +73,13 @@ export default function Services() {
     if (user) {
       fetchServices();
     }
+
+    const prefilledCustomerId = sessionStorage.getItem('prefilledCustomerId');
+    if (prefilledCustomerId) {
+      setSelectedCustomerId(prefilledCustomerId);
+      setShowModal(true);
+      sessionStorage.removeItem('prefilledCustomerId');
+    }
   }, [user]);
 
   useEffect(() => {

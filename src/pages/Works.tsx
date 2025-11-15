@@ -162,6 +162,13 @@ export default function Works() {
     if (user) {
       fetchData();
     }
+
+    const prefilledCustomerId = sessionStorage.getItem('prefilledCustomerId');
+    if (prefilledCustomerId) {
+      setFormData(prev => ({ ...prev, customer_id: prefilledCustomerId }));
+      setShowModal(true);
+      sessionStorage.removeItem('prefilledCustomerId');
+    }
   }, [user]);
 
   useEffect(() => {

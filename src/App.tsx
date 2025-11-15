@@ -73,7 +73,7 @@ function AppContent() {
       case 'leads':
         return <Leads />;
       case 'customers':
-        return <Customers />;
+        return <Customers onNavigate={handleNavigate} />;
       case 'staff':
         return <Staff />;
       case 'works':

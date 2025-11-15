@@ -7,10 +7,7 @@ import CustomerFormModal from './CustomerFormModal';
 import CommunicationModal from './CommunicationModal';
 import DocumentUploadModal from './DocumentUploadModal';
 import NoteModal from './NoteModal';
-import InvoiceFormModal from './InvoiceFormModal';
 import EditInvoiceModal from './EditInvoiceModal';
-import AddServiceModal from './AddServiceModal';
-import AddWorkModal from './AddWorkModal';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { formatDateDisplay, formatDateDisplayLong } from '../lib/dateUtils';
@@ -48,6 +45,9 @@ interface CustomerDetailsProps {
   onUpdate: () => void;
   onNavigateToService?: (serviceId: string) => void;
   onNavigateToWork?: (workId: string) => void;
+  onNavigateToCreateService?: (customerId: string) => void;
+  onNavigateToCreateWork?: (customerId: string) => void;
+  onNavigateToCreateInvoice?: (customerId: string) => void;
 }
 
 interface Customer {
@@ -155,6 +155,9 @@ export default function CustomerDetails({
   onUpdate,
   onNavigateToService,
   onNavigateToWork,
+  onNavigateToCreateService,
+  onNavigateToCreateWork,
+  onNavigateToCreateInvoice,
 }: CustomerDetailsProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -175,9 +178,6 @@ export default function CustomerDetails({
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
-  const [showInvoiceFormModal, setShowInvoiceFormModal] = useState(false);
-  const [showServiceModal, setShowServiceModal] = useState(false);
-  const [showWorkModal, setShowWorkModal] = useState(false);
   const [statistics, setStatistics] = useState({
     totalInvoiced: 0,
     totalPaid: 0,
@@ -423,7 +423,10 @@ export default function CustomerDetails({
                 onNavigateToService?.(serviceId);
                 onClose();
               }}
-              onAdd={() => setShowServiceModal(true)}
+              onAdd={() => {
+                onNavigateToCreateService?.(customerId);
+                onClose();
+              }}
             />
           )}
 
@@ -436,7 +439,10 @@ export default function CustomerDetails({
                 onNavigateToWork?.(workId);
                 onClose();
               }}
-              onAdd={() => setShowWorkModal(true)}
+              onAdd={() => {
+                onNavigateToCreateWork?.(customerId);
+                onClose();
+              }}
             />
           )}
 
@@ -446,7 +452,10 @@ export default function CustomerDetails({
               statistics={statistics}
               customerId={customerId}
               onEdit={handleInvoiceEdit}
-              onAdd={() => setShowInvoiceFormModal(true)}
+              onAdd={() => {
+                onNavigateToCreateInvoice?.(customerId);
+                onClose();
+              }}
             />
           )}
 
@@ -530,33 +539,6 @@ export default function CustomerDetails({
             setShowNoteModal(false);
             setEditingNote(null);
           }}
-          onSuccess={fetchCustomerDetails}
-        />
-      )}
-
-      {showInvoiceFormModal && (
-        <InvoiceFormModal
-          customerId={customerId}
-          customerName={customer.name}
-          onClose={() => setShowInvoiceFormModal(false)}
-          onSuccess={fetchCustomerDetails}
-        />
-      )}
-
-      {showServiceModal && (
-        <AddServiceModal
-          customerId={customerId}
-          onClose={() => setShowServiceModal(false)}
-          onSuccess={fetchCustomerDetails}
-        />
-      )}
-
-      {showWorkModal && (
-        <AddWorkModal
-          customerId={customerId}
-          customerName={customer.name}
-          autoFillCustomerName={true}
-          onClose={() => setShowWorkModal(false)}
           onSuccess={fetchCustomerDetails}
         />
       )}

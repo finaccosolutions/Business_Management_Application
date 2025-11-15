@@ -95,7 +95,11 @@ const getCustomerBorderColor = (customer: Customer, avgRevenue: number): string 
   return 'border-l-gray-400 hover:bg-gray-50/30';
 };
 
-export default function Customers() {
+interface CustomersProps {
+  onNavigate?: (page: string) => void;
+}
+
+export default function Customers({ onNavigate }: CustomersProps = {}) {
   const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
@@ -108,6 +112,8 @@ export default function Customers() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [statistics, setStatistics] = useState<CustomerStatistics | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [prefilledCustomerId, setPrefilledCustomerId] = useState<string | null>(null);
+  const [navigationTarget, setNavigationTarget] = useState<'service' | 'work' | 'invoice' | null>(null);
   const confirmation = useConfirmation();
   const toast = useToast();
 
@@ -132,6 +138,23 @@ export default function Customers() {
   useEffect(() => {
     applyFilters();
   }, [customers, filters, searchTerm]);
+
+  useEffect(() => {
+    if (navigationTarget && prefilledCustomerId && onNavigate) {
+      sessionStorage.setItem('prefilledCustomerId', prefilledCustomerId);
+
+      if (navigationTarget === 'service') {
+        onNavigate('services');
+      } else if (navigationTarget === 'work') {
+        onNavigate('works');
+      } else if (navigationTarget === 'invoice') {
+        onNavigate('invoices');
+      }
+
+      setNavigationTarget(null);
+      setPrefilledCustomerId(null);
+    }
+  }, [navigationTarget, prefilledCustomerId, onNavigate]);
 
   const fetchCustomers = async () => {
     try {
@@ -667,6 +690,18 @@ export default function Customers() {
           onNavigateToWork={(workId) => {
             setSelectedCustomerId(null);
             setSelectedWorkId(workId);
+          }}
+          onNavigateToCreateService={(customerId) => {
+            setPrefilledCustomerId(customerId);
+            setNavigationTarget('service');
+          }}
+          onNavigateToCreateWork={(customerId) => {
+            setPrefilledCustomerId(customerId);
+            setNavigationTarget('work');
+          }}
+          onNavigateToCreateInvoice={(customerId) => {
+            setPrefilledCustomerId(customerId);
+            setNavigationTarget('invoice');
           }}
         />
       )}
