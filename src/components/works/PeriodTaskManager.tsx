@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
-  CheckCircle, Clock, Edit2, User, Calendar, AlertCircle, ChevronDown, ChevronRight, Plus, Trash2
+  CheckCircle, Clock, Edit2, User, Calendar, AlertCircle, ChevronDown, ChevronRight, Plus, Trash2, Save, X
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateDisplay } from '../../lib/dateUtils';
@@ -32,16 +32,18 @@ interface Props {
   periodId: string;
   periodName: string;
   periodStatus: string;
+  workId?: string;
   onTasksUpdate: () => void;
 }
 
-export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksUpdate }: Props) {
+export function PeriodTaskManager({ periodId, periodName, periodStatus, workId, onTasksUpdate }: Props) {
   const [tasks, setTasks] = useState<PeriodTask[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     due_date: '',
     assigned_to: '',
@@ -230,6 +232,30 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
     });
   };
 
+  const handleSaveAsTemplate = async (task: PeriodTask) => {
+    if (!workId) return;
+
+    try {
+      const { error } = await supabase.from('work_task_templates').insert({
+        work_id: workId,
+        title: task.title,
+        description: task.remarks || null,
+        priority: task.priority,
+        due_date_offset_days: 0,
+        estimated_hours: task.estimated_hours || null,
+        display_order: 0
+      });
+
+      if (error) throw error;
+
+      toast.success('Task saved as template! It will be included in all future periods.');
+      setShowSaveAsTemplate(null);
+    } catch (error: any) {
+      console.error('Error saving template:', error);
+      toast.error('Failed to save task as template');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-700 border-green-300';
@@ -409,6 +435,15 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
                       >
                         <Edit2 size={16} />
                       </button>
+                      {workId && (
+                        <button
+                          onClick={() => setShowSaveAsTemplate(task.id)}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                          title="Save as template for future periods"
+                        >
+                          <Save size={16} />
+                        </button>
+                      )}
                       <select
                         value={task.status}
                         onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
@@ -668,6 +703,63 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, onTasksU
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showSaveAsTemplate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Save as Template</h3>
+                <button
+                  onClick={() => setShowSaveAsTemplate(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-gray-700">
+                Save this task as a template? It will be automatically added to all future periods of this work.
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm font-medium text-blue-900 mb-2">Task Details:</p>
+                <div className="space-y-1 text-sm text-blue-800">
+                  {tasks.find(t => t.id === showSaveAsTemplate) && (
+                    <>
+                      <p><strong>Title:</strong> {tasks.find(t => t.id === showSaveAsTemplate)?.title}</p>
+                      <p><strong>Priority:</strong> {tasks.find(t => t.id === showSaveAsTemplate)?.priority}</p>
+                      {tasks.find(t => t.id === showSaveAsTemplate)?.estimated_hours && (
+                        <p><strong>Estimated Hours:</strong> {tasks.find(t => t.id === showSaveAsTemplate)?.estimated_hours}h</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowSaveAsTemplate(null)}
+                  className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const task = tasks.find(t => t.id === showSaveAsTemplate);
+                    if (task) handleSaveAsTemplate(task);
+                  }}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                >
+                  <Save size={16} />
+                  Save as Template
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

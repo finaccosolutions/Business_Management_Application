@@ -287,14 +287,18 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   const handleGenerateNextPeriods = async () => {
     setGeneratingPeriods(true);
     try {
-      const generated = await supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId });
+      const { data, error } = await supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId });
 
-      if (generated) {
+      if (error) {
+        throw error;
+      }
+
+      if (data === true) {
         toast.success('New period generated successfully!');
         fetchPeriods();
         onUpdate();
       } else {
-        toast.info('No new periods to generate. Latest period is still active or already has a next period.');
+        toast.info('No new periods to generate. The latest period is still active or a next period already exists.');
       }
     } catch (error: any) {
       console.error('Error generating period:', error);
@@ -642,6 +646,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                   periodId={selectedPeriod}
                   periodName={periods.find(p => p.id === selectedPeriod)?.period_name || ''}
                   periodStatus={periods.find(p => p.id === selectedPeriod)?.status || ''}
+                  workId={workId}
                   onTasksUpdate={() => {
                     fetchPeriods();
                     onUpdate();
