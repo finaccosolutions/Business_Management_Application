@@ -91,6 +91,8 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
           .eq('id', workId)
           .single(),
 
+        supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId }).catch(() => null),
+
         supabase
           .from('work_tasks')
           .select('*, staff_members(name)')

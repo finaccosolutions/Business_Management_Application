@@ -78,6 +78,8 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
 
   const fetchPeriods = async () => {
     try {
+      await supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId });
+
       const { data, error } = await supabase
         .from('work_recurring_instances')
         .select(`
@@ -285,20 +287,18 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   const handleGenerateNextPeriods = async () => {
     setGeneratingPeriods(true);
     try {
-      const { data, error } = await supabase.rpc('generate_next_recurring_periods');
+      const generated = await supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId });
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        toast.success(`Generated ${data.length} new period(s)!`);
+      if (generated) {
+        toast.success('New period generated successfully!');
         fetchPeriods();
         onUpdate();
       } else {
-        toast.info('No new periods to generate. Latest periods are still active.');
+        toast.info('No new periods to generate. Latest period is still active or already has a next period.');
       }
     } catch (error: any) {
-      console.error('Error generating periods:', error);
-      toast.error(error.message || 'Failed to generate periods');
+      console.error('Error generating period:', error);
+      toast.error(error.message || 'Failed to generate period');
     } finally {
       setGeneratingPeriods(false);
     }
