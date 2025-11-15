@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   Calendar, Clock, CheckCircle, Edit2, Trash2, Plus, AlertTriangle,
-  DollarSign, FileText, CheckSquare, PlayCircle, Upload, Download, X, ListTodo, RefreshCw
+  DollarSign, FileText, CheckSquare, X, ListTodo, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateDisplay } from '../../lib/dateUtils';
@@ -55,7 +55,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   const [loading, setLoading] = useState(true);
   const [showPeriodForm, setShowPeriodForm] = useState(false);
   const [editingPeriod, setEditingPeriod] = useState<RecurringInstance | null>(null);
-  const [generatingPeriods, setGeneratingPeriods] = useState(false);
+  const [expandedPeriod, setExpandedPeriod] = useState<string | null>(null);
   const toast = useToast();
 
   const [periodForm, setForm] = useState({
@@ -71,10 +71,10 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   }, [workId]);
 
   useEffect(() => {
-    if (selectedPeriod) {
-      fetchPeriodDocuments(selectedPeriod);
+    if (expandedPeriod && activeTab === 'documents') {
+      fetchPeriodDocuments(expandedPeriod);
     }
-  }, [selectedPeriod]);
+  }, [expandedPeriod, activeTab]);
 
   const fetchPeriods = async () => {
     try {
@@ -284,38 +284,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
     setEditingPeriod(null);
   };
 
-  const handleGenerateNextPeriods = async () => {
-    setGeneratingPeriods(true);
-    try {
-      const { data, error } = await supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId });
 
-      if (error) {
-        throw error;
-      }
-
-      if (data === true) {
-        toast.success('New period generated successfully!');
-        fetchPeriods();
-        onUpdate();
-      } else {
-        toast.info('No new periods to generate. The latest period is still active or a next period already exists.');
-      }
-    } catch (error: any) {
-      console.error('Error generating period:', error);
-      toast.error(error.message || 'Failed to generate period');
-    } finally {
-      setGeneratingPeriods(false);
-    }
-  };
-
-  const stats = {
-    pending: periods.filter(p => p.status === 'pending').length,
-    inProgress: periods.filter(p => p.status === 'in_progress').length,
-    completed: periods.filter(p => p.status === 'completed').length,
-    overdue: periods.filter(p =>
-      p.status !== 'completed' && new Date(p.period_end_date) < new Date()
-    ).length,
-  };
 
   if (loading) {
     return <div className="flex justify-center p-8">Loading...</div>;
@@ -323,38 +292,6 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock size={16} className="text-yellow-600" />
-            <p className="text-xs font-medium text-yellow-900">Pending</p>
-          </div>
-          <p className="text-2xl font-bold text-yellow-700">{stats.pending}</p>
-        </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <PlayCircle size={16} className="text-blue-600" />
-            <p className="text-xs font-medium text-blue-900">In Progress</p>
-          </div>
-          <p className="text-2xl font-bold text-blue-700">{stats.inProgress}</p>
-        </div>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <CheckCircle size={16} className="text-green-600" />
-            <p className="text-xs font-medium text-green-900">Completed</p>
-          </div>
-          <p className="text-2xl font-bold text-green-700">{stats.completed}</p>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle size={16} className="text-red-600" />
-            <p className="text-xs font-medium text-red-900">Overdue</p>
-          </div>
-          <p className="text-2xl font-bold text-red-700">{stats.overdue}</p>
-        </div>
-      </div>
-
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -368,34 +305,21 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
             )}
           </p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={handleGenerateNextPeriods}
-            disabled={generatingPeriods}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
-            title="Generate next period for elapsed periods"
-          >
-            <RefreshCw size={18} className={generatingPeriods ? 'animate-spin' : ''} />
-            <span>{generatingPeriods ? 'Generating...' : 'Generate Next'}</span>
-          </button>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowPeriodForm(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-          >
-            <Plus size={18} />
-            <span>Add Period</span>
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            resetForm();
+            setShowPeriodForm(true);
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+        >
+          <Plus size={18} />
+          <span>Add Period</span>
+        </button>
       </div>
 
       {/* Periods List */}
-      <div className="grid grid-cols-2 gap-6">
-        {/* Left: Periods */}
-        <div className="space-y-3">
-          <h4 className="font-medium text-gray-900">All Periods</h4>
+      <div className="space-y-3">
+        <h4 className="font-medium text-gray-900">All Periods</h4>
           {periods.map(period => {
             // Get all tasks and sort by display order
             const allTasks = ((period as any).recurring_period_tasks || []).sort(
@@ -427,20 +351,20 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
               (new Date(referenceDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
             );
 
+            const isExpanded = expandedPeriod === period.id;
+
             return (
               <div
                 key={period.id}
-                className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                  selectedPeriod === period.id
-                    ? 'border-orange-500 bg-orange-50'
-                    : isOverdue
-                    ? 'border-red-300 bg-red-50 hover:border-red-400'
-                    : 'border-gray-200 bg-white hover:border-orange-300'
+                className={`border-2 rounded-xl overflow-hidden transition-all ${
+                  isOverdue
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-gray-200 bg-white'
                 }`}
-                onClick={() => setSelectedPeriod(period.id)}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
+                <div className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h5 className="font-semibold text-gray-900">{period.period_name}</h5>
                       {period.billing_amount && (
@@ -539,20 +463,21 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditPeriodModal(period);
-                      }}
+                      onClick={() => setExpandedPeriod(isExpanded ? null : period.id)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      title={isExpanded ? 'Collapse' : 'Expand'}
+                    >
+                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                    <button
+                      onClick={() => openEditPeriodModal(period)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       <Edit2 size={16} />
                     </button>
                     <select
                       value={period.status}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleUpdatePeriodStatus(period.id, e.target.value);
-                      }}
+                      onChange={(e) => handleUpdatePeriodStatus(period.id, e.target.value)}
                       className={`px-3 py-1 rounded-lg text-sm font-medium border-2 cursor-pointer ${
                         period.status === 'completed'
                           ? 'bg-green-100 text-green-700 border-green-300'
@@ -560,168 +485,155 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                           ? 'bg-blue-100 text-blue-700 border-blue-300'
                           : 'bg-yellow-100 text-yellow-700 border-yellow-300'
                       }`}
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <option value="pending">Pending</option>
                       <option value="in_progress">In Progress</option>
                       <option value="completed">Completed</option>
                     </select>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeletePeriod(period.id);
-                      }}
+                      onClick={() => handleDeletePeriod(period.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
 
-          {periods.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
-              <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-900 font-semibold text-lg mb-2">No Recurring Periods Found</p>
-              <div className="max-w-2xl mx-auto space-y-3 text-sm text-gray-600">
-                <p>
-                  Recurring periods should have been automatically created when this work was set up.
-                </p>
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left">
-                  <p className="font-semibold text-amber-900 mb-2">Possible reasons:</p>
-                  <ul className="list-disc list-inside space-y-1 text-amber-800 ml-2">
-                    <li>The work start date might be in the future</li>
-                    <li>There might have been an issue during work creation</li>
-                    <li>The recurrence pattern might not be properly configured</li>
-                  </ul>
-                </div>
-                <p className="text-gray-700 font-medium mt-4">
-                  Click <strong>"Add Period"</strong> above to manually create your first period.
-                </p>
-                <p className="text-xs text-gray-500 mt-2">
-                  Each period will automatically include tasks based on your service task templates.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Period Details (Tasks & Documents) */}
-        <div className="space-y-3">
-          {selectedPeriod ? (
-            <>
-              <div className="flex items-center gap-2 border-b border-gray-200">
-                <button
-                  onClick={() => setActiveTab('tasks')}
-                  className={`px-4 py-2 font-medium transition-colors ${
-                    activeTab === 'tasks'
-                      ? 'text-orange-600 border-b-2 border-orange-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <ListTodo size={18} />
-                    Tasks
-                  </div>
-                </button>
-                <button
-                  onClick={() => setActiveTab('documents')}
-                  className={`px-4 py-2 font-medium transition-colors ${
-                    activeTab === 'documents'
-                      ? 'text-orange-600 border-b-2 border-orange-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <FileText size={18} />
-                    Documents
-                  </div>
-                </button>
               </div>
 
-              {activeTab === 'tasks' ? (
-                <PeriodTaskManager
-                  periodId={selectedPeriod}
-                  periodName={periods.find(p => p.id === selectedPeriod)?.period_name || ''}
-                  periodStatus={periods.find(p => p.id === selectedPeriod)?.status || ''}
-                  workId={workId}
-                  onTasksUpdate={() => {
-                    fetchPeriods();
-                    onUpdate();
-                  }}
-                />
-              ) : (
-                periodDocuments.length > 0 ? (
-                  <div className="space-y-2">
-                    {periodDocuments.map(doc => (
-                      <div
-                        key={doc.id}
-                        className={`border-2 rounded-lg p-3 ${
-                          doc.work_documents.is_required && !doc.is_collected
-                            ? 'border-red-300 bg-red-50'
-                            : doc.is_collected
-                            ? 'border-green-300 bg-green-50'
-                            : 'border-gray-200 bg-white'
+              {/* Expandable Tasks and Documents Section */}
+              {isExpanded && (
+                <div className="border-t border-gray-200 p-4 bg-gray-50">
+                    <div className="flex items-center gap-2 border-b border-gray-300 mb-4">
+                      <button
+                        onClick={() => setActiveTab('tasks')}
+                        className={`px-4 py-2 font-medium transition-colors ${
+                          activeTab === 'tasks'
+                            ? 'text-orange-600 border-b-2 border-orange-600'
+                            : 'text-gray-600 hover:text-gray-900'
                         }`}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h6 className="font-medium text-gray-900 text-sm">{doc.work_documents.name}</h6>
-                              {doc.work_documents.is_required && (
-                                <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
-                                  Required
-                                </span>
-                              )}
-                              {doc.is_collected && (
-                                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium flex items-center gap-1">
-                                  <CheckSquare size={12} />
-                                  Collected
-                                </span>
-                              )}
-                            </div>
-                            {doc.work_documents.description && (
-                              <p className="text-xs text-gray-600 mt-1">{doc.work_documents.description}</p>
-                            )}
-                            <p className="text-xs text-gray-500 mt-1">
-                              Category: {doc.work_documents.category}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleToggleDocumentCollected(doc.id, !doc.is_collected)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              doc.is_collected
-                                ? 'text-green-600 hover:bg-green-100'
-                                : 'text-gray-400 hover:bg-gray-100'
-                            }`}
-                            title={doc.is_collected ? 'Mark as not collected' : 'Mark as collected'}
-                          >
-                            <CheckSquare size={18} />
-                          </button>
+                        <div className="flex items-center gap-2">
+                          <ListTodo size={18} />
+                          Tasks
                         </div>
-                      </div>
-                    ))}
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('documents')}
+                        className={`px-4 py-2 font-medium transition-colors ${
+                          activeTab === 'documents'
+                            ? 'text-orange-600 border-b-2 border-orange-600'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText size={18} />
+                          Documents
+                        </div>
+                      </button>
+                    </div>
+
+                    {activeTab === 'tasks' ? (
+                      <PeriodTaskManager
+                        periodId={period.id}
+                        periodName={period.period_name}
+                        periodStatus={period.status}
+                        workId={workId}
+                        onTasksUpdate={() => {
+                          fetchPeriods();
+                          onUpdate();
+                        }}
+                      />
+                    ) : (
+                      periodDocuments.length > 0 && expandedPeriod === period.id ? (
+                        <div className="space-y-2">
+                          {periodDocuments.map(doc => (
+                            <div
+                              key={doc.id}
+                              className={`border-2 rounded-lg p-3 ${
+                                doc.work_documents.is_required && !doc.is_collected
+                                  ? 'border-red-300 bg-red-50'
+                                  : doc.is_collected
+                                  ? 'border-green-300 bg-green-50'
+                                  : 'border-gray-200 bg-white'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h6 className="font-medium text-gray-900 text-sm">{doc.work_documents.name}</h6>
+                                    {doc.work_documents.is_required && (
+                                      <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
+                                        Required
+                                      </span>
+                                    )}
+                                    {doc.is_collected && (
+                                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium flex items-center gap-1">
+                                        <CheckSquare size={12} />
+                                        Collected
+                                      </span>
+                                    )}
+                                  </div>
+                                  {doc.work_documents.description && (
+                                    <p className="text-xs text-gray-600 mt-1">{doc.work_documents.description}</p>
+                                  )}
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Category: {doc.work_documents.category}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleToggleDocumentCollected(doc.id, !doc.is_collected)}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    doc.is_collected
+                                      ? 'text-green-600 hover:bg-green-100'
+                                      : 'text-gray-400 hover:bg-gray-100'
+                                  }`}
+                                  title={doc.is_collected ? 'Mark as not collected' : 'Mark as collected'}
+                                >
+                                  <CheckSquare size={18} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
+                          <FileText size={40} className="mx-auto text-gray-400 mb-2" />
+                          <p className="text-gray-600 text-sm">No documents for this period yet.</p>
+                        </div>
+                      )
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-                    <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600 text-sm">No documents for this period yet.</p>
-                    <p className="text-gray-500 text-xs mt-2">
-                      Documents are automatically copied from the work template when the period is created.
-                    </p>
-                  </div>
-                )
               )}
-            </>
-          ) : (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <ListTodo size={48} className="mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600 text-sm">Select a period from the list to view tasks and documents</p>
             </div>
-          )}
-        </div>
+          );
+        })}
+
+        {periods.length === 0 && (
+          <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
+            <Calendar size={56} className="mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-900 font-semibold text-lg mb-2">No Recurring Periods Found</p>
+            <div className="max-w-2xl mx-auto space-y-3 text-sm text-gray-600">
+              <p>
+                Recurring periods should have been automatically created when this work was set up.
+              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left">
+                <p className="font-semibold text-amber-900 mb-2">Possible reasons:</p>
+                <ul className="list-disc list-inside space-y-1 text-amber-800 ml-2">
+                  <li>The work start date might be in the future</li>
+                  <li>There might have been an issue during work creation</li>
+                  <li>The recurrence pattern might not be properly configured</li>
+                </ul>
+              </div>
+              <p className="text-gray-700 font-medium mt-4">
+                Click <strong>"Add Period"</strong> above to manually create your first period.
+              </p>
+              <p className="text-xs text-gray-500 mt-2">
+                Each period will automatically include tasks based on your service task templates.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Period Form Modal */}
