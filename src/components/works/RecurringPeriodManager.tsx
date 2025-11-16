@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   Calendar, Clock, CheckCircle, Edit2, Trash2, Plus, AlertTriangle,
-  DollarSign, FileText, CheckSquare, X, ListTodo, ChevronDown, ChevronUp
+  DollarSign, FileText, X, ListTodo
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateDisplay } from '../../lib/dateUtils';
@@ -53,7 +53,6 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   const [loading, setLoading] = useState(true);
   const [showPeriodForm, setShowPeriodForm] = useState(false);
   const [editingPeriod, setEditingPeriod] = useState<RecurringInstance | null>(null);
-  const [isAdditionalTasksExpanded, setIsAdditionalTasksExpanded] = useState(false);
   const toast = useToast();
 
   const [periodForm, setForm] = useState({
@@ -270,106 +269,33 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="font-semibold text-gray-900 text-lg">Recurring Periods Management</h3>
-          <p className="text-sm text-gray-600 mt-1">
-            Pattern: <span className="font-medium capitalize">{work.recurrence_pattern}</span>
-            {work.billing_amount && (
-              <span className="ml-4">
-                Default Billing: <span className="font-medium">₹{work.billing_amount.toLocaleString('en-IN')}</span>
-              </span>
-            )}
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowPeriodForm(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-        >
-          <Plus size={18} />
-          <span>Add Period</span>
-        </button>
-      </div>
-
-      {/* Additional Period Tasks Section - Collapsed by Default */}
-      <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
-        <button
-          onClick={() => setIsAdditionalTasksExpanded(!isAdditionalTasksExpanded)}
-          className="w-full px-4 py-3 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-200 flex items-center justify-between hover:bg-blue-50 transition-colors"
-        >
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            <CheckSquare size={18} className="text-blue-600" />
-            Additional Period Tasks
-          </h3>
-          <div className="text-gray-600">
-            {isAdditionalTasksExpanded ? (
-              <ChevronUp size={20} />
-            ) : (
-              <ChevronDown size={20} />
-            )}
-          </div>
-        </button>
-
-        {isAdditionalTasksExpanded && (
-          <div className="p-4">
-            {selectedPeriod ? (
-              (() => {
-                const selectedPeriodData = periods.find(p => p.id === selectedPeriod);
-                const incompleteTasks = ((selectedPeriodData as any)?.recurring_period_tasks || [])
-                  .filter((t: any) => t.status !== 'completed')
-                  .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0));
-
-                return incompleteTasks.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {incompleteTasks.map((task: any) => (
-                      <div
-                        key={task.id}
-                        className="border-l-4 border-blue-400 bg-blue-50 rounded-r p-3 text-sm"
-                      >
-                        <p className="font-medium text-gray-900 truncate">{task.title}</p>
-                        {task.due_date && (
-                          <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
-                            <Calendar size={12} />
-                            {formatDateDisplay(task.due_date)}
-                          </p>
-                        )}
-                        <span className={`inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium ${
-                          task.priority === 'high' ? 'bg-red-100 text-red-700' :
-                          task.priority === 'medium' ? 'bg-orange-100 text-orange-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {task.priority}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <CheckCircle size={32} className="mx-auto text-green-400 mb-2" />
-                    <p className="text-gray-600 text-sm font-medium">All tasks completed for this period</p>
-                  </div>
-                );
-              })()
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-gray-500 text-sm">Select a period to view additional tasks</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Periods & Tasks Management Section */}
       <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            <Calendar size={18} className="text-orange-600" />
-            Periods & Tasks Management
-          </h3>
+        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50 space-y-3">
+          <div>
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-lg">
+              <Calendar size={18} className="text-orange-600" />
+              Periods & Tasks Management
+            </h3>
+            <p className="text-sm text-gray-600 mt-2">
+              Pattern: <span className="font-medium capitalize">{work.recurrence_pattern}</span>
+              {work.billing_amount && (
+                <span className="ml-4">
+                  Default Billing: <span className="font-medium">₹{work.billing_amount.toLocaleString('en-IN')}</span>
+                </span>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowPeriodForm(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+          >
+            <Plus size={18} />
+            <span>Add Period</span>
+          </button>
         </div>
 
         {/* Periods and Tasks Grid - Full Width */}
