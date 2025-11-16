@@ -495,20 +495,14 @@ interface RecurringTabProps {
 export function RecurringTab({ workId, work, onUpdate }: RecurringTabProps) {
   return (
     <div className="space-y-8">
-      <div>
+      <RecurringPeriodManager workId={workId} work={work} onUpdate={onUpdate} />
+
+      <div className="border-t border-gray-200 pt-8">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Repeat size={20} className="text-orange-600" />
           Task Templates
         </h3>
         <WorkTaskTemplates workId={workId} onUpdate={onUpdate} />
-      </div>
-
-      <div className="border-t border-gray-200 pt-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Calendar size={20} className="text-orange-600" />
-          Periods & Tasks Management
-        </h3>
-        <RecurringPeriodManager workId={workId} work={work} onUpdate={onUpdate} />
       </div>
     </div>
   );
