@@ -897,138 +897,153 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-        <button
-          onClick={() => onNavigate('works')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-yellow-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Clock className="w-5 h-5 text-gray-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Pending Works</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.pendingWorks}</p>
-        </button>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <ClipboardList className="w-5 h-5 text-blue-600" />
+            Work Status Overview
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button
+              onClick={() => onNavigate('works')}
+              className="bg-white rounded-lg shadow border-l-4 border-l-yellow-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Clock className="w-5 h-5 text-yellow-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Pending Works</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.pendingWorks}</p>
+            </button>
 
-        <button
-          onClick={() => onNavigate('works')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Activity className="w-5 h-5 text-gray-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">In Progress</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.inProgressWorks}</p>
-        </button>
+            <button
+              onClick={() => onNavigate('works')}
+              className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Activity className="w-5 h-5 text-blue-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">In Progress</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.inProgressWorks}</p>
+            </button>
 
-        <button
-          onClick={() => onNavigate('works')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <AlertTriangle className="w-5 h-5 text-gray-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Overdue Works</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.overdueWorks}</p>
-        </button>
+            <button
+              onClick={() => onNavigate('works')}
+              className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Overdue Works</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.overdueWorks}</p>
+            </button>
 
-        <button
-          onClick={() => onNavigate('works')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <CheckCircle className="w-5 h-5 text-gray-600" />
+            <button
+              onClick={() => onNavigate('works')}
+              className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Completed</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.completedWorks}</p>
+            </button>
           </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Completed</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.completedWorks}</p>
-        </button>
+        </div>
 
-        <button
-          onClick={() => onNavigate('invoices-list')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-cyan-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <FileText className="w-5 h-5 text-gray-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Total Invoices</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalInvoices}</p>
-        </button>
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-green-600" />
+            Invoice Payment Status
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg shadow border-l-4 border-l-cyan-500 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <FileText className="w-5 h-5 text-cyan-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Total Invoices</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalInvoices}</p>
+            </div>
 
-        <button
-          onClick={() => onNavigate('invoices-list')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-emerald-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <CheckCircle className="w-5 h-5 text-gray-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Paid Invoices</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.paidInvoices}</p>
-        </button>
+            <button
+              onClick={() => onNavigate('invoices-list')}
+              className="bg-white rounded-lg shadow border-l-4 border-l-emerald-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Paid</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.paidInvoices}</p>
+            </button>
 
-        <button
-          onClick={() => onNavigate('invoices-list')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-orange-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Wallet className="w-5 h-5 text-gray-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Partially Paid</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.partiallyPaidInvoices}</p>
-        </button>
+            <button
+              onClick={() => onNavigate('invoices-list')}
+              className="bg-white rounded-lg shadow border-l-4 border-l-orange-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Wallet className="w-5 h-5 text-orange-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Partially Paid</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.partiallyPaidInvoices}</p>
+            </button>
 
-        <button
-          onClick={() => onNavigate('invoices-list')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <AlertCircle className="w-5 h-5 text-gray-600" />
+            <button
+              onClick={() => onNavigate('invoices-list')}
+              className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Unpaid</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.unpaidInvoices}</p>
+            </button>
           </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Unpaid Invoices</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.unpaidInvoices}</p>
-        </button>
+        </div>
 
-        <button
-          onClick={() => onNavigate('staff')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Briefcase className="w-5 h-5 text-gray-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Total Staff</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalStaff}</p>
-        </button>
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-purple-600" />
+            Team & Services
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <Briefcase className="w-5 h-5 text-blue-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Total Staff</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalStaff}</p>
+            </div>
 
-        <button
-          onClick={() => onNavigate('staff')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <UserCheck className="w-5 h-5 text-gray-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Active Staff</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeStaff}</p>
-        </button>
+            <button
+              onClick={() => onNavigate('staff')}
+              className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <UserCheck className="w-5 h-5 text-green-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Active Staff</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeStaff}</p>
+            </button>
 
-        <button
-          onClick={() => onNavigate('services')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-rose-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Package className="w-5 h-5 text-gray-600" />
-          </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Total Services</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalServices}</p>
-        </button>
+            <div className="bg-white rounded-lg shadow border-l-4 border-l-rose-500 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <Package className="w-5 h-5 text-rose-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Total Services</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalServices}</p>
+            </div>
 
-        <button
-          onClick={() => onNavigate('services')}
-          className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <CheckCircle className="w-5 h-5 text-gray-600" />
+            <button
+              onClick={() => onNavigate('services')}
+              className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600 uppercase">Active Services</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeServices}</p>
+            </button>
           </div>
-          <p className="text-xs font-medium text-gray-600 uppercase">Active Services</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeServices}</p>
-        </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
