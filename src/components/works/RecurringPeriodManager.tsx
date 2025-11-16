@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   Calendar, Clock, CheckCircle, Edit2, Trash2, Plus, AlertTriangle,
-  DollarSign, FileText, CheckSquare, X, ListTodo, ChevronDown, ChevronUp
+  DollarSign, FileText, CheckSquare, X, ListTodo, ChevronDown, ChevronUp, GripVertical
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateDisplay } from '../../lib/dateUtils';
@@ -55,7 +55,9 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   const [loading, setLoading] = useState(true);
   const [showPeriodForm, setShowPeriodForm] = useState(false);
   const [editingPeriod, setEditingPeriod] = useState<RecurringInstance | null>(null);
-  const [expandedPeriod, setExpandedPeriod] = useState<string | null>(null);
+  const [panelWidth, setPanelWidth] = useState(350);
+  const [isDragging, setIsDragging] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
   const [periodForm, setForm] = useState({
@@ -71,10 +73,40 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   }, [workId]);
 
   useEffect(() => {
-    if (expandedPeriod && activeTab === 'documents') {
-      fetchPeriodDocuments(expandedPeriod);
+    if (selectedPeriod && activeTab === 'documents') {
+      fetchPeriodDocuments(selectedPeriod);
     }
-  }, [expandedPeriod, activeTab]);
+  }, [selectedPeriod, activeTab]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !panelRef.current) return;
+
+      const container = panelRef.current.parentElement;
+      if (!container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const newWidth = containerRect.right - e.clientX;
+
+      if (newWidth > 280 && newWidth < 800) {
+        setPanelWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   const fetchPeriods = async () => {
     try {
@@ -290,6 +322,8 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
     return <div className="flex justify-center p-8">Loading...</div>;
   }
 
+  const selectedPeriodData = selectedPeriod ? periods.find(p => p.id === selectedPeriod) : null;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -317,10 +351,13 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
         </button>
       </div>
 
-      {/* Periods List */}
-      <div className="space-y-3">
-        <h4 className="font-medium text-gray-900">All Periods</h4>
-          {periods.map(period => {
+      {/* Two-Column Layout: Periods List + Side Panel */}
+      <div className="flex gap-4 h-[600px] relative">
+        {/* Left: Periods List */}
+        <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+          <div className="space-y-3 p-4">
+            <h4 className="font-medium text-gray-900 sticky top-0 bg-white pb-2">All Periods</h4>
+            {periods.map(period => {
             // Get all tasks and sort by display order
             const allTasks = ((period as any).recurring_period_tasks || []).sort(
               (a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)
@@ -356,15 +393,17 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
             return (
               <div
                 key={period.id}
-                className={`border-2 rounded-xl overflow-hidden transition-all ${
-                  isOverdue
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-gray-200 bg-white'
+                onClick={() => setSelectedPeriod(selectedPeriod === period.id ? null : period.id)}
+                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                  selectedPeriod === period.id
+                    ? 'border-orange-500 bg-orange-50 shadow-md'
+                    : isOverdue
+                    ? 'border-red-300 bg-red-50 hover:border-red-400'
+                    : 'border-gray-200 bg-white hover:border-orange-300'
                 }`}
               >
-                <div className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h5 className="font-semibold text-gray-900">{period.period_name}</h5>
                       {period.billing_amount && (
@@ -461,17 +500,11 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setExpandedPeriod(isExpanded ? null : period.id)}
-                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                      title={isExpanded ? 'Collapse' : 'Expand'}
-                    >
-                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                    </button>
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => openEditPeriodModal(period)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit period"
                     >
                       <Edit2 size={16} />
                     </button>
@@ -493,119 +526,13 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                     <button
                       onClick={() => handleDeletePeriod(period.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete period"
                     >
                       <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
-
               </div>
-
-              {/* Expandable Tasks and Documents Section */}
-              {isExpanded && (
-                <div className="border-t border-gray-200 p-4 bg-gray-50">
-                    <div className="flex items-center gap-2 border-b border-gray-300 mb-4">
-                      <button
-                        onClick={() => setActiveTab('tasks')}
-                        className={`px-4 py-2 font-medium transition-colors ${
-                          activeTab === 'tasks'
-                            ? 'text-orange-600 border-b-2 border-orange-600'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <ListTodo size={18} />
-                          Tasks
-                        </div>
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('documents')}
-                        className={`px-4 py-2 font-medium transition-colors ${
-                          activeTab === 'documents'
-                            ? 'text-orange-600 border-b-2 border-orange-600'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <FileText size={18} />
-                          Documents
-                        </div>
-                      </button>
-                    </div>
-
-                    {activeTab === 'tasks' ? (
-                      <PeriodTaskManager
-                        periodId={period.id}
-                        periodName={period.period_name}
-                        periodStatus={period.status}
-                        workId={workId}
-                        onTasksUpdate={() => {
-                          fetchPeriods();
-                          onUpdate();
-                        }}
-                      />
-                    ) : (
-                      periodDocuments.length > 0 && expandedPeriod === period.id ? (
-                        <div className="space-y-2">
-                          {periodDocuments.map(doc => (
-                            <div
-                              key={doc.id}
-                              className={`border-2 rounded-lg p-3 ${
-                                doc.work_documents.is_required && !doc.is_collected
-                                  ? 'border-red-300 bg-red-50'
-                                  : doc.is_collected
-                                  ? 'border-green-300 bg-green-50'
-                                  : 'border-gray-200 bg-white'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h6 className="font-medium text-gray-900 text-sm">{doc.work_documents.name}</h6>
-                                    {doc.work_documents.is_required && (
-                                      <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
-                                        Required
-                                      </span>
-                                    )}
-                                    {doc.is_collected && (
-                                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium flex items-center gap-1">
-                                        <CheckSquare size={12} />
-                                        Collected
-                                      </span>
-                                    )}
-                                  </div>
-                                  {doc.work_documents.description && (
-                                    <p className="text-xs text-gray-600 mt-1">{doc.work_documents.description}</p>
-                                  )}
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Category: {doc.work_documents.category}
-                                  </p>
-                                </div>
-                                <button
-                                  onClick={() => handleToggleDocumentCollected(doc.id, !doc.is_collected)}
-                                  className={`p-2 rounded-lg transition-colors ${
-                                    doc.is_collected
-                                      ? 'text-green-600 hover:bg-green-100'
-                                      : 'text-gray-400 hover:bg-gray-100'
-                                  }`}
-                                  title={doc.is_collected ? 'Mark as not collected' : 'Mark as collected'}
-                                >
-                                  <CheckSquare size={18} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
-                          <FileText size={40} className="mx-auto text-gray-400 mb-2" />
-                          <p className="text-gray-600 text-sm">No documents for this period yet.</p>
-                        </div>
-                      )
-                    )}
-                  </div>
-              )}
-            </div>
           );
         })}
 
@@ -634,6 +561,139 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
             </div>
           </div>
         )}
+          </div>
+        </div>
+
+        {/* Resize Handle */}
+        <div
+          onMouseDown={() => setIsDragging(true)}
+          className="w-1 bg-gray-300 hover:bg-orange-500 cursor-col-resize transition-colors"
+        />
+
+        {/* Right: Tasks & Documents Panel */}
+        <div
+          ref={panelRef}
+          style={{ width: `${panelWidth}px` }}
+          className="overflow-hidden border border-gray-200 rounded-lg bg-white flex flex-col transition-all"
+        >
+          {selectedPeriodData ? (
+            <>
+              {/* Panel Header */}
+              <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
+                <h4 className="font-semibold text-gray-900 text-sm mb-2">
+                  {selectedPeriodData.period_name}
+                </h4>
+                <p className="text-xs text-gray-600">
+                  {formatDateDisplay(selectedPeriodData.period_start_date)} - {formatDateDisplay(selectedPeriodData.period_end_date)}
+                </p>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex items-center gap-1 p-2 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                    activeTab === 'tasks'
+                      ? 'bg-orange-600 text-white'
+                      : 'text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <ListTodo size={14} />
+                    Tasks
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('documents')}
+                  className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                    activeTab === 'documents'
+                      ? 'bg-orange-600 text-white'
+                      : 'text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <FileText size={14} />
+                    Docs
+                  </div>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-3">
+                {activeTab === 'tasks' ? (
+                  <PeriodTaskManager
+                    periodId={selectedPeriodData.id}
+                    periodName={selectedPeriodData.period_name}
+                    periodStatus={selectedPeriodData.status}
+                    workId={workId}
+                    onTasksUpdate={() => {
+                      fetchPeriods();
+                      onUpdate();
+                    }}
+                  />
+                ) : (
+                  periodDocuments.length > 0 ? (
+                    <div className="space-y-2">
+                      {periodDocuments.map(doc => (
+                        <div
+                          key={doc.id}
+                          className={`border-2 rounded p-2 text-xs ${
+                            doc.work_documents.is_required && !doc.is_collected
+                              ? 'border-red-300 bg-red-50'
+                              : doc.is_collected
+                              ? 'border-green-300 bg-green-50'
+                              : 'border-gray-200 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 mb-1 flex-wrap">
+                                <p className="font-medium text-gray-900 truncate">{doc.work_documents.name}</p>
+                                {doc.work_documents.is_required && (
+                                  <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium flex-shrink-0">
+                                    Req
+                                  </span>
+                                )}
+                              </div>
+                              {doc.is_collected && (
+                                <p className="text-green-600 text-xs font-medium flex items-center gap-1">
+                                  <CheckSquare size={12} />
+                                  Collected
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleToggleDocumentCollected(doc.id, !doc.is_collected)}
+                              className={`p-1.5 rounded transition-colors flex-shrink-0 ${
+                                doc.is_collected
+                                  ? 'text-green-600 hover:bg-green-100'
+                                  : 'text-gray-400 hover:bg-gray-100'
+                              }`}
+                            >
+                              <CheckSquare size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileText size={32} className="mx-auto text-gray-300 mb-2" />
+                      <p className="text-gray-500 text-xs">No documents</p>
+                    </div>
+                  )
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <Calendar size={40} className="mx-auto text-gray-300 mb-2" />
+                <p className="text-gray-500 text-sm">Select a period</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Period Form Modal */}
