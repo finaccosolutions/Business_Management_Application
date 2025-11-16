@@ -110,7 +110,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
 
   const fetchPeriods = async () => {
     try {
-      await supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId });
+      await supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId }).catch(() => {});
 
       const { data, error } = await supabase
         .from('work_recurring_instances')
@@ -387,8 +387,6 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
             const daysUntilDue = Math.ceil(
               (new Date(referenceDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
             );
-
-            const isExpanded = expandedPeriod === period.id;
 
             return (
               <div
