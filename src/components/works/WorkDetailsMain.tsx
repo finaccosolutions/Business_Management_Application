@@ -322,14 +322,28 @@ export default function WorkDetails({ workId, onClose, onUpdate, onEdit, onNavig
 
       if (error) throw error;
 
-      const completedTasks = tasks.filter((t) => t.id === taskId || t.status === 'completed').length +
-        (status === 'completed' ? 1 : 0);
+      const updatedTasks = tasks.map(t =>
+        t.id === taskId ? { ...t, status } : t
+      );
 
-      if (completedTasks === tasks.length && tasks.length > 0) {
-        await supabase
+      const allCompleted = updatedTasks.length > 0 &&
+        updatedTasks.every(t => t.status === 'completed');
+
+      if (allCompleted) {
+        const { error: updateError } = await supabase
           .from('works')
           .update({ status: 'completed', completion_date: new Date().toISOString() })
           .eq('id', workId);
+
+        if (updateError) throw updateError;
+
+        if (!work.is_recurring && work.customer_id && work.service_id) {
+          try {
+            await supabase.rpc('auto_generate_invoice_for_completed_work', { p_work_id: workId });
+          } catch (invoiceError) {
+            console.error('Error auto-generating invoice:', invoiceError);
+          }
+        }
       }
 
       fetchWorkDetails();

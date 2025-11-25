@@ -171,7 +171,28 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, workId, 
 
       if (error) throw error;
 
-      fetchTasks();
+      await fetchTasks();
+
+      const updatedTasks = tasks.map(t =>
+        t.id === taskId ? { ...t, status: newStatus } : t
+      );
+
+      const allCompleted = updatedTasks.length > 0 &&
+        updatedTasks.every(t => t.status === 'completed');
+
+      if (allCompleted && periodStatus !== 'completed') {
+        const { error: updateError } = await supabase
+          .from('work_recurring_instances')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            all_tasks_completed: true
+          })
+          .eq('id', periodId);
+
+        if (updateError) throw updateError;
+      }
+
       onTasksUpdate();
       toast.success('Task status updated!');
     } catch (error) {
