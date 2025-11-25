@@ -53,6 +53,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   const [loading, setLoading] = useState(true);
   const [showPeriodForm, setShowPeriodForm] = useState(false);
   const [editingPeriod, setEditingPeriod] = useState<RecurringInstance | null>(null);
+  const [autoGenerateCalled, setAutoGenerateCalled] = useState(false);
   const toast = useToast();
 
   const [periodForm, setForm] = useState({
@@ -64,15 +65,28 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
   });
 
   useEffect(() => {
-    fetchPeriods();
+    if (!autoGenerateCalled) {
+      autoGenerateAndFetch();
+      setAutoGenerateCalled(true);
+    } else {
+      fetchPeriods();
+    }
   }, [workId]);
 
 
 
-  const fetchPeriods = async () => {
+  const autoGenerateAndFetch = async () => {
     try {
       await supabase.rpc('auto_generate_next_period_for_work', { p_work_id: workId });
+      await fetchPeriods();
+    } catch (error) {
+      console.error('Error during auto-generate:', error);
+      setLoading(false);
+    }
+  };
 
+  const fetchPeriods = async () => {
+    try {
       const { data, error } = await supabase
         .from('work_recurring_instances')
         .select(`
@@ -388,7 +402,7 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                       <div className="text-xs text-gray-600 space-y-0.5">
                         <div className="flex items-center gap-1">
                           <Calendar size={10} className="text-blue-500 flex-shrink-0" />
-                          <span className="truncate">{formatDateDisplay(period.period_start_date)}</span>
+                          <span className="truncate">{formatDateDisplay(period.period_start_date)} - {formatDateDisplay(period.period_end_date)}</span>
                         </div>
 
                         {allTasks.length > 0 && (
