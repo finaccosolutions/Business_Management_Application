@@ -27,6 +27,8 @@ interface Account {
   description: string;
   is_active: boolean;
   account_groups: { name: string; account_type: string };
+  _debit?: number;
+  _credit?: number;
 }
 
 const accountTypeColors = {
@@ -100,7 +102,7 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
 
   const fetchData = async () => {
     try {
-      const [accountsResult, groupsResult] = await Promise.all([
+      const [accountsResult, groupsResult, transactionsResult] = await Promise.all([
         supabase
           .from('chart_of_accounts')
           .select('*, account_groups(name, account_type)')
@@ -109,12 +111,48 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
           .from('account_groups')
           .select('*')
           .order('display_order'),
+        supabase
+          .from('ledger_transactions')
+          .select('account_id, debit, credit'),
       ]);
 
       if (accountsResult.error) throw accountsResult.error;
       if (groupsResult.error) throw groupsResult.error;
+      if (transactionsResult.error) throw transactionsResult.error;
 
-      setAccounts(accountsResult.data || []);
+      const balances = new Map<string, { debit: number; credit: number }>();
+
+      transactionsResult.data?.forEach((txn: any) => {
+        const existing = balances.get(txn.account_id) || { debit: 0, credit: 0 };
+        existing.debit += Number(txn.debit) || 0;
+        existing.credit += Number(txn.credit) || 0;
+        balances.set(txn.account_id, existing);
+      });
+
+      const accountsWithBalances = (accountsResult.data || []).map((account: any) => {
+        const txnBalance = balances.get(account.id) || { debit: 0, credit: 0 };
+        const openingBalance = Number(account.opening_balance) || 0;
+
+        let debit = txnBalance.debit;
+        let credit = txnBalance.credit;
+
+        if (openingBalance > 0) {
+          debit += openingBalance;
+        } else if (openingBalance < 0) {
+          credit += Math.abs(openingBalance);
+        }
+
+        const currentBalance = debit - credit;
+
+        return {
+          ...account,
+          current_balance: currentBalance,
+          _debit: debit,
+          _credit: credit,
+        };
+      });
+
+      setAccounts(accountsWithBalances);
       setGroups(groupsResult.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -799,10 +837,10 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 text-right font-bold text-blue-600 dark:text-blue-400">
-                                  ₹{(groupBalance >= 0 ? groupBalance : 0).toLocaleString('en-IN')}
+                                  ₹{groupLedgers.reduce((sum, a) => sum + (a._debit || 0), 0).toLocaleString('en-IN')}
                                 </td>
                                 <td className="px-6 py-4 text-right font-bold text-red-600 dark:text-red-400">
-                                  ₹{(groupBalance < 0 ? Math.abs(groupBalance) : 0).toLocaleString('en-IN')}
+                                  ₹{groupLedgers.reduce((sum, a) => sum + (a._credit || 0), 0).toLocaleString('en-IN')}
                                 </td>
                                 <td className="px-6 py-4">
                                   <div className="flex items-center justify-center gap-2">
@@ -965,13 +1003,13 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                 <div>
                                   <p className="text-xs text-gray-500 dark:text-gray-400">Debit</p>
                                   <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                                    ₹{(groupBalance >= 0 ? groupBalance : 0).toLocaleString('en-IN')}
+                                    ₹{groupLedgers.reduce((sum, a) => sum + (a._debit || 0), 0).toLocaleString('en-IN')}
                                   </p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-gray-500 dark:text-gray-400">Credit</p>
                                   <p className="text-sm font-bold text-red-600 dark:text-red-400">
-                                    ₹{(groupBalance < 0 ? Math.abs(groupBalance) : 0).toLocaleString('en-IN')}
+                                    ₹{groupLedgers.reduce((sum, a) => sum + (a._credit || 0), 0).toLocaleString('en-IN')}
                                   </p>
                                 </div>
                               </div>
@@ -1237,12 +1275,12 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
                         <span className="font-bold text-blue-600 dark:text-blue-400">
-                          ₹{(account.current_balance >= 0 ? account.current_balance : 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          ₹{(account._debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
                         <span className="font-bold text-red-600 dark:text-red-400">
-                          ₹{(account.current_balance < 0 ? Math.abs(account.current_balance) : 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          ₹{(account._credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -1338,15 +1376,21 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <div className="py-2 px-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <p className="text-xs text-blue-600 dark:text-blue-400">Opening</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400">Debit</p>
                         <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                          ₹{account.opening_balance.toLocaleString('en-IN')}
+                          ₹{(account._debit || 0).toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                      <div className="py-2 px-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <p className="text-xs text-red-600 dark:text-red-400">Credit</p>
+                        <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                          ₹{(account._credit || 0).toLocaleString('en-IN')}
                         </p>
                       </div>
                       <div className="py-2 px-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                        <p className="text-xs text-green-600 dark:text-green-400">Current</p>
+                        <p className="text-xs text-green-600 dark:text-green-400">Balance</p>
                         <p className="text-sm font-bold text-green-700 dark:text-green-300">
                           ₹{account.current_balance.toLocaleString('en-IN')}
                         </p>
