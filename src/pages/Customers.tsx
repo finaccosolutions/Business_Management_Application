@@ -129,6 +129,24 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
+  const navigationState = sessionStorage.getItem('searchNavigationState');
+  if (navigationState) {
+    try {
+      const state = JSON.parse(navigationState);
+      if (state.itemType === 'customer' && state.shouldShowDetails) {
+        // Set the selected customer to show detail view
+        setSelectedCustomerId(state.selectedId);
+        setShowCustomerDetails(true);
+        sessionStorage.removeItem('searchNavigationState');
+      }
+    } catch (error) {
+      console.error('Error reading navigation state:', error);
+    }
+  }
+}, []);
+
+
+  useEffect(() => {
     if (user) {
       fetchCustomers();
       fetchStatistics();

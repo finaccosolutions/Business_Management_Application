@@ -207,29 +207,39 @@ export default function TopNavBar({ onNavigate, sidebarCollapsed }: TopNavBarPro
     }
   };
 
-  const handleSearchResultClick = (result: SearchResult) => {
-    setShowSearchResults(false);
-    setSearchQuery('');
+    const handleSearchResultClick = (result: SearchResult) => {
+  setShowSearchResults(false);
+  setSearchQuery('');
 
-    if (onNavigate) {
-      switch (result.type) {
-        case 'customer':
-          onNavigate('customers');
-          break;
-        case 'service':
-          onNavigate('services');
-          break;
-        case 'lead':
-          onNavigate('leads');
-          break;
-        case 'work':
-          onNavigate('works');
-          break;
-        default:
-          break;
-      }
+  if (onNavigate) {
+    const navigationState = {
+      selectedId: result.id,
+      itemType: result.type,
+      shouldShowDetails: true,
+    };
+    
+    // Store in sessionStorage for the page component to read
+    sessionStorage.setItem('searchNavigationState', JSON.stringify(navigationState));
+
+    switch (result.type) {
+      case 'customer':
+        onNavigate('customers');
+        break;
+      case 'service':
+        onNavigate('services');
+        break;
+      case 'lead':
+        onNavigate('leads');
+        break;
+      case 'work':
+        onNavigate('works');
+        break;
+      default:
+        break;
     }
-  };
+  }
+};
+
 
   return (
     <div className={`fixed top-0 left-0 right-0 h-14 sm:h-16 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-30 transition-all duration-300 ${sidebarCollapsed ? 'lg:left-20' : 'lg:left-64'} lg:z-40`}>

@@ -130,101 +130,130 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
               const isAccountingSubpage = ['vouchers', 'chart-of-accounts'].includes(currentPage);
               const isAccountingActive = item.id === 'accounting' && (isActive || isAccountingSubpage);
 
-              if (item.subItems) {
-                return (
-                  <div key={item.id} className="relative">
-                    <button
-                      onClick={() => {
-                        if (sidebarCollapsed) {
-                          setShowAccountingDropdown(!showAccountingDropdown);
-                        } else {
-                          handleNavClick(item.id);
-                        }
-                      }}
-                      onMouseEnter={() => sidebarCollapsed && setShowAccountingDropdown(true)}
-                      onMouseLeave={() => sidebarCollapsed && setShowAccountingDropdown(false)}
-                      className={`w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-200 ${
-                        isAccountingActive
-                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
-                          : 'text-slate-300 hover:bg-slate-700'
-                      }`}
-                      title={sidebarCollapsed ? item.name : ''}
-                    >
-                      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
-                        <Icon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${isAccountingActive ? '' : 'text-slate-400'}`} />
-                        {!sidebarCollapsed && (
-                          <>
-                            <span className="font-medium text-sm sm:text-base truncate">{item.name}</span>
-                            <div className="ml-auto">
-                              {accountingExpanded ? (
-                                <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 flex-shrink-0" />
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </button>
+ if (item.subItems) {
+  return (
+    <div key={item.id} className="relative w-full">
+      <button
+        onClick={() => {
+          handleNavClick(item.id);
+        }}
+        onMouseEnter={() => !sidebarOpen && sidebarCollapsed && setShowAccountingDropdown(true)}
+        onMouseLeave={() => !sidebarOpen && sidebarCollapsed && setShowAccountingDropdown(false)}
+        className={`w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-200 ${
+          isAccountingActive
+            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+            : 'text-slate-300 hover:bg-slate-700'
+        }`}
+        title={sidebarCollapsed ? item.name : ''}
+      >
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${isAccountingActive ? '' : 'text-slate-400'}`} />
+          {!sidebarCollapsed && (
+            <>
+              <span className="font-medium text-sm sm:text-base truncate">{item.name}</span>
+              <div className="ml-auto">
+                {accountingExpanded ? (
+                  <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </button>
 
-                    {accountingExpanded && !sidebarCollapsed && (
-                      <div className="ml-3 sm:ml-4 mt-1 space-y-1 border-l-2 border-slate-700 pl-2">
-                        {item.subItems.map((subItem) => {
-                          const SubIcon = subItem.icon;
-                          const isSubActive = currentPage === subItem.id;
-                          return (
-                            <button
-                              key={subItem.id}
-                              onClick={() => {
-                                onNavigate(subItem.id);
-                                setSidebarOpen(false);
-                              }}
-                              className={`w-full flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-200 min-w-0 ${
-                                isSubActive
-                                  ? 'bg-blue-600 text-white shadow-sm'
-                                  : 'text-slate-300 hover:bg-slate-700 hover:translate-x-1'
-                              }`}
-                              title={subItem.name}
-                            >
-                              <SubIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${isSubActive ? '' : 'text-slate-400'}`} />
-                              <span className="text-xs sm:text-sm font-medium truncate">{subItem.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+      {/* Expanded list for non-collapsed sidebar (desktop) */}
+      {accountingExpanded && !sidebarCollapsed && (
+        <div className="ml-3 sm:ml-4 mt-1 space-y-1 border-l-2 border-slate-700 pl-2">
+          {item.subItems.map((subItem) => {
+            const SubIcon = subItem.icon;
+            const isSubActive = currentPage === subItem.id;
+            return (
+              <button
+                key={subItem.id}
+                onClick={() => {
+                  onNavigate(subItem.id);
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-200 min-w-0 ${
+                  isSubActive
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-300 hover:bg-slate-700 hover:translate-x-1'
+                }`}
+                title={subItem.name}
+              >
+                <SubIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${isSubActive ? '' : 'text-slate-400'}`} />
+                <span className="text-xs sm:text-sm font-medium truncate">{subItem.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-                    {sidebarCollapsed && showAccountingDropdown && (
-                      <div className="absolute left-full top-0 ml-2 w-48 bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-50 py-1">
-                        {item.subItems.map((subItem) => {
-                          const SubIcon = subItem.icon;
-                          const isSubActive = currentPage === subItem.id;
-                          return (
-                            <button
-                              key={subItem.id}
-                              onClick={() => {
-                                onNavigate(subItem.id);
-                                setSidebarOpen(false);
-                                setShowAccountingDropdown(false);
-                              }}
-                              onMouseEnter={() => setShowAccountingDropdown(true)}
-                              onMouseLeave={() => setShowAccountingDropdown(false)}
-                              className={`w-full flex items-center space-x-3 px-4 py-2.5 text-left transition-all duration-200 ${
-                                isSubActive
-                                  ? 'bg-blue-600 text-white'
-                                  : 'text-slate-300 hover:bg-slate-700'
-                              }`}
-                            >
-                              <SubIcon className={`w-4 h-4 flex-shrink-0 ${isSubActive ? '' : 'text-slate-400'}`} />
-                              <span className="text-sm font-medium">{subItem.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
+      {/* Hover dropdown for collapsed desktop sidebar */}
+      {sidebarCollapsed && !sidebarOpen && showAccountingDropdown && (
+        <div className="absolute left-full top-0 ml-2 w-48 bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-50 py-1">
+          {item.subItems.map((subItem) => {
+            const SubIcon = subItem.icon;
+            const isSubActive = currentPage === subItem.id;
+            return (
+              <button
+                key={subItem.id}
+                onClick={() => {
+                  onNavigate(subItem.id);
+                  setSidebarOpen(false);
+                  setShowAccountingDropdown(false);
+                }}
+                onMouseEnter={() => setShowAccountingDropdown(true)}
+                onMouseLeave={() => setShowAccountingDropdown(false)}
+                className={`w-full flex items-center space-x-3 px-4 py-2.5 text-left transition-all duration-200 ${
+                  isSubActive
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <SubIcon className={`w-4 h-4 flex-shrink-0 ${isSubActive ? '' : 'text-slate-400'}`} />
+                <span className="text-sm font-medium">{subItem.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Expanded list below icon for collapsed mobile/small sidebar (click to expand) */}
+      {sidebarCollapsed && sidebarOpen && accountingExpanded && (
+        <div className="w-full mt-1 space-y-1 pl-3">
+          {item.subItems.map((subItem) => {
+            const SubIcon = subItem.icon;
+            const isSubActive = currentPage === subItem.id;
+            return (
+              <button
+                key={subItem.id}
+                onClick={() => {
+                  onNavigate(subItem.id);
+                  setSidebarOpen(false);
+                  setAccountingExpanded(false);
+                }}
+                className={`w-full flex items-center space-x-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-200 ${
+                  isSubActive
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-300 hover:bg-slate-700'
+                }`}
+                title={subItem.name}
+              >
+                <SubIcon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${isSubActive ? '' : 'text-slate-400'}`} />
+                <span className="text-sm font-medium">{subItem.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
               return (
                 <button

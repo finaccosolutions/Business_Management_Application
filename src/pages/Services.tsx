@@ -69,6 +69,23 @@ export default function Services() {
     is_recurring: '',
   });
 
+useEffect(() => {
+  const navigationState = sessionStorage.getItem('searchNavigationState');
+  if (navigationState) {
+    try {
+      const state = JSON.parse(navigationState);
+      if (state.itemType === 'service' && state.shouldShowDetails) {
+        setSelectedServiceId(state.selectedId);
+        setShowDetailsModal(true);
+        sessionStorage.removeItem('searchNavigationState');
+      }
+    } catch (error) {
+      console.error('Error reading navigation state:', error);
+    }
+  }
+}, []);
+
+
   useEffect(() => {
     if (user) {
       fetchServices();
