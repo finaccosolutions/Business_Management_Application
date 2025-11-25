@@ -32,9 +32,10 @@ interface SearchResult {
 
 interface TopNavBarProps {
   onNavigate?: (page: string) => void;
+  sidebarCollapsed?: boolean;
 }
 
-export default function TopNavBar({ onNavigate }: TopNavBarProps = {}) {
+export default function TopNavBar({ onNavigate, sidebarCollapsed }: TopNavBarProps = {}) {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -206,8 +207,32 @@ export default function TopNavBar({ onNavigate }: TopNavBarProps = {}) {
     }
   };
 
+  const handleSearchResultClick = (result: SearchResult) => {
+    setShowSearchResults(false);
+    setSearchQuery('');
+
+    if (onNavigate) {
+      switch (result.type) {
+        case 'customer':
+          onNavigate('customers');
+          break;
+        case 'service':
+          onNavigate('services');
+          break;
+        case 'lead':
+          onNavigate('leads');
+          break;
+        case 'work':
+          onNavigate('works');
+          break;
+        default:
+          break;
+      }
+    }
+  };
+
   return (
-    <div className="fixed top-0 left-0 right-0 h-14 sm:h-16 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-30 lg:left-64 lg:z-40">
+    <div className={`fixed top-0 left-0 right-0 h-14 sm:h-16 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-30 transition-all duration-300 ${sidebarCollapsed ? 'lg:left-20' : 'lg:left-64'} lg:z-40`}>
       <div className="h-full px-2 sm:px-4 flex items-center justify-between gap-2">
         {/* Search Bar */}
         <div className="flex-1 max-w-2xl lg:max-w-xl" ref={searchRef}>
@@ -229,11 +254,7 @@ export default function TopNavBar({ onNavigate }: TopNavBarProps = {}) {
                   <div
                     key={`${result.type}-${result.id}`}
                     className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-b-0"
-                    onClick={() => {
-                      setShowSearchResults(false);
-                      setSearchQuery('');
-                      // Handle navigation to result
-                    }}
+                    onClick={() => handleSearchResultClick(result)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
