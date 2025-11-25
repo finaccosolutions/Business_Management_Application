@@ -738,12 +738,24 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                           <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
                             Ledgers
                           </th>
-                          <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                            Balance
+                          <th colSpan={2} className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Closing
                           </th>
                           <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
                             Actions
                           </th>
+                        </tr>
+                        <tr>
+                          <th></th>
+                          <th></th>
+                          <th></th>
+                          <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Debit (₹)
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Credit (₹)
+                          </th>
+                          <th></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
@@ -787,7 +799,10 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 text-right font-bold text-blue-600 dark:text-blue-400">
-                                  ₹{groupBalance.toLocaleString('en-IN')}
+                                  ₹{(groupBalance >= 0 ? groupBalance : 0).toLocaleString('en-IN')}
+                                </td>
+                                <td className="px-6 py-4 text-right font-bold text-red-600 dark:text-red-400">
+                                  ₹{(groupBalance < 0 ? Math.abs(groupBalance) : 0).toLocaleString('en-IN')}
                                 </td>
                                 <td className="px-6 py-4">
                                   <div className="flex items-center justify-center gap-2">
@@ -946,11 +961,19 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                 <p className="text-xs text-gray-500 dark:text-gray-400">Ledgers</p>
                                 <p className="text-sm font-semibold text-gray-900 dark:text-white">{ledgerCount}</p>
                               </div>
-                              <div className="text-right">
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Balance</p>
-                                <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                                  ₹{groupBalance.toLocaleString('en-IN')}
-                                </p>
+                              <div className="grid grid-cols-2 gap-2 text-right">
+                                <div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Debit</p>
+                                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                    ₹{(groupBalance >= 0 ? groupBalance : 0).toLocaleString('en-IN')}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Credit</p>
+                                  <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                                    ₹{(groupBalance < 0 ? Math.abs(groupBalance) : 0).toLocaleString('en-IN')}
+                                  </p>
+                                </div>
                               </div>
                             </div>
 
@@ -1153,15 +1176,24 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
                       Group
                     </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Current Debit (₹)
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Current Credit (₹)
+                    <th colSpan={2} className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                      Closing
                     </th>
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
                       Actions
                     </th>
+                  </tr>
+                  <tr>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                      Debit (₹)
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                      Credit (₹)
+                    </th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
@@ -1204,22 +1236,14 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
-                        {account.current_balance >= 0 ? (
-                          <span className="font-bold text-blue-600 dark:text-blue-400">
-                            ₹{account.current_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
+                        <span className="font-bold text-blue-600 dark:text-blue-400">
+                          ₹{(account.current_balance >= 0 ? account.current_balance : 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">
-                        {account.current_balance < 0 ? (
-                          <span className="font-bold text-red-600 dark:text-red-400">
-                            ₹{Math.abs(account.current_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
+                        <span className="font-bold text-red-600 dark:text-red-400">
+                          ₹{(account.current_balance < 0 ? Math.abs(account.current_balance) : 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
