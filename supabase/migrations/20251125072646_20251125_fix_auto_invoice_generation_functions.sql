@@ -1,18 +1,23 @@
 /*
-  # Auto-Generate Invoice for Completed Work and Recurring Periods
+  # Fix Auto-Invoice Generation Functions
 
   ## Overview
-  Creates automatic invoice generation when:
-  1. Non-recurring work is completed (all tasks done)
-  2. Recurring period is marked as completed
+  Fixes the auto-invoice generation functions to use the correct
+  generate_next_invoice_number function which returns text directly
+  instead of a RECORD.
 
   ## Changes
-  - Create `auto_generate_invoice_for_completed_work()` function for non-recurring work
-  - Create trigger to auto-generate invoice when period is completed
-  - Handle invoice generation with proper error handling
+  - Drop and recreate auto_generate_invoice_for_completed_work function
+  - Drop and recreate auto_generate_invoice_for_completed_period function
+  - Update to use generate_next_invoice_number(uuid) which returns text
+  - Ensure proper error handling and NULL checks
 */
 
--- Function to auto-generate invoice for completed non-recurring work
+DROP FUNCTION IF EXISTS auto_generate_invoice_for_completed_work(uuid) CASCADE;
+DROP FUNCTION IF EXISTS auto_generate_invoice_for_completed_period(uuid) CASCADE;
+DROP FUNCTION IF EXISTS trigger_auto_generate_invoice_on_period_complete() CASCADE;
+DROP TRIGGER IF EXISTS trigger_auto_generate_invoice_on_period_complete ON work_recurring_instances;
+
 CREATE OR REPLACE FUNCTION auto_generate_invoice_for_completed_work(p_work_id uuid)
 RETURNS uuid AS $$
 DECLARE
@@ -20,7 +25,6 @@ DECLARE
   v_invoice_id uuid;
   v_invoice_number text;
 BEGIN
-  -- Get work details
   SELECT * INTO v_work FROM works
   WHERE id = p_work_id AND is_recurring = FALSE;
 
@@ -28,7 +32,6 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- Check if invoice already exists for this work
   IF EXISTS (
     SELECT 1 FROM invoices
     WHERE work_id = p_work_id AND status != 'cancelled'
@@ -36,10 +39,8 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- Generate invoice number
   v_invoice_number := generate_next_invoice_number(v_work.user_id);
-  
-  -- Create invoice with work billing amount
+
   INSERT INTO invoices (
     user_id,
     customer_id,
@@ -66,12 +67,11 @@ BEGIN
     'Auto-generated invoice for completed work: ' || v_work.title
   )
   RETURNING id INTO v_invoice_id;
-  
+
   RETURN v_invoice_id;
 END
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to auto-generate invoice for completed recurring period
 CREATE OR REPLACE FUNCTION auto_generate_invoice_for_completed_period(p_period_id uuid)
 RETURNS uuid AS $$
 DECLARE
@@ -80,7 +80,6 @@ DECLARE
   v_invoice_id uuid;
   v_invoice_number text;
 BEGIN
-  -- Get period details
   SELECT * INTO v_period FROM work_recurring_instances
   WHERE id = p_period_id AND status = 'completed' AND is_billed = FALSE;
 
@@ -88,17 +87,14 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- Get work details
   SELECT * INTO v_work FROM works WHERE id = v_period.work_id;
 
   IF v_work IS NULL THEN
     RETURN NULL;
   END IF;
 
-  -- Generate invoice number
   v_invoice_number := generate_next_invoice_number(v_work.user_id);
-  
-  -- Create invoice with period billing amount
+
   INSERT INTO invoices (
     user_id,
     customer_id,
@@ -125,29 +121,23 @@ BEGIN
     'Auto-generated invoice for period: ' || v_period.period_name
   )
   RETURNING id INTO v_invoice_id;
-  
-  -- Mark period as billed
+
   UPDATE work_recurring_instances
   SET is_billed = TRUE, updated_at = NOW()
   WHERE id = p_period_id;
-  
+
   RETURN v_invoice_id;
 END
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger to auto-generate invoice when period is completed
-DROP TRIGGER IF EXISTS trigger_auto_generate_invoice_on_period_complete ON work_recurring_instances;
-
 CREATE OR REPLACE FUNCTION trigger_auto_generate_invoice_on_period_complete()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Only process when a period is marked as completed and not already billed
-  IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status != 'completed') 
+  IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status != 'completed')
      AND NEW.is_billed = FALSE THEN
-    -- Auto-generate invoice
     PERFORM auto_generate_invoice_for_completed_period(NEW.id);
   END IF;
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
