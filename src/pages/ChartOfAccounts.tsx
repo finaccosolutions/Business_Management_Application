@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, ChevronRight, ChevronDown, ArrowLeft, Grid3x3, List, Filter, Network, FolderPlus } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, ChevronRight, ChevronDown, ArrowLeft, Grid3x3, List, Filter, Network, FolderPlus, Settings } from 'lucide-react';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import AccountTreeView from '../components/AccountTreeView';
+import ReportSettingsModal from '../components/ReportSettingsModal';
 
 interface AccountGroup {
   id: string;
@@ -69,6 +70,8 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
   const [groupSearchTerm, setGroupSearchTerm] = useState('');
   const [ledgerViewMode, setLedgerViewMode] = useState<'table' | 'cards'>('table');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [showLedgerSettings, setShowLedgerSettings] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const [formData, setFormData] = useState({
     account_code: '',
@@ -545,28 +548,48 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
         </div>
         <div className="flex gap-3">
           {activeTab === 'groups' && (
-            <button
-              onClick={() => {
-                resetGroupForm();
-                setShowGroupModal(true);
-              }}
-              className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add Group</span>
-            </button>
+            <>
+              <button
+                onClick={() => setShowGroupSettings(true)}
+                className="flex items-center space-x-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+                title="Configure group columns"
+              >
+                <Settings className="w-5 h-5" />
+                <span>Settings</span>
+              </button>
+              <button
+                onClick={() => {
+                  resetGroupForm();
+                  setShowGroupModal(true);
+                }}
+                className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Add Group</span>
+              </button>
+            </>
           )}
           {activeTab === 'ledgers' && (
-            <button
-              onClick={async () => {
-                await resetForm();
-                setShowModal(true);
-              }}
-              className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add Ledger</span>
-            </button>
+            <>
+              <button
+                onClick={() => setShowLedgerSettings(true)}
+                className="flex items-center space-x-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+                title="Configure ledger columns"
+              >
+                <Settings className="w-5 h-5" />
+                <span>Settings</span>
+              </button>
+              <button
+                onClick={async () => {
+                  await resetForm();
+                  setShowModal(true);
+                }}
+                className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Add Ledger</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1672,6 +1695,18 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
           </div>
         </div>
       )}
+
+      <ReportSettingsModal
+        reportType="chart_of_accounts_ledgers"
+        isOpen={showLedgerSettings}
+        onClose={() => setShowLedgerSettings(false)}
+      />
+
+      <ReportSettingsModal
+        reportType="chart_of_accounts_groups"
+        isOpen={showGroupSettings}
+        onClose={() => setShowGroupSettings(false)}
+      />
     </div>
   );
 }

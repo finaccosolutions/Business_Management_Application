@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Download, Search, FileSpreadsheet } from 'lucide-react';
+import { Download, Search, FileSpreadsheet, Settings } from 'lucide-react';
 import { formatDateDisplay } from '../../lib/dateUtils';
 import { exportToXLSX, exportToPDF } from '../../lib/exportUtils';
 import ViewToggle, { ViewType } from './ViewToggle';
+import ReportSettingsModal from '../ReportSettingsModal';
+import { useReportSettings } from '../../hooks/useReportSettings';
 
 interface TrialBalanceEntry {
   account_id: string;
@@ -28,6 +30,8 @@ export default function TrialBalanceReport({
 }: TrialBalanceReportProps) {
   const [viewType, setViewType] = useState<ViewType>('horizontal');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const { visibleColumns, updateSettings } = useReportSettings('trial_balance');
 
   const filteredData = data
     .filter(
@@ -47,63 +51,80 @@ export default function TrialBalanceReport({
     onAccountClick(accountId, startDate, endDate);
   };
 
-  const renderHorizontalView = () => (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 border-blue-200">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Code
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Account Name
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Group
-              </th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Debit (₹)
-              </th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Credit (₹)
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredData.map((entry, index) => (
-              <tr
-                key={index}
-                onClick={() => handleAccountClick(entry.account_id)}
-                className="hover:bg-blue-50 cursor-pointer transition-colors"
-              >
-                <td className="px-6 py-4 text-sm font-mono text-blue-600">{entry.account_code}</td>
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">{entry.account_name}</td>
-                <td className="px-6 py-4 text-sm text-gray-600">{entry.group_name}</td>
-                <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900">
-                  {entry.debit > 0 ? `₹${entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
-                </td>
-                <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900">
-                  {entry.credit > 0 ? `₹${entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
-                </td>
+  const renderHorizontalView = () => {
+    const showDebit = visibleColumns.includes('transactions_debit');
+    const showCredit = visibleColumns.includes('transactions_credit');
+
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 border-blue-200">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Code
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Account Name
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Group
+                </th>
+                {showDebit && (
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Debit (₹)
+                  </th>
+                )}
+                {showCredit && (
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Credit (₹)
+                  </th>
+                )}
               </tr>
-            ))}
-            <tr className="bg-gradient-to-r from-gray-100 to-blue-100 font-bold border-t-2 border-gray-300">
-              <td colSpan={3} className="px-6 py-4 text-sm text-gray-900 uppercase">
-                Total
-              </td>
-              <td className="px-6 py-4 text-sm text-right text-blue-600">
-                ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </td>
-              <td className="px-6 py-4 text-sm text-right text-red-600">
-                ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredData.map((entry, index) => (
+                <tr
+                  key={index}
+                  onClick={() => handleAccountClick(entry.account_id)}
+                  className="hover:bg-blue-50 cursor-pointer transition-colors"
+                >
+                  <td className="px-6 py-4 text-sm font-mono text-blue-600">{entry.account_code}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{entry.account_name}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{entry.group_name}</td>
+                  {showDebit && (
+                    <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900">
+                      {entry.debit > 0 ? `₹${entry.debit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                    </td>
+                  )}
+                  {showCredit && (
+                    <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900">
+                      {entry.credit > 0 ? `₹${entry.credit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}
+                    </td>
+                  )}
+                </tr>
+              ))}
+              <tr className="bg-gradient-to-r from-gray-100 to-blue-100 font-bold border-t-2 border-gray-300">
+                <td colSpan={3} className="px-6 py-4 text-sm text-gray-900 uppercase">
+                  Total
+                </td>
+                {showDebit && (
+                  <td className="px-6 py-4 text-sm text-right text-blue-600">
+                    ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </td>
+                )}
+                {showCredit && (
+                  <td className="px-6 py-4 text-sm text-right text-red-600">
+                    ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </td>
+                )}
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderTFormView = () => (
     <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -183,6 +204,14 @@ export default function TrialBalanceReport({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 shadow-sm transition-colors"
+            title="Configure report columns"
+          >
+            <Settings className="w-4 h-4" />
+            Settings
+          </button>
           <ViewToggle
             currentView={viewType}
             onViewChange={setViewType}
@@ -271,6 +300,13 @@ export default function TrialBalanceReport({
           </p>
         )}
       </div>
+
+      <ReportSettingsModal
+        reportType="trial_balance"
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSave={updateSettings}
+      />
     </div>
   );
 }
