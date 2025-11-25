@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, ChevronRight, ChevronDown, ArrowLeft, Grid3x3, List, Filter, Network, FolderPlus, Settings } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, ChevronRight, ChevronDown, ArrowLeft, Grid3x3, List, Filter, Network, FolderPlus } from 'lucide-react';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import AccountTreeView from '../components/AccountTreeView';
-import ReportSettingsModal from '../components/ReportSettingsModal';
-import { useReportSettings } from '../hooks/useReportSettings';
 
 interface AccountGroup {
   id: string;
@@ -56,8 +54,9 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
   const { user } = useAuth();
   const toast = useToast();
   const { showConfirmation } = useConfirmation();
-  const { visibleColumns: ledgerColumns } = useReportSettings('chart_of_accounts_ledgers');
-  const { visibleColumns: groupColumns } = useReportSettings('chart_of_accounts_groups');
+
+  const ledgerColumns = ['code', 'name', 'group', 'closing_debit', 'closing_credit'];
+  const groupColumns = ['name', 'description', 'ledger_count', 'closing_debit', 'closing_credit'];
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [groups, setGroups] = useState<AccountGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,8 +74,6 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
   const [groupSearchTerm, setGroupSearchTerm] = useState('');
   const [ledgerViewMode, setLedgerViewMode] = useState<'table' | 'cards'>('table');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [showLedgerSettings, setShowLedgerSettings] = useState(false);
-  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const [formData, setFormData] = useState({
     account_code: '',
@@ -590,14 +587,7 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
         <div className="flex gap-3">
           {activeTab === 'groups' && (
             <>
-              <button
-                onClick={() => setShowGroupSettings(true)}
-                className="flex items-center space-x-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-                title="Configure group columns"
-              >
-                <Settings className="w-5 h-5" />
-                <span>Settings</span>
-              </button>
+
               <button
                 onClick={() => {
                   resetGroupForm();
@@ -612,14 +602,7 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
           )}
           {activeTab === 'ledgers' && (
             <>
-              <button
-                onClick={() => setShowLedgerSettings(true)}
-                className="flex items-center space-x-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-                title="Configure ledger columns"
-              >
-                <Settings className="w-5 h-5" />
-                <span>Settings</span>
-              </button>
+
               <button
                 onClick={async () => {
                   await resetForm();
@@ -761,7 +744,11 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                     <h2 className="text-xl font-bold text-white uppercase">{type}</h2>
                     <div className="text-right">
                       <p className="text-white/80 text-sm">Total Balance</p>
-                      <p className="text-2xl font-bold text-white">₹{totalBalance.toLocaleString('en-IN')}</p>
+                      {totalBalance >= 0 ? (
+                        <p className="text-2xl font-bold text-white">₹{Math.abs(totalBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                      ) : (
+                        <p className="text-2xl font-bold text-white">₹{Math.abs(totalBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                      )}
                     </div>
                   </div>
 
@@ -786,32 +773,14 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                             </th>
                           )}
                           {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
-                            <th colSpan={2} className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                              Closing
+                            <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                              Closing Balance (₹)
                             </th>
                           )}
                           <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
                             Actions
                           </th>
                         </tr>
-                        {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
-                          <tr>
-                            {groupColumns.includes('name') && <th></th>}
-                            {groupColumns.includes('description') && <th></th>}
-                            {groupColumns.includes('ledger_count') && <th></th>}
-                            {groupColumns.includes('closing_debit') && (
-                              <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                                Debit (₹)
-                              </th>
-                            )}
-                            {groupColumns.includes('closing_credit') && (
-                              <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                                Credit (₹)
-                              </th>
-                            )}
-                            <th></th>
-                          </tr>
-                        )}
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                         {typeGroups.map((group) => {
@@ -859,14 +828,14 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                     </span>
                                   </td>
                                 )}
-                                {groupColumns.includes('closing_debit') && (
-                                  <td className="px-6 py-4 text-right font-bold text-blue-600 dark:text-blue-400">
-                                    ₹{groupLedgers.reduce((sum, a) => sum + (a._debit || 0), 0).toLocaleString('en-IN')}
-                                  </td>
-                                )}
-                                {groupColumns.includes('closing_credit') && (
-                                  <td className="px-6 py-4 text-right font-bold text-red-600 dark:text-red-400">
-                                    ₹{groupLedgers.reduce((sum, a) => sum + (a._credit || 0), 0).toLocaleString('en-IN')}
+                                {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
+                                  <td className="px-6 py-4 text-right font-bold">
+                                    {(() => {
+                                      const groupBalance = groupLedgers.reduce((sum, a) => sum + a.current_balance, 0);
+                                      return groupBalance >= 0
+                                        ? <span className="text-blue-600 dark:text-blue-400">₹{groupBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                        : <span className="text-red-600 dark:text-red-400">₹{Math.abs(groupBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                    })()}
                                   </td>
                                 )}
                                 <td className="px-6 py-4">
@@ -1029,23 +998,24 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                 </div>
                               )}
                               {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
-                                <div className="grid grid-cols-2 gap-2 text-right">
-                                  {groupColumns.includes('closing_debit') && (
-                                    <div>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400">Debit</p>
-                                      <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                                        ₹{groupLedgers.reduce((sum, a) => sum + (a._debit || 0), 0).toLocaleString('en-IN')}
-                                      </p>
-                                    </div>
-                                  )}
-                                  {groupColumns.includes('closing_credit') && (
-                                    <div>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400">Credit</p>
-                                      <p className="text-sm font-bold text-red-600 dark:text-red-400">
-                                        ₹{groupLedgers.reduce((sum, a) => sum + (a._credit || 0), 0).toLocaleString('en-IN')}
-                                      </p>
-                                    </div>
-                                  )}
+                                <div className="text-right">
+                                  {(() => {
+                                    const groupBalance = groupLedgers.reduce((sum, a) => sum + a.current_balance, 0);
+                                    return (
+                                      <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Closing Balance</p>
+                                        {groupBalance >= 0 ? (
+                                          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                            ₹{groupBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                          </p>
+                                        ) : (
+                                          <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                                            ₹{Math.abs(groupBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                          </p>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               )}
                             </div>
@@ -1256,32 +1226,14 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                       </th>
                     )}
                     {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
-                      <th colSpan={2} className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                        Closing
+                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                        Closing Balance (₹)
                       </th>
                     )}
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
                       Actions
                     </th>
                   </tr>
-                  {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
-                    <tr>
-                      {ledgerColumns.includes('code') && <th></th>}
-                      {ledgerColumns.includes('name') && <th></th>}
-                      {ledgerColumns.includes('group') && <th></th>}
-                      {ledgerColumns.includes('closing_debit') && (
-                        <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                          Debit (₹)
-                        </th>
-                      )}
-                      {ledgerColumns.includes('closing_credit') && (
-                        <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                          Credit (₹)
-                        </th>
-                      )}
-                      <th></th>
-                    </tr>
-                  )}
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                   {filteredAccounts.map((account) => (
@@ -1328,18 +1280,17 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                           </div>
                         </td>
                       )}
-                      {ledgerColumns.includes('closing_debit') && (
+                      {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
                         <td className="px-6 py-4 text-right whitespace-nowrap">
-                          <span className="font-bold text-blue-600 dark:text-blue-400">
-                            ₹{(account._debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </td>
-                      )}
-                      {ledgerColumns.includes('closing_credit') && (
-                        <td className="px-6 py-4 text-right whitespace-nowrap">
-                          <span className="font-bold text-red-600 dark:text-red-400">
-                            ₹{(account._credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </span>
+                          {account.current_balance >= 0 ? (
+                            <span className="font-bold text-blue-600 dark:text-blue-400">
+                              ₹{account.current_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          ) : (
+                            <span className="font-bold text-red-600 dark:text-red-400">
+                              ₹{Math.abs(account.current_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          )}
                         </td>
                       )}
                       <td className="px-6 py-4">
@@ -1435,30 +1386,20 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      {ledgerColumns.includes('closing_debit') && (
-                        <div className="py-2 px-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                          <p className="text-xs text-blue-600 dark:text-blue-400">Debit</p>
-                          <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                            ₹{(account._debit || 0).toLocaleString('en-IN')}
+                    {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
+                      <div className="py-2 px-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <p className="text-xs text-blue-600 dark:text-blue-400">Closing Balance</p>
+                        {account.current_balance >= 0 ? (
+                          <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                            ₹{account.current_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </p>
-                        </div>
-                      )}
-                      {ledgerColumns.includes('closing_credit') && (
-                        <div className="py-2 px-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                          <p className="text-xs text-red-600 dark:text-red-400">Credit</p>
-                          <p className="text-sm font-semibold text-red-700 dark:text-red-300">
-                            ₹{(account._credit || 0).toLocaleString('en-IN')}
+                        ) : (
+                          <p className="text-sm font-bold text-red-700 dark:text-red-300">
+                            ₹{Math.abs(account.current_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </p>
-                        </div>
-                      )}
-                      <div className="py-2 px-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                        <p className="text-xs text-green-600 dark:text-green-400">Balance</p>
-                        <p className="text-sm font-bold text-green-700 dark:text-green-300">
-                          ₹{account.current_balance.toLocaleString('en-IN')}
-                        </p>
+                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
@@ -1827,17 +1768,6 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
         </div>
       )}
 
-      <ReportSettingsModal
-        reportType="chart_of_accounts_ledgers"
-        isOpen={showLedgerSettings}
-        onClose={() => setShowLedgerSettings(false)}
-      />
-
-      <ReportSettingsModal
-        reportType="chart_of_accounts_groups"
-        isOpen={showGroupSettings}
-        onClose={() => setShowGroupSettings(false)}
-      />
     </div>
   );
 }
