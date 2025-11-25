@@ -32,14 +32,15 @@ export const reportColumnConfigs: Record<ReportType, ReportColumn[]> = {
     { id: 'code', label: 'Code', description: 'Account code' },
     { id: 'name', label: 'Account Name', description: 'Account name' },
     { id: 'group', label: 'Group', description: 'Account group' },
-    { id: 'opening_balance', label: 'Opening Balance', description: 'Opening balance' },
-    { id: 'closing_balance', label: 'Closing Balance', description: 'Current balance' },
+    { id: 'closing_debit', label: 'Closing Debit', description: 'Closing debit balance' },
+    { id: 'closing_credit', label: 'Closing Credit', description: 'Closing credit balance' },
   ],
   chart_of_accounts_groups: [
     { id: 'name', label: 'Group Name', description: 'Group name' },
     { id: 'description', label: 'Description', description: 'Group description' },
     { id: 'ledger_count', label: 'Ledger Count', description: 'Number of ledgers in group' },
-    { id: 'closing_balance', label: 'Closing Balance', description: 'Group total balance' },
+    { id: 'closing_debit', label: 'Closing Debit', description: 'Closing debit balance' },
+    { id: 'closing_credit', label: 'Closing Credit', description: 'Closing credit balance' },
   ],
 };
 
@@ -47,8 +48,8 @@ export const defaultColumnConfigs: Record<ReportType, string[]> = {
   trial_balance: ['opening_balance', 'transactions_debit', 'transactions_credit', 'closing_balance'],
   balance_sheet: ['opening_balance', 'closing_balance'],
   profit_loss: ['opening_balance', 'transactions_debit', 'transactions_credit', 'closing_balance'],
-  chart_of_accounts_ledgers: ['code', 'name', 'group', 'opening_balance', 'closing_balance'],
-  chart_of_accounts_groups: ['name', 'description', 'ledger_count', 'closing_balance'],
+  chart_of_accounts_ledgers: ['code', 'name', 'group', 'closing_debit', 'closing_credit'],
+  chart_of_accounts_groups: ['name', 'description', 'ledger_count', 'closing_debit', 'closing_credit'],
 };
 
 export const reportTypeLabels: Record<ReportType, string> = {

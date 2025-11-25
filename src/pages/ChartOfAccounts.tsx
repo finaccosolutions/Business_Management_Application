@@ -6,6 +6,7 @@ import { Plus, Edit2, Trash2, Search, X, BookOpen, TrendingUp, TrendingDown, Che
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import AccountTreeView from '../components/AccountTreeView';
 import ReportSettingsModal from '../components/ReportSettingsModal';
+import { useReportSettings } from '../hooks/useReportSettings';
 
 interface AccountGroup {
   id: string;
@@ -55,6 +56,8 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
   const { user } = useAuth();
   const toast = useToast();
   const { showConfirmation } = useConfirmation();
+  const { visibleColumns: ledgerColumns } = useReportSettings('chart_of_accounts_ledgers');
+  const { visibleColumns: groupColumns } = useReportSettings('chart_of_accounts_groups');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [groups, setGroups] = useState<AccountGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -767,34 +770,48 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                     <table className="w-full">
                       <thead className="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                            Group Name
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                            Description
-                          </th>
-                          <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                            Ledgers
-                          </th>
-                          <th colSpan={2} className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                            Closing
-                          </th>
+                          {groupColumns.includes('name') && (
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                              Group Name
+                            </th>
+                          )}
+                          {groupColumns.includes('description') && (
+                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                              Description
+                            </th>
+                          )}
+                          {groupColumns.includes('ledger_count') && (
+                            <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                              Ledgers
+                            </th>
+                          )}
+                          {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
+                            <th colSpan={2} className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                              Closing
+                            </th>
+                          )}
                           <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
                             Actions
                           </th>
                         </tr>
-                        <tr>
-                          <th></th>
-                          <th></th>
-                          <th></th>
-                          <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                            Debit (₹)
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                            Credit (₹)
-                          </th>
-                          <th></th>
-                        </tr>
+                        {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
+                          <tr>
+                            {groupColumns.includes('name') && <th></th>}
+                            {groupColumns.includes('description') && <th></th>}
+                            {groupColumns.includes('ledger_count') && <th></th>}
+                            {groupColumns.includes('closing_debit') && (
+                              <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                                Debit (₹)
+                              </th>
+                            )}
+                            {groupColumns.includes('closing_credit') && (
+                              <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                                Credit (₹)
+                              </th>
+                            )}
+                            <th></th>
+                          </tr>
+                        )}
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                         {typeGroups.map((group) => {
@@ -814,34 +831,44 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                 className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                                 onClick={() => handleGroupClick(group)}
                               >
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center gap-2" style={{ paddingLeft: `${group.level * 24}px` }}>
-                                    {hasChildren ? (
-                                      isExpanded ? (
-                                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                                {groupColumns.includes('name') && (
+                                  <td className="px-6 py-4">
+                                    <div className="flex items-center gap-2" style={{ paddingLeft: `${group.level * 24}px` }}>
+                                      {hasChildren ? (
+                                        isExpanded ? (
+                                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                                        ) : (
+                                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                                        )
                                       ) : (
-                                        <ChevronRight className="w-4 h-4 text-gray-400" />
-                                      )
-                                    ) : (
-                                      <div className="w-4" />
-                                    )}
-                                    <span className="font-semibold text-gray-900 dark:text-white">{group.name}</span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                                  {group.description || '-'}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold">
-                                    {ledgerCount} Ledgers
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 text-right font-bold text-blue-600 dark:text-blue-400">
-                                  ₹{groupLedgers.reduce((sum, a) => sum + (a._debit || 0), 0).toLocaleString('en-IN')}
-                                </td>
-                                <td className="px-6 py-4 text-right font-bold text-red-600 dark:text-red-400">
-                                  ₹{groupLedgers.reduce((sum, a) => sum + (a._credit || 0), 0).toLocaleString('en-IN')}
-                                </td>
+                                        <div className="w-4" />
+                                      )}
+                                      <span className="font-semibold text-gray-900 dark:text-white">{group.name}</span>
+                                    </div>
+                                  </td>
+                                )}
+                                {groupColumns.includes('description') && (
+                                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                                    {group.description || '-'}
+                                  </td>
+                                )}
+                                {groupColumns.includes('ledger_count') && (
+                                  <td className="px-6 py-4 text-center">
+                                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold">
+                                      {ledgerCount} Ledgers
+                                    </span>
+                                  </td>
+                                )}
+                                {groupColumns.includes('closing_debit') && (
+                                  <td className="px-6 py-4 text-right font-bold text-blue-600 dark:text-blue-400">
+                                    ₹{groupLedgers.reduce((sum, a) => sum + (a._debit || 0), 0).toLocaleString('en-IN')}
+                                  </td>
+                                )}
+                                {groupColumns.includes('closing_credit') && (
+                                  <td className="px-6 py-4 text-right font-bold text-red-600 dark:text-red-400">
+                                    ₹{groupLedgers.reduce((sum, a) => sum + (a._credit || 0), 0).toLocaleString('en-IN')}
+                                  </td>
+                                )}
                                 <td className="px-6 py-4">
                                   <div className="flex items-center justify-center gap-2">
                                     <button
@@ -995,24 +1022,32 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                             </div>
 
                             <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-slate-600">
-                              <div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Ledgers</p>
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{ledgerCount}</p>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-right">
+                              {groupColumns.includes('ledger_count') && (
                                 <div>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">Debit</p>
-                                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                                    ₹{groupLedgers.reduce((sum, a) => sum + (a._debit || 0), 0).toLocaleString('en-IN')}
-                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Ledgers</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{ledgerCount}</p>
                                 </div>
-                                <div>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">Credit</p>
-                                  <p className="text-sm font-bold text-red-600 dark:text-red-400">
-                                    ₹{groupLedgers.reduce((sum, a) => sum + (a._credit || 0), 0).toLocaleString('en-IN')}
-                                  </p>
+                              )}
+                              {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
+                                <div className="grid grid-cols-2 gap-2 text-right">
+                                  {groupColumns.includes('closing_debit') && (
+                                    <div>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">Debit</p>
+                                      <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                        ₹{groupLedgers.reduce((sum, a) => sum + (a._debit || 0), 0).toLocaleString('en-IN')}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {groupColumns.includes('closing_credit') && (
+                                    <div>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">Credit</p>
+                                      <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                                        ₹{groupLedgers.reduce((sum, a) => sum + (a._credit || 0), 0).toLocaleString('en-IN')}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
+                              )}
                             </div>
 
                             <div className="flex gap-2 mt-3">
@@ -1205,34 +1240,48 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200 dark:border-slate-600">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Code
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Ledger Name
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Group
-                    </th>
-                    <th colSpan={2} className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Closing
-                    </th>
+                    {ledgerColumns.includes('code') && (
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                        Code
+                      </th>
+                    )}
+                    {ledgerColumns.includes('name') && (
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                        Ledger Name
+                      </th>
+                    )}
+                    {ledgerColumns.includes('group') && (
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                        Group
+                      </th>
+                    )}
+                    {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
+                      <th colSpan={2} className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                        Closing
+                      </th>
+                    )}
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
                       Actions
                     </th>
                   </tr>
-                  <tr>
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Debit (₹)
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Credit (₹)
-                    </th>
-                    <th></th>
-                  </tr>
+                  {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
+                    <tr>
+                      {ledgerColumns.includes('code') && <th></th>}
+                      {ledgerColumns.includes('name') && <th></th>}
+                      {ledgerColumns.includes('group') && <th></th>}
+                      {ledgerColumns.includes('closing_debit') && (
+                        <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                          Debit (₹)
+                        </th>
+                      )}
+                      {ledgerColumns.includes('closing_credit') && (
+                        <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                          Credit (₹)
+                        </th>
+                      )}
+                      <th></th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                   {filteredAccounts.map((account) => (
@@ -1241,48 +1290,58 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                       className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                       onClick={() => handleAccountClick(account)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
-                          {account.account_code}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{account.account_name}</p>
-                            {account.description && (
-                              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{account.description}</p>
-                            )}
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {account.account_groups.name}
-                          </p>
-                          <span
-                            className={`inline-block px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
-                              accountTypeColors[
-                                account.account_groups.account_type as keyof typeof accountTypeColors
-                              ]
-                            }`}
-                          >
-                            {account.account_groups.account_type.toUpperCase()}
+                      {ledgerColumns.includes('code') && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
+                            {account.account_code}
                           </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <span className="font-bold text-blue-600 dark:text-blue-400">
-                          ₹{(account._debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <span className="font-bold text-red-600 dark:text-red-400">
-                          ₹{(account._credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </td>
+                        </td>
+                      )}
+                      {ledgerColumns.includes('name') && (
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div>
+                              <p className="font-semibold text-gray-900 dark:text-white">{account.account_name}</p>
+                              {account.description && (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{account.description}</p>
+                              )}
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                          </div>
+                        </td>
+                      )}
+                      {ledgerColumns.includes('group') && (
+                        <td className="px-6 py-4">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {account.account_groups.name}
+                            </p>
+                            <span
+                              className={`inline-block px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
+                                accountTypeColors[
+                                  account.account_groups.account_type as keyof typeof accountTypeColors
+                                ]
+                              }`}
+                            >
+                              {account.account_groups.account_type.toUpperCase()}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      {ledgerColumns.includes('closing_debit') && (
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                          <span className="font-bold text-blue-600 dark:text-blue-400">
+                            ₹{(account._debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </td>
+                      )}
+                      {ledgerColumns.includes('closing_credit') && (
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                          <span className="font-bold text-red-600 dark:text-red-400">
+                            ₹{(account._credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </td>
+                      )}
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
                           <button
@@ -1377,18 +1436,22 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="py-2 px-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <p className="text-xs text-blue-600 dark:text-blue-400">Debit</p>
-                        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                          ₹{(account._debit || 0).toLocaleString('en-IN')}
-                        </p>
-                      </div>
-                      <div className="py-2 px-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                        <p className="text-xs text-red-600 dark:text-red-400">Credit</p>
-                        <p className="text-sm font-semibold text-red-700 dark:text-red-300">
-                          ₹{(account._credit || 0).toLocaleString('en-IN')}
-                        </p>
-                      </div>
+                      {ledgerColumns.includes('closing_debit') && (
+                        <div className="py-2 px-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <p className="text-xs text-blue-600 dark:text-blue-400">Debit</p>
+                          <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                            ₹{(account._debit || 0).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                      )}
+                      {ledgerColumns.includes('closing_credit') && (
+                        <div className="py-2 px-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                          <p className="text-xs text-red-600 dark:text-red-400">Credit</p>
+                          <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                            ₹{(account._credit || 0).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                      )}
                       <div className="py-2 px-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                         <p className="text-xs text-green-600 dark:text-green-400">Balance</p>
                         <p className="text-sm font-bold text-green-700 dark:text-green-300">
