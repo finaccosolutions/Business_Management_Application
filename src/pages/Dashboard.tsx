@@ -44,6 +44,8 @@ interface Stats {
   paidInvoices: number;
   unpaidInvoices: number;
   partiallyPaidInvoices: number;
+  draftInvoices: number;
+  sentInvoices: number;
   totalRevenue: number;
   pendingRevenue: number;
   totalStaff: number;
@@ -54,6 +56,13 @@ interface Stats {
   avgRevenuePerCustomer: number;
   monthOverMonthGrowth: number;
   totalTasksCompleted: number;
+  paidInvoicesRevenue: number;
+  unpaidInvoicesRevenue: number;
+  partiallyPaidInvoicesRevenue: number;
+  pendingWorksRevenue: number;
+  inProgressWorksRevenue: number;
+  completedWorksRevenue: number;
+  overdueWorksRevenue: number;
 }
 
 interface OverdueWork {
@@ -119,6 +128,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     paidInvoices: 0,
     unpaidInvoices: 0,
     partiallyPaidInvoices: 0,
+    draftInvoices: 0,
+    sentInvoices: 0,
     totalRevenue: 0,
     pendingRevenue: 0,
     totalStaff: 0,
@@ -129,6 +140,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     avgRevenuePerCustomer: 0,
     monthOverMonthGrowth: 0,
     totalTasksCompleted: 0,
+    paidInvoicesRevenue: 0,
+    unpaidInvoicesRevenue: 0,
+    partiallyPaidInvoicesRevenue: 0,
+    pendingWorksRevenue: 0,
+    inProgressWorksRevenue: 0,
+    completedWorksRevenue: 0,
+    overdueWorksRevenue: 0,
   });
   const [overdueWorks, setOverdueWorks] = useState<OverdueWork[]>([]);
   const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyRevenue[]>([]);
@@ -256,11 +274,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         invoicesQuery = invoicesQuery.lte('invoice_date', dateRange.end);
       }
 
-      let pendingWorksQuery = supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'pending');
-      let overdueWorksQuery = supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'overdue');
-      let completedWorksQuery = supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'completed');
-      let inProgressWorksQuery = supabase.from('works').select('id', { count: 'exact', head: true }).eq('status', 'in_progress');
+      let pendingWorksQuery = supabase.from('works').select('id, invoices(total_amount)', { count: 'exact' }).eq('status', 'pending');
+      let overdueWorksQuery = supabase.from('works').select('id, invoices(total_amount)', { count: 'exact' }).eq('status', 'overdue');
+      let completedWorksQuery = supabase.from('works').select('id, invoices(total_amount)', { count: 'exact' }).eq('status', 'completed');
+      let inProgressWorksQuery = supabase.from('works').select('id, invoices(total_amount)', { count: 'exact' }).eq('status', 'in_progress');
       let tasksCompletedQuery = supabase.from('work_tasks').select('id', { count: 'exact', head: true }).eq('status', 'completed');
+      let draftInvoicesQuery = supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'draft');
+      let sentInvoicesQuery = supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'sent');
 
       if (dateRange.start) {
         pendingWorksQuery = pendingWorksQuery.gte('created_at', dateRange.start);
@@ -268,6 +288,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         completedWorksQuery = completedWorksQuery.gte('created_at', dateRange.start);
         inProgressWorksQuery = inProgressWorksQuery.gte('created_at', dateRange.start);
         tasksCompletedQuery = tasksCompletedQuery.gte('created_at', dateRange.start);
+        draftInvoicesQuery = draftInvoicesQuery.gte('invoice_date', dateRange.start);
+        sentInvoicesQuery = sentInvoicesQuery.gte('invoice_date', dateRange.start);
       }
       if (dateRange.end) {
         pendingWorksQuery = pendingWorksQuery.lte('created_at', dateRange.end);
@@ -275,6 +297,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         completedWorksQuery = completedWorksQuery.lte('created_at', dateRange.end);
         inProgressWorksQuery = inProgressWorksQuery.lte('created_at', dateRange.end);
         tasksCompletedQuery = tasksCompletedQuery.lte('created_at', dateRange.end);
+        draftInvoicesQuery = draftInvoicesQuery.lte('invoice_date', dateRange.end);
+        sentInvoicesQuery = sentInvoicesQuery.lte('invoice_date', dateRange.end);
       }
 
       const [
@@ -294,6 +318,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         servicesResult,
         activeServicesResult,
         tasksCompletedResult,
+        draftInvoicesResult,
+        sentInvoicesResult,
       ] = await Promise.all([
         leadsQuery,
         customersQuery,
@@ -304,7 +330,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         inProgressWorksQuery,
         invoicesQuery,
         (() => {
-          let query = supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'paid');
+          let query = supabase.from('invoices').select('id, total_amount', { count: 'exact' }).eq('status', 'paid');
           if (dateRange.start) query = query.gte('invoice_date', dateRange.start);
           if (dateRange.end) query = query.lte('invoice_date', dateRange.end);
           return query;
@@ -316,7 +342,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           return query;
         })(),
         (() => {
-          let query = supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'partially_paid');
+          let query = supabase.from('invoices').select('id, total_amount', { count: 'exact' }).eq('status', 'partially_paid');
           if (dateRange.start) query = query.gte('invoice_date', dateRange.start);
           if (dateRange.end) query = query.lte('invoice_date', dateRange.end);
           return query;
@@ -326,23 +352,33 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         supabase.from('services').select('id', { count: 'exact', head: true }),
         supabase.from('services').select('id', { count: 'exact', head: true }).eq('status', 'active'),
         tasksCompletedQuery,
+        draftInvoicesQuery,
+        sentInvoicesQuery,
       ]);
 
-      let paidInvoicesQuery = supabase
-        .from('invoices')
-        .select('total_amount')
-        .eq('status', 'paid');
+      const totalRevenue = paidInvoicesResult.data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
 
-      if (dateRange.start) paidInvoicesQuery = paidInvoicesQuery.gte('invoice_date', dateRange.start);
-      if (dateRange.end) paidInvoicesQuery = paidInvoicesQuery.lte('invoice_date', dateRange.end);
+      const pendingRevenue = unpaidInvoicesResult.data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
 
-      const paidInvoicesData = await paidInvoicesQuery;
+      const paidInvoicesRevenue = totalRevenue;
+      const unpaidInvoicesRevenue = pendingRevenue;
+      const partiallyPaidInvoicesRevenue = partiallyPaidInvoicesResult.data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
 
-      const totalRevenue =
-        paidInvoicesData.data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
+      const pendingWorksRevenue = pendingWorksResult.data?.reduce((sum, work) => {
+        return sum + (work.invoices?.reduce((invSum, inv) => invSum + Number(inv.total_amount), 0) || 0);
+      }, 0) || 0;
 
-      const pendingRevenue =
-        unpaidInvoicesResult.data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
+      const inProgressWorksRevenue = inProgressWorksResult.data?.reduce((sum, work) => {
+        return sum + (work.invoices?.reduce((invSum, inv) => invSum + Number(inv.total_amount), 0) || 0);
+      }, 0) || 0;
+
+      const completedWorksRevenue = completedWorksResult.data?.reduce((sum, work) => {
+        return sum + (work.invoices?.reduce((invSum, inv) => invSum + Number(inv.total_amount), 0) || 0);
+      }, 0) || 0;
+
+      const overdueWorksRevenue = overdueWorksResult.data?.reduce((sum, work) => {
+        return sum + (work.invoices?.reduce((invSum, inv) => invSum + Number(inv.total_amount), 0) || 0);
+      }, 0) || 0;
 
       const avgInvoiceValue = paidInvoicesResult.count && paidInvoicesResult.count > 0
         ? totalRevenue / paidInvoicesResult.count
@@ -373,6 +409,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         paidInvoices: paidInvoicesResult.count || 0,
         unpaidInvoices: unpaidInvoicesResult.count || 0,
         partiallyPaidInvoices: partiallyPaidInvoicesResult.count || 0,
+        draftInvoices: draftInvoicesResult.count || 0,
+        sentInvoices: sentInvoicesResult.count || 0,
         totalRevenue,
         pendingRevenue,
         totalStaff: staffResult.count || 0,
@@ -383,6 +421,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         avgRevenuePerCustomer,
         monthOverMonthGrowth,
         totalTasksCompleted: tasksCompletedResult.count || 0,
+        paidInvoicesRevenue,
+        unpaidInvoicesRevenue,
+        partiallyPaidInvoicesRevenue,
+        pendingWorksRevenue,
+        inProgressWorksRevenue,
+        completedWorksRevenue,
+        overdueWorksRevenue,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -731,7 +776,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </div>
             <div className="h-10 w-px bg-gray-200"></div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
+              <div className="text-2xl font-bold text-gray-900">₹{stats.totalRevenue.toLocaleString('en-IN')}</div>
               <div className="text-gray-500 text-xs mt-1 font-medium">Total Revenue</div>
             </div>
             <div className="h-10 w-px bg-gray-200"></div>
@@ -860,7 +905,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           <div className="text-2xl font-bold text-blue-900 mb-3">{stats.totalCustomers}</div>
           <div className="flex items-center justify-between pt-3 border-t border-blue-200">
             <span className="text-xs text-blue-700">Avg Revenue</span>
-            <span className="text-sm font-semibold text-blue-700">₹{(Math.round(stats.avgRevenuePerCustomer) / 1000).toFixed(0)}K</span>
+            <span className="text-sm font-semibold text-blue-700">₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString('en-IN')}</span>
           </div>
         </button>
 
@@ -891,7 +936,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </div>
           </div>
           <p className="text-green-600 text-sm font-medium mb-1">Revenue</p>
-          <div className="text-2xl font-bold text-green-900 mb-3">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
+          <div className="text-2xl font-bold text-green-900 mb-3">₹{stats.totalRevenue.toLocaleString('en-IN')}</div>
           <div className="flex items-center justify-between pt-3 border-t border-green-200">
             <span className="text-xs text-green-700">Collection</span>
             <span className="text-sm font-semibold text-green-700">{invoiceCollectionRate}%</span>
@@ -899,63 +944,80 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         </button>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-8 pt-6 border-t border-gray-200">
         <div>
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-gray-700" />
             Work Status
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <button
               onClick={() => onNavigate('works')}
-              className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200 p-3 hover:shadow-md hover:border-amber-300 transition-all cursor-pointer text-center group"
+              className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg shadow-sm border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex justify-center mb-2">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-slate-200 rounded-lg group-hover:bg-slate-300 transition-colors">
+                  <Briefcase className="w-4 h-4 text-slate-700" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-slate-600 mb-1">All Works</p>
+              <p className="text-xl font-bold text-slate-900">{stats.totalWorks}</p>
+            </button>
+
+            <button
+              onClick={() => onNavigate('works')}
+              className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200 p-4 hover:shadow-md hover:border-amber-300 transition-all cursor-pointer text-left group"
+            >
+              <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-amber-200 rounded-lg group-hover:bg-amber-300 transition-colors">
                   <Clock className="w-4 h-4 text-amber-700" />
                 </div>
               </div>
-              <p className="text-xs font-medium text-amber-700 mb-1">Pending</p>
-              <p className="text-lg font-bold text-amber-900">{stats.pendingWorks}</p>
+              <p className="text-xs font-medium text-amber-600 mb-1">Pending</p>
+              <p className="text-xl font-bold text-amber-900">{stats.pendingWorks}</p>
+              <p className="text-xs text-amber-700 mt-2">₹{stats.pendingWorksRevenue.toLocaleString('en-IN')}</p>
             </button>
 
             <button
               onClick={() => onNavigate('works')}
-              className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-3 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer text-center group"
+              className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex justify-center mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-blue-200 rounded-lg group-hover:bg-blue-300 transition-colors">
                   <Activity className="w-4 h-4 text-blue-700" />
                 </div>
               </div>
-              <p className="text-xs font-medium text-blue-700 mb-1">In Progress</p>
-              <p className="text-lg font-bold text-blue-900">{stats.inProgressWorks}</p>
+              <p className="text-xs font-medium text-blue-600 mb-1">In Progress</p>
+              <p className="text-xl font-bold text-blue-900">{stats.inProgressWorks}</p>
+              <p className="text-xs text-blue-700 mt-2">₹{stats.inProgressWorksRevenue.toLocaleString('en-IN')}</p>
             </button>
 
             <button
               onClick={() => onNavigate('works')}
-              className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-3 hover:shadow-md hover:border-red-300 transition-all cursor-pointer text-center group"
+              className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-4 hover:shadow-md hover:border-red-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex justify-center mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-red-200 rounded-lg group-hover:bg-red-300 transition-colors">
                   <AlertTriangle className="w-4 h-4 text-red-700" />
                 </div>
               </div>
-              <p className="text-xs font-medium text-red-700 mb-1">Overdue</p>
-              <p className="text-lg font-bold text-red-900">{stats.overdueWorks}</p>
+              <p className="text-xs font-medium text-red-600 mb-1">Overdue</p>
+              <p className="text-xl font-bold text-red-900">{stats.overdueWorks}</p>
+              <p className="text-xs text-red-700 mt-2">₹{stats.overdueWorksRevenue.toLocaleString('en-IN')}</p>
             </button>
 
             <button
               onClick={() => onNavigate('works')}
-              className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg shadow-sm border border-emerald-200 p-3 hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer text-center group"
+              className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg shadow-sm border border-emerald-200 p-4 hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex justify-center mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-emerald-200 rounded-lg group-hover:bg-emerald-300 transition-colors">
                   <CheckCircle className="w-4 h-4 text-emerald-700" />
                 </div>
               </div>
-              <p className="text-xs font-medium text-emerald-700 mb-1">Completed</p>
-              <p className="text-lg font-bold text-emerald-900">{stats.completedWorks}</p>
+              <p className="text-xs font-medium text-emerald-600 mb-1">Completed</p>
+              <p className="text-xl font-bold text-emerald-900">{stats.completedWorks}</p>
+              <p className="text-xs text-emerald-700 mt-2">₹{stats.completedWorksRevenue.toLocaleString('en-IN')}</p>
             </button>
           </div>
         </div>
@@ -965,138 +1027,88 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             <Receipt className="w-5 h-5 text-gray-700" />
             Invoice Payment Status
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg shadow-sm border border-slate-200 p-4 group">
-              <div className="flex items-center gap-3 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            <button
+              onClick={() => onNavigate('invoices-list')}
+              className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg shadow-sm border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer text-left group"
+            >
+              <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-slate-200 rounded-lg group-hover:bg-slate-300 transition-colors">
-                  <FileText className="w-5 h-5 text-slate-700" />
+                  <FileText className="w-4 h-4 text-slate-700" />
                 </div>
               </div>
-              <p className="text-xs font-medium text-slate-600 mb-1">Total</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.totalInvoices}</p>
-            </div>
+              <p className="text-xs font-medium text-slate-600 mb-1">All</p>
+              <p className="text-xl font-bold text-slate-900">{stats.totalInvoices}</p>
+            </button>
+
+            <button
+              onClick={() => onNavigate('invoices-list')}
+              className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer text-left group"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-gray-200 rounded-lg group-hover:bg-gray-300 transition-colors">
+                  <FileText className="w-4 h-4 text-gray-700" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-gray-600 mb-1">Draft</p>
+              <p className="text-xl font-bold text-gray-900">{stats.draftInvoices}</p>
+            </button>
+
+            <button
+              onClick={() => onNavigate('invoices-list')}
+              className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-4 hover:shadow-md hover:border-purple-300 transition-all cursor-pointer text-left group"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-purple-200 rounded-lg group-hover:bg-purple-300 transition-colors">
+                  <FileText className="w-4 h-4 text-purple-700" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-purple-600 mb-1">Sent</p>
+              <p className="text-xl font-bold text-purple-900">{stats.sentInvoices}</p>
+            </button>
 
             <button
               onClick={() => onNavigate('invoices-list')}
               className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg shadow-sm border border-emerald-200 p-4 hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-emerald-200 rounded-lg group-hover:bg-emerald-300 transition-colors">
-                  <CheckCircle className="w-5 h-5 text-emerald-700" />
+                  <CheckCircle className="w-4 h-4 text-emerald-700" />
                 </div>
               </div>
               <p className="text-xs font-medium text-emerald-600 mb-1">Paid</p>
-              <p className="text-2xl font-bold text-emerald-900">{stats.paidInvoices}</p>
+              <p className="text-xl font-bold text-emerald-900">{stats.paidInvoices}</p>
+              <p className="text-xs text-emerald-700 mt-2">₹{stats.paidInvoicesRevenue.toLocaleString('en-IN')}</p>
             </button>
 
             <button
               onClick={() => onNavigate('invoices-list')}
               className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg shadow-sm border border-orange-200 p-4 hover:shadow-md hover:border-orange-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-orange-200 rounded-lg group-hover:bg-orange-300 transition-colors">
-                  <Wallet className="w-5 h-5 text-orange-700" />
+                  <Wallet className="w-4 h-4 text-orange-700" />
                 </div>
               </div>
               <p className="text-xs font-medium text-orange-600 mb-1">Partially Paid</p>
-              <p className="text-2xl font-bold text-orange-900">{stats.partiallyPaidInvoices}</p>
+              <p className="text-xl font-bold text-orange-900">{stats.partiallyPaidInvoices}</p>
+              <p className="text-xs text-orange-700 mt-2">₹{stats.partiallyPaidInvoicesRevenue.toLocaleString('en-IN')}</p>
             </button>
 
             <button
               onClick={() => onNavigate('invoices-list')}
               className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-4 hover:shadow-md hover:border-red-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-2 mb-3">
                 <div className="p-2 bg-red-200 rounded-lg group-hover:bg-red-300 transition-colors">
-                  <AlertCircle className="w-5 h-5 text-red-700" />
+                  <AlertCircle className="w-4 h-4 text-red-700" />
                 </div>
               </div>
               <p className="text-xs font-medium text-red-600 mb-1">Unpaid</p>
-              <p className="text-2xl font-bold text-red-900">{stats.unpaidInvoices}</p>
+              <p className="text-xl font-bold text-red-900">{stats.unpaidInvoices}</p>
+              <p className="text-xs text-red-700 mt-2">₹{stats.unpaidInvoicesRevenue.toLocaleString('en-IN')}</p>
             </button>
           </div>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-gray-700" />
-            Team & Services
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-            <button
-              onClick={() => onNavigate('staff')}
-              className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg shadow-sm border border-cyan-200 p-4 hover:shadow-md hover:border-cyan-300 transition-all cursor-pointer text-left group"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-cyan-200 rounded-lg group-hover:bg-cyan-300 transition-colors">
-                  <UserCheck className="w-5 h-5 text-cyan-700" />
-                </div>
-              </div>
-              <p className="text-xs font-medium text-cyan-600 mb-1">Active Staff</p>
-              <p className="text-2xl font-bold text-cyan-900">{stats.activeStaff}</p>
-            </button>
-
-            <button
-              onClick={() => onNavigate('services')}
-              className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg shadow-sm border border-teal-200 p-4 hover:shadow-md hover:border-teal-300 transition-all cursor-pointer text-left group"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-teal-200 rounded-lg group-hover:bg-teal-300 transition-colors">
-                  <Package className="w-5 h-5 text-teal-700" />
-                </div>
-              </div>
-              <p className="text-xs font-medium text-teal-600 mb-1">Active Services</p>
-              <p className="text-2xl font-bold text-teal-900">{stats.activeServices}</p>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-5 group">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-green-200 rounded-lg group-hover:bg-green-300 transition-colors">
-              <Receipt className="w-5 h-5 text-green-700" />
-            </div>
-          </div>
-          <p className="text-xs font-medium text-green-600 mb-2">Avg Invoice Value</p>
-          <p className="text-xl font-bold text-green-900">
-            ₹{Math.round(stats.avgInvoiceValue).toLocaleString('en-IN')}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200 p-5 group">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-amber-200 rounded-lg group-hover:bg-amber-300 transition-colors">
-              <Wallet className="w-5 h-5 text-amber-700" />
-            </div>
-          </div>
-          <p className="text-xs font-medium text-amber-600 mb-2">Pending Revenue</p>
-          <p className="text-xl font-bold text-amber-900">
-            ₹{stats.pendingRevenue.toLocaleString('en-IN')}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-5 group">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-blue-200 rounded-lg group-hover:bg-blue-300 transition-colors">
-              <Target className="w-5 h-5 text-blue-700" />
-            </div>
-          </div>
-          <p className="text-xs font-medium text-blue-600 mb-2">Avg Revenue/Customer</p>
-          <p className="text-xl font-bold text-blue-900">
-            ₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString('en-IN')}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg shadow-sm border border-cyan-200 p-5 group">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-cyan-200 rounded-lg group-hover:bg-cyan-300 transition-colors">
-              <CheckCircle className="w-5 h-5 text-cyan-700" />
-            </div>
-          </div>
-          <p className="text-xs font-medium text-cyan-600 mb-2">Tasks Completed</p>
-          <p className="text-xl font-bold text-cyan-900">{stats.totalTasksCompleted}</p>
         </div>
       </div>
 
