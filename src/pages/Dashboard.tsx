@@ -714,37 +714,39 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 rounded-xl shadow-xl p-8 text-white">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="flex items-center justify-between flex-wrap gap-6">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-1">
               {companySettings?.company_name || 'Business Dashboard'}
             </h1>
-            <p className="text-blue-100 text-lg">
-              Comprehensive business analytics and performance metrics
+            <p className="text-gray-500 text-sm">
+              Monitor key metrics and business performance
             </p>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-8">
             <div className="text-center">
-              <div className="text-3xl font-bold">{stats.totalCustomers}</div>
-              <div className="text-blue-100 text-sm">Total Customers</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.totalCustomers}</div>
+              <div className="text-gray-500 text-xs mt-1 font-medium">Total Customers</div>
             </div>
-            <div className="h-12 w-px bg-blue-400"></div>
+            <div className="h-10 w-px bg-gray-200"></div>
             <div className="text-center">
-              <div className="text-3xl font-bold">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
-              <div className="text-blue-100 text-sm">Total Revenue</div>
+              <div className="text-2xl font-bold text-gray-900">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
+              <div className="text-gray-500 text-xs mt-1 font-medium">Total Revenue</div>
             </div>
-            <div className="h-12 w-px bg-blue-400"></div>
+            <div className="h-10 w-px bg-gray-200"></div>
             <div className="text-center">
-              <div className="flex items-center gap-1 text-3xl font-bold">
+              <div className="flex items-center justify-center gap-1 text-2xl font-bold">
                 {stats.monthOverMonthGrowth >= 0 ? (
-                  <ArrowUpRight className="w-6 h-6 text-green-300" />
+                  <ArrowUpRight className="w-5 h-5 text-emerald-600" />
                 ) : (
-                  <ArrowDownRight className="w-6 h-6 text-red-300" />
+                  <ArrowDownRight className="w-5 h-5 text-red-600" />
                 )}
-                {Math.abs(stats.monthOverMonthGrowth).toFixed(1)}%
+                <span className={stats.monthOverMonthGrowth >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                  {Math.abs(stats.monthOverMonthGrowth).toFixed(1)}%
+                </span>
               </div>
-              <div className="text-blue-100 text-sm">Monthly Growth</div>
+              <div className="text-gray-500 text-xs mt-1 font-medium">Monthly Growth</div>
             </div>
           </div>
         </div>
@@ -830,69 +832,69 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <button
           onClick={() => onNavigate('leads')}
-          className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+          className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer text-left group"
         >
-          <div className="flex items-center justify-between mb-3">
-            <Users className="w-10 h-10 opacity-80" />
-            <div className="text-right">
-              <div className="text-3xl font-bold">{stats.totalLeads}</div>
-              <div className="text-emerald-100 text-sm">Total Leads</div>
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-slate-200 rounded-lg group-hover:bg-slate-300 transition-colors">
+              <Users className="w-6 h-6 text-slate-700" />
             </div>
           </div>
-          <div className="flex items-center justify-between pt-3 border-t border-emerald-400">
-            <span className="text-sm">Conversion Rate</span>
-            <span className="font-bold">{leadConversionRate}%</span>
+          <p className="text-slate-600 text-sm font-medium mb-1">Total Leads</p>
+          <div className="text-2xl font-bold text-slate-900 mb-3">{stats.totalLeads}</div>
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+            <span className="text-xs text-slate-600">Conversion</span>
+            <span className="text-sm font-semibold text-emerald-600">{leadConversionRate}%</span>
           </div>
         </button>
 
         <button
           onClick={() => onNavigate('customers')}
-          className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+          className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-sm border border-blue-200 p-6 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer text-left group"
         >
-          <div className="flex items-center justify-between mb-3">
-            <UserCog className="w-10 h-10 opacity-80" />
-            <div className="text-right">
-              <div className="text-3xl font-bold">{stats.totalCustomers}</div>
-              <div className="text-blue-100 text-sm">Active Customers</div>
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-blue-200 rounded-lg group-hover:bg-blue-300 transition-colors">
+              <UserCog className="w-6 h-6 text-blue-700" />
             </div>
           </div>
-          <div className="flex items-center justify-between pt-3 border-t border-blue-400">
-            <span className="text-sm">Avg Revenue</span>
-            <span className="font-bold">₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString()}</span>
+          <p className="text-blue-600 text-sm font-medium mb-1">Customers</p>
+          <div className="text-2xl font-bold text-blue-900 mb-3">{stats.totalCustomers}</div>
+          <div className="flex items-center justify-between pt-3 border-t border-blue-200">
+            <span className="text-xs text-blue-700">Avg Revenue</span>
+            <span className="text-sm font-semibold text-blue-700">₹{(Math.round(stats.avgRevenuePerCustomer) / 1000).toFixed(0)}K</span>
           </div>
         </button>
 
         <button
           onClick={() => onNavigate('works')}
-          className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+          className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-sm border border-orange-200 p-6 hover:shadow-md hover:border-orange-300 transition-all cursor-pointer text-left group"
         >
-          <div className="flex items-center justify-between mb-3">
-            <ClipboardList className="w-10 h-10 opacity-80" />
-            <div className="text-right">
-              <div className="text-3xl font-bold">{stats.totalWorks}</div>
-              <div className="text-amber-100 text-sm">Total Works</div>
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-orange-200 rounded-lg group-hover:bg-orange-300 transition-colors">
+              <ClipboardList className="w-6 h-6 text-orange-700" />
             </div>
           </div>
-          <div className="flex items-center justify-between pt-3 border-t border-amber-400">
-            <span className="text-sm">Completion Rate</span>
-            <span className="font-bold">{workCompletionRate}%</span>
+          <p className="text-orange-600 text-sm font-medium mb-1">Works</p>
+          <div className="text-2xl font-bold text-orange-900 mb-3">{stats.totalWorks}</div>
+          <div className="flex items-center justify-between pt-3 border-t border-orange-200">
+            <span className="text-xs text-orange-700">Completion</span>
+            <span className="text-sm font-semibold text-orange-700">{workCompletionRate}%</span>
           </div>
         </button>
 
         <button
           onClick={() => onNavigate('invoices-list')}
-          className="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl hover:scale-105 transition-all cursor-pointer text-left"
+          className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-sm border border-green-200 p-6 hover:shadow-md hover:border-green-300 transition-all cursor-pointer text-left group"
         >
-          <div className="flex items-center justify-between mb-3">
-            <DollarSign className="w-10 h-10 opacity-80" />
-            <div className="text-right">
-              <div className="text-3xl font-bold">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
-              <div className="text-rose-100 text-sm">Total Revenue</div>
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-green-200 rounded-lg group-hover:bg-green-300 transition-colors">
+              <DollarSign className="w-6 h-6 text-green-700" />
             </div>
           </div>
-          <div className="flex items-center justify-between pt-3 border-t border-rose-400">
-            <span className="text-sm">Collection Rate</span>
-            <span className="font-bold">{invoiceCollectionRate}%</span>
+          <p className="text-green-600 text-sm font-medium mb-1">Revenue</p>
+          <div className="text-2xl font-bold text-green-900 mb-3">₹{(stats.totalRevenue / 1000).toFixed(0)}K</div>
+          <div className="flex items-center justify-between pt-3 border-t border-green-200">
+            <span className="text-xs text-green-700">Collection</span>
+            <span className="text-sm font-semibold text-green-700">{invoiceCollectionRate}%</span>
           </div>
         </button>
       </div>
@@ -900,189 +902,201 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       <div className="space-y-6">
         <div>
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-blue-600" />
-            Work Status Overview
+            <ClipboardList className="w-5 h-5 text-gray-700" />
+            Work Status
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             <button
               onClick={() => onNavigate('works')}
-              className="bg-white rounded-lg shadow border-l-4 border-l-yellow-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+              className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200 p-3 hover:shadow-md hover:border-amber-300 transition-all cursor-pointer text-center group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <Clock className="w-5 h-5 text-yellow-600" />
+              <div className="flex justify-center mb-2">
+                <div className="p-2 bg-amber-200 rounded-lg group-hover:bg-amber-300 transition-colors">
+                  <Clock className="w-4 h-4 text-amber-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Pending Works</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.pendingWorks}</p>
+              <p className="text-xs font-medium text-amber-700 mb-1">Pending</p>
+              <p className="text-lg font-bold text-amber-900">{stats.pendingWorks}</p>
             </button>
 
             <button
               onClick={() => onNavigate('works')}
-              className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+              className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-3 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer text-center group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <Activity className="w-5 h-5 text-blue-600" />
+              <div className="flex justify-center mb-2">
+                <div className="p-2 bg-blue-200 rounded-lg group-hover:bg-blue-300 transition-colors">
+                  <Activity className="w-4 h-4 text-blue-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">In Progress</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.inProgressWorks}</p>
+              <p className="text-xs font-medium text-blue-700 mb-1">In Progress</p>
+              <p className="text-lg font-bold text-blue-900">{stats.inProgressWorks}</p>
             </button>
 
             <button
               onClick={() => onNavigate('works')}
-              className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+              className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-3 hover:shadow-md hover:border-red-300 transition-all cursor-pointer text-center group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+              <div className="flex justify-center mb-2">
+                <div className="p-2 bg-red-200 rounded-lg group-hover:bg-red-300 transition-colors">
+                  <AlertTriangle className="w-4 h-4 text-red-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Overdue Works</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.overdueWorks}</p>
+              <p className="text-xs font-medium text-red-700 mb-1">Overdue</p>
+              <p className="text-lg font-bold text-red-900">{stats.overdueWorks}</p>
             </button>
 
             <button
               onClick={() => onNavigate('works')}
-              className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+              className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg shadow-sm border border-emerald-200 p-3 hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer text-center group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
+              <div className="flex justify-center mb-2">
+                <div className="p-2 bg-emerald-200 rounded-lg group-hover:bg-emerald-300 transition-colors">
+                  <CheckCircle className="w-4 h-4 text-emerald-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Completed</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.completedWorks}</p>
+              <p className="text-xs font-medium text-emerald-700 mb-1">Completed</p>
+              <p className="text-lg font-bold text-emerald-900">{stats.completedWorks}</p>
             </button>
           </div>
         </div>
 
         <div>
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-green-600" />
+            <Receipt className="w-5 h-5 text-gray-700" />
             Invoice Payment Status
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg shadow border-l-4 border-l-cyan-500 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <FileText className="w-5 h-5 text-cyan-600" />
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg shadow-sm border border-slate-200 p-4 group">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-slate-200 rounded-lg group-hover:bg-slate-300 transition-colors">
+                  <FileText className="w-5 h-5 text-slate-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Total Invoices</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalInvoices}</p>
+              <p className="text-xs font-medium text-slate-600 mb-1">Total</p>
+              <p className="text-2xl font-bold text-slate-900">{stats.totalInvoices}</p>
             </div>
 
             <button
               onClick={() => onNavigate('invoices-list')}
-              className="bg-white rounded-lg shadow border-l-4 border-l-emerald-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+              className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg shadow-sm border border-emerald-200 p-4 hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <CheckCircle className="w-5 h-5 text-emerald-600" />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-emerald-200 rounded-lg group-hover:bg-emerald-300 transition-colors">
+                  <CheckCircle className="w-5 h-5 text-emerald-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Paid</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.paidInvoices}</p>
+              <p className="text-xs font-medium text-emerald-600 mb-1">Paid</p>
+              <p className="text-2xl font-bold text-emerald-900">{stats.paidInvoices}</p>
             </button>
 
             <button
               onClick={() => onNavigate('invoices-list')}
-              className="bg-white rounded-lg shadow border-l-4 border-l-orange-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+              className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg shadow-sm border border-orange-200 p-4 hover:shadow-md hover:border-orange-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <Wallet className="w-5 h-5 text-orange-600" />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-orange-200 rounded-lg group-hover:bg-orange-300 transition-colors">
+                  <Wallet className="w-5 h-5 text-orange-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Partially Paid</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.partiallyPaidInvoices}</p>
+              <p className="text-xs font-medium text-orange-600 mb-1">Partially Paid</p>
+              <p className="text-2xl font-bold text-orange-900">{stats.partiallyPaidInvoices}</p>
             </button>
 
             <button
               onClick={() => onNavigate('invoices-list')}
-              className="bg-white rounded-lg shadow border-l-4 border-l-red-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+              className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-4 hover:shadow-md hover:border-red-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <AlertCircle className="w-5 h-5 text-red-600" />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-red-200 rounded-lg group-hover:bg-red-300 transition-colors">
+                  <AlertCircle className="w-5 h-5 text-red-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Unpaid</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.unpaidInvoices}</p>
+              <p className="text-xs font-medium text-red-600 mb-1">Unpaid</p>
+              <p className="text-2xl font-bold text-red-900">{stats.unpaidInvoices}</p>
             </button>
           </div>
         </div>
 
         <div>
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-purple-600" />
+            <Briefcase className="w-5 h-5 text-gray-700" />
             Team & Services
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg shadow border-l-4 border-l-blue-500 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <Briefcase className="w-5 h-5 text-blue-600" />
-              </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Total Staff</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalStaff}</p>
-            </div>
-
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
             <button
               onClick={() => onNavigate('staff')}
-              className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+              className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg shadow-sm border border-cyan-200 p-4 hover:shadow-md hover:border-cyan-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <UserCheck className="w-5 h-5 text-green-600" />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-cyan-200 rounded-lg group-hover:bg-cyan-300 transition-colors">
+                  <UserCheck className="w-5 h-5 text-cyan-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Active Staff</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeStaff}</p>
+              <p className="text-xs font-medium text-cyan-600 mb-1">Active Staff</p>
+              <p className="text-2xl font-bold text-cyan-900">{stats.activeStaff}</p>
             </button>
-
-            <div className="bg-white rounded-lg shadow border-l-4 border-l-rose-500 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <Package className="w-5 h-5 text-rose-600" />
-              </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Total Services</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalServices}</p>
-            </div>
 
             <button
               onClick={() => onNavigate('services')}
-              className="bg-white rounded-lg shadow border-l-4 border-l-green-500 p-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer text-left"
+              className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg shadow-sm border border-teal-200 p-4 hover:shadow-md hover:border-teal-300 transition-all cursor-pointer text-left group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-teal-200 rounded-lg group-hover:bg-teal-300 transition-colors">
+                  <Package className="w-5 h-5 text-teal-700" />
+                </div>
               </div>
-              <p className="text-xs font-medium text-gray-600 uppercase">Active Services</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeServices}</p>
+              <p className="text-xs font-medium text-teal-600 mb-1">Active Services</p>
+              <p className="text-2xl font-bold text-teal-900">{stats.activeServices}</p>
             </button>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow border-l-4 border-l-green-600 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <Receipt className="w-7 h-7 text-green-700" />
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-5 group">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-green-200 rounded-lg group-hover:bg-green-300 transition-colors">
+              <Receipt className="w-5 h-5 text-green-700" />
+            </div>
           </div>
-          <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Avg Invoice Value</p>
-          <p className="text-2xl font-bold text-green-900 mt-1">
+          <p className="text-xs font-medium text-green-600 mb-2">Avg Invoice Value</p>
+          <p className="text-xl font-bold text-green-900">
             ₹{Math.round(stats.avgInvoiceValue).toLocaleString('en-IN')}
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow border-l-4 border-l-amber-600 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <Wallet className="w-7 h-7 text-amber-700" />
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200 p-5 group">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-amber-200 rounded-lg group-hover:bg-amber-300 transition-colors">
+              <Wallet className="w-5 h-5 text-amber-700" />
+            </div>
           </div>
-          <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Pending Revenue</p>
-          <p className="text-2xl font-bold text-amber-900 mt-1">
+          <p className="text-xs font-medium text-amber-600 mb-2">Pending Revenue</p>
+          <p className="text-xl font-bold text-amber-900">
             ₹{stats.pendingRevenue.toLocaleString('en-IN')}
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow border-l-4 border-l-blue-600 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <Target className="w-7 h-7 text-blue-700" />
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-5 group">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-blue-200 rounded-lg group-hover:bg-blue-300 transition-colors">
+              <Target className="w-5 h-5 text-blue-700" />
+            </div>
           </div>
-          <p className="text-xs font-medium text-blue-700 uppercase tracking-wide">Avg Revenue/Customer</p>
-          <p className="text-2xl font-bold text-blue-900 mt-1">
+          <p className="text-xs font-medium text-blue-600 mb-2">Avg Revenue/Customer</p>
+          <p className="text-xl font-bold text-blue-900">
             ₹{Math.round(stats.avgRevenuePerCustomer).toLocaleString('en-IN')}
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg shadow border-l-4 border-l-cyan-600 p-5">
-          <div className="flex items-center justify-between mb-2">
-            <CheckCircle className="w-7 h-7 text-cyan-700" />
+        <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg shadow-sm border border-cyan-200 p-5 group">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-cyan-200 rounded-lg group-hover:bg-cyan-300 transition-colors">
+              <CheckCircle className="w-5 h-5 text-cyan-700" />
+            </div>
           </div>
-          <p className="text-xs font-medium text-cyan-700 uppercase tracking-wide">Tasks Completed</p>
-          <p className="text-2xl font-bold text-cyan-900 mt-1">{stats.totalTasksCompleted}</p>
+          <p className="text-xs font-medium text-cyan-600 mb-2">Tasks Completed</p>
+          <p className="text-xl font-bold text-cyan-900">{stats.totalTasksCompleted}</p>
         </div>
       </div>
 
