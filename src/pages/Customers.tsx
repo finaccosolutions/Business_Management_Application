@@ -370,102 +370,45 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
   const editingCustomer = editingCustomerId ? customers.find(c => c.id === editingCustomerId) : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Customers</h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
             {filteredCustomers.length} of {customers.length} customers
           </p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+          className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl text-sm font-medium"
         >
-          <Plus size={20} />
-          Add Customer
+          <Plus size={18} />
+          <span className="hidden sm:inline">Add Customer</span>
+          <span className="sm:hidden">Add</span>
         </button>
       </div>
 
-      {!loadingStats && statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm border-2 border-blue-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Customers</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">{statistics.totalCustomers}</p>
-              </div>
-              <Users className="w-12 h-12 text-blue-600 opacity-20" />
-            </div>
-            <div className="flex items-center gap-1 mt-3">
-              <TrendingUp size={16} className="text-green-500" />
-              <span className="text-sm text-green-600">{statistics.newThisMonth} new this month</span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border-2 border-green-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">
-                  ₹{statistics.totalRevenue.toLocaleString()}
-                </p>
-              </div>
-              <DollarSign className="w-12 h-12 text-green-600 opacity-20" />
-            </div>
-            <p className="text-sm text-gray-600 mt-3">From paid invoices</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border-2 border-orange-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Avg. Revenue</p>
-                <p className="text-3xl font-bold text-orange-600 mt-2">
-                  ₹
-                  {statistics.averageRevenue.toLocaleString(undefined, {
-                    maximumFractionDigits: 0,
-                  })}
-                </p>
-              </div>
-              <Briefcase className="w-12 h-12 text-orange-600 opacity-20" />
-            </div>
-            <p className="text-sm text-gray-600 mt-3">Per customer</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border-2 border-teal-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Customers</p>
-                <p className="text-3xl font-bold text-teal-600 mt-2">{statistics.activeCustomers}</p>
-              </div>
-              <UserCog className="w-12 h-12 text-teal-600 opacity-20" />
-            </div>
-            <p className="text-sm text-gray-600 mt-3">With active services</p>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search customers by name, email, company, phone, city, or GST number..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Search customers..."
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium whitespace-nowrap"
           >
-            <Filter className="w-5 h-5" />
-            <span>Filters</span>
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">Filters</span>
             {(filters.sources.length > 0 ||
               filters.serviceTypes.length > 0 ||
               filters.cities.length > 0 ||
@@ -489,17 +432,17 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
         </div>
 
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-3 pt-3 border-t border-gray-200">
             <CustomerFilters onFilterChange={setFilters} activeFilters={filters} />
           </div>
         )}
       </div>
 
       {filteredCustomers.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Users size={48} className="mx-auto text-gray-400 mb-4" />
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
+          <Users size={40} className="mx-auto text-gray-400 mb-3" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No customers found</h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-sm text-gray-600 mb-6">
             {searchTerm || filters.cities.length > 0
               ? 'Try adjusting your search or filter criteria'
               : 'Get started by adding your first customer'}
@@ -507,20 +450,17 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
           {!searchTerm && filters.cities.length === 0 && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
             >
-              <Plus size={20} />
+              <Plus size={18} />
               Add Your First Customer
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {filteredCustomers.map((customer) => {
             const borderColor = getCustomerBorderColor(customer, statistics?.averageRevenue || 0);
-            const daysSinceCreated = Math.floor(
-              (Date.now() - new Date(customer.created_at).getTime()) / (1000 * 60 * 60 * 24)
-            );
 
             return (
               <div
@@ -528,11 +468,11 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
                 onClick={() => setSelectedCustomerId(customer.id)}
                 className={`bg-white rounded-lg shadow-sm border-l-4 ${borderColor} border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
               >
-                <div className="p-3">
-                  <div className="flex items-center gap-6">
-                    {/* Left: Avatar + Name + Company */}
-                    <div className="flex items-center gap-3 flex-shrink-0 w-64">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden">
+                <div className="p-3 sm:p-4">
+                  <div className="flex items-start gap-3 justify-between flex-wrap">
+                    {/* Left: Avatar + Name + Contact Info */}
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden text-sm sm:text-base font-bold">
                         {customer.image_url ? (
                           <img
                             src={customer.image_url}
@@ -544,129 +484,99 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
                               const parent = target.parentElement;
                               if (parent) {
                                 const initials = document.createElement('span');
-                                initials.className = 'text-lg font-bold';
+                                initials.className = 'text-sm sm:text-base font-bold';
                                 initials.textContent = customer.name?.charAt(0).toUpperCase() || 'C';
                                 parent.appendChild(initials);
                               }
                             }}
                           />
                         ) : (
-                          <span className="text-lg font-bold">
-                            {customer.name?.charAt(0).toUpperCase() || 'C'}
-                          </span>
+                          <span>{customer.name?.charAt(0).toUpperCase() || 'C'}</span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-gray-900 text-base leading-tight mb-1" title={customer.name}>{customer.name}</h3>
-                        <div className="space-y-0.5">
+                        <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate" title={customer.name}>{customer.name}</h3>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-gray-600">
                           {customer.company_name && (
-                            <p className="text-xs text-gray-600 truncate flex items-center gap-1" title={customer.company_name}>
-                              <Building size={10} />
+                            <span className="truncate flex items-center gap-1">
+                              <Building size={12} className="flex-shrink-0" />
                               {customer.company_name}
-                            </p>
+                            </span>
                           )}
-                          {(customer.entity_type || customer.legal_form) && (
-                            <p className="text-xs text-blue-600 truncate flex items-center gap-1">
-                              <Briefcase size={9} />
-                              {customer.entity_type || customer.legal_form}
-                            </p>
+                          {customer.email && (
+                            <a href={`mailto:${customer.email}`} className="truncate text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
+                              {customer.email}
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap text-xs text-gray-600">
+                          {customer.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone size={12} className="flex-shrink-0" />
+                              {customer.phone}
+                            </span>
+                          )}
+                          {(customer.city || customer.state) && (
+                            <span className="flex items-center gap-1 truncate" title={[customer.city, customer.state].filter(Boolean).join(', ')}>
+                              <MapPin size={12} className="flex-shrink-0" />
+                              {[customer.city, customer.state].filter(Boolean).join(', ')}
+                            </span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Center-Left: Contact Info */}
-                    <div className="flex flex-col gap-1 min-w-0 w-52">
-                      {customer.phone && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                          <Phone size={11} className="flex-shrink-0 text-green-500" />
-                          <span className="truncate">{customer.phone}</span>
+                    {/* Right: Stats + Actions */}
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 ml-2">
+                      {(customer.active_services || 0) > 0 && (
+                        <div className="flex items-center gap-1 bg-blue-50 rounded px-1.5 sm:px-2 py-0.5" title="Active Services">
+                          <Briefcase size={12} className="text-blue-600 flex-shrink-0" />
+                          <span className="text-xs font-bold text-blue-700">{customer.active_services}</span>
                         </div>
                       )}
-                      {customer.email && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
-                          <Mail size={11} className="flex-shrink-0 text-blue-500" />
-                          <span className="truncate" title={customer.email}>{customer.email}</span>
-                        </div>
-                      )}
-                      {(customer.city || customer.state) && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
-                          <MapPin size={11} className="flex-shrink-0 text-orange-500" />
-                          <span className="truncate" title={[customer.city, customer.state].filter(Boolean).join(', ')}>
-                            {[customer.city, customer.state].filter(Boolean).join(', ')}
+                      {(customer.total_revenue || 0) > 0 && (
+                        <div className="flex items-center gap-1 bg-green-50 rounded px-1.5 sm:px-2 py-0.5" title="Total Revenue">
+                          <DollarSign size={12} className="text-green-600 flex-shrink-0" />
+                          <span className="text-xs font-bold text-green-700">
+                            ₹{((customer.total_revenue || 0) / 1000).toFixed(0)}k
                           </span>
                         </div>
                       )}
-                    </div>
-
-                    {/* Center: Registration Numbers */}
-                    <div className="flex flex-col gap-1 flex-shrink-0 w-40">
-                      {customer.gstin && (
-                        <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded truncate" title={customer.gstin}>
-                          GST: {customer.gstin.substring(0, 8)}...
-                        </span>
-                      )}
-                      {customer.pan_number && (
-                        <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded truncate">PAN: {customer.pan_number}</span>
-                      )}
-                      {daysSinceCreated <= 30 && (
-                        <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full text-center">
-                          New
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Center-Right: Stats */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className="flex items-center gap-1 bg-blue-50 rounded px-2 py-1" title="Active Services">
-                        <Briefcase size={12} className="text-blue-600" />
-                        <span className="text-xs font-bold text-blue-700">{customer.active_services || 0}</span>
-                      </div>
-                      <div className="flex items-center gap-1 bg-green-50 rounded px-2 py-1" title="Total Revenue">
-                        <DollarSign size={12} className="text-green-600" />
-                        <span className="text-xs font-bold text-green-700">
-                          ₹{((customer.total_revenue || 0) / 1000).toFixed(0)}k
-                        </span>
-                      </div>
                       {(customer.pending_works || 0) > 0 && (
-                        <div className="flex items-center gap-1 bg-orange-50 rounded px-2 py-1" title="Pending Works">
-                          <Clock size={12} className="text-orange-600" />
+                        <div className="flex items-center gap-1 bg-orange-50 rounded px-1.5 sm:px-2 py-0.5" title="Pending Works">
+                          <Clock size={12} className="text-orange-600 flex-shrink-0" />
                           <span className="text-xs font-bold text-orange-700">{customer.pending_works}</span>
                         </div>
                       )}
                       {(customer.overdue_invoices || 0) > 0 && (
-                        <div className="flex items-center gap-1 bg-red-50 rounded px-2 py-1" title="Overdue Invoices">
-                          <AlertCircle size={12} className="text-red-600" />
+                        <div className="flex items-center gap-1 bg-red-50 rounded px-1.5 sm:px-2 py-0.5" title="Overdue Invoices">
+                          <AlertCircle size={12} className="text-red-600 flex-shrink-0" />
                           <span className="text-xs font-bold text-red-700">{customer.overdue_invoices}</span>
                         </div>
                       )}
-                    </div>
-
-                    {/* Right: Actions - Always at the right edge */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedCustomerId(customer.id);
                         }}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         title="View Details"
                       >
-                        <Eye size={15} />
+                        <Eye size={16} />
                       </button>
                       <button
                         onClick={(e) => handleEdit(customer.id, e)}
-                        className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                        className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
                         title="Edit Customer"
                       >
-                        <Edit2 size={15} />
+                        <Edit2 size={16} />
                       </button>
                       <button
                         onClick={(e) => handleDelete(customer.id, e)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                         title="Delete Customer"
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>

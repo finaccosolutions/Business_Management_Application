@@ -376,32 +376,33 @@ useEffect(() => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Leads</h1>
-          <p className="text-gray-600 mt-1">Manage your potential customers</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Leads</h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Manage your potential customers</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+          className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl text-sm font-medium"
         >
-          <Plus size={20} />
-          Add New Lead
+          <Plus size={18} />
+          <span className="hidden sm:inline">Add New Lead</span>
+          <span className="sm:hidden">Add</span>
         </button>
       </div>
 
       {/* Colorful Tabs with Icons */}
-      <div className="bg-gradient-to-r from-slate-100 via-gray-50 to-slate-100 rounded-2xl shadow-md border-2 border-gray-200 overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-100 via-gray-50 to-slate-100 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="relative">
           {showLeftArrow && (
             <button
               onClick={() => scrollTabs('left')}
-              className="absolute left-0 top-0 bottom-0 z-10 bg-gradient-to-r from-white via-white to-transparent px-3 flex items-center"
+              className="absolute left-0 top-0 bottom-0 z-10 bg-gradient-to-r from-white via-white to-transparent px-2 flex items-center"
             >
-              <div className="bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow">
-                <ChevronLeft size={20} className="text-gray-700" />
+              <div className="bg-white rounded-full p-1.5 shadow-md hover:shadow-lg transition-shadow">
+                <ChevronLeft size={16} className="text-gray-700" />
               </div>
             </button>
           )}
@@ -422,16 +423,16 @@ useEffect(() => {
                 <button
                   key={status}
                   onClick={() => setActiveTab(status)}
-                  className={`flex items-center gap-3 px-6 py-4 transition-all whitespace-nowrap flex-shrink-0 font-semibold ${
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-3 transition-all whitespace-nowrap flex-shrink-0 font-semibold text-sm ${
                     isActive
-                      ? `bg-gradient-to-r ${config.color} text-white shadow-xl scale-105 border-b-4 border-white`
-                      : `text-gray-700 hover:bg-white/80 hover:shadow-md ${config.textColor}`
+                      ? `bg-gradient-to-r ${config.color} text-white shadow-lg border-b-4 border-white`
+                      : `text-gray-700 hover:bg-white/80 hover:shadow-sm ${config.textColor}`
                   }`}
                 >
-                  <Icon size={22} className={isActive ? 'drop-shadow-md' : ''} />
-                  <span className="text-base">{config.label}</span>
+                  <Icon size={18} className={isActive ? 'drop-shadow-md' : ''} />
+                  <span className="hidden sm:inline text-sm">{config.label}</span>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold min-w-[2rem] text-center ${
+                    className={`px-2 py-0.5 rounded-full text-xs font-bold min-w-[1.5rem] text-center ${
                       isActive
                         ? 'bg-white/30 text-white backdrop-blur-sm'
                         : 'bg-gray-200 text-gray-700'
@@ -447,10 +448,10 @@ useEffect(() => {
           {showRightArrow && (
             <button
               onClick={() => scrollTabs('right')}
-              className="absolute right-0 top-0 bottom-0 z-10 bg-gradient-to-l from-white via-white to-transparent px-3 flex items-center"
+              className="absolute right-0 top-0 bottom-0 z-10 bg-gradient-to-l from-white via-white to-transparent px-2 flex items-center"
             >
-              <div className="bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow">
-                <ChevronRight size={20} className="text-gray-700" />
+              <div className="bg-white rounded-full p-1.5 shadow-md hover:shadow-lg transition-shadow">
+                <ChevronRight size={16} className="text-gray-700" />
               </div>
             </button>
           )}
@@ -464,18 +465,18 @@ useEffect(() => {
       `}</style>
 
       {/* Search and Filter Bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           {/* Search Bar */}
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search leads by name, email, company, phone, or referrer..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Search leads..."
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -483,10 +484,10 @@ useEffect(() => {
           {/* Filter Toggle Button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium whitespace-nowrap"
           >
-            <Filter className="w-5 h-5" />
-            <span>Filters</span>
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">Filters</span>
             {(filters.sources.length > 0 ||
               filters.serviceTypes.length > 0 ||
               filters.dateFrom ||
@@ -505,18 +506,18 @@ useEffect(() => {
 
         {/* Filter Panel - Collapsible */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-3 pt-3 border-t border-gray-200">
             <LeadFilters onFilterChange={setFilters} activeFilters={filters} />
           </div>
         )}
       </div>
 
-      {/* Leads List - Full Width Rows */}
+      {/* Leads List - Compact Cards */}
       {filteredLeads.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Users size={48} className="mx-auto text-gray-400 mb-4" />
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
+          <Users size={40} className="mx-auto text-gray-400 mb-3" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No leads found</h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-sm text-gray-600 mb-6">
             {searchTerm
               ? 'Try adjusting your search criteria'
               : 'Get started by adding your first lead'}
@@ -524,179 +525,91 @@ useEffect(() => {
           {!searchTerm && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
             >
-              <Plus size={20} />
+              <Plus size={18} />
               Add Your First Lead
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {filteredLeads.map((lead) => {
             const isConverted = !!lead.converted_to_customer_id;
             const statusConfig = statusOptions.find(s => s.value === lead.status);
-            
+
             return (
               <div
                 key={lead.id}
-                className={`bg-white rounded-xl shadow-sm border-l-4 ${
+                className={`bg-white rounded-lg shadow-sm border-l-4 ${
                   isConverted
-                    ? 'border-l-emerald-500 hover:bg-emerald-50/30'
-                    : 'border-l-blue-500 hover:bg-blue-50/30'
+                    ? 'border-l-emerald-500 hover:bg-emerald-50/20'
+                    : 'border-l-blue-500 hover:bg-blue-50/20'
                 } border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
                 onClick={() => {
                   setSelectedLead(lead);
                   setShowDetailsModal(true);
                 }}
               >
-                <div className="p-5">
-                  <div className="flex flex-col lg:flex-row items-start gap-4">
-                    {/* Profile Section */}
-                    <div className="flex items-center gap-3 w-full lg:w-auto lg:min-w-[200px] lg:max-w-[200px]">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0">
-                        <span className="text-xl font-bold">
-                          {lead.name?.charAt(0).toUpperCase() || 'L'}
-                        </span>
+                <div className="p-3 sm:p-4">
+                  <div className="flex items-start gap-3 justify-between flex-wrap">
+                    {/* Profile & Name Section */}
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 text-sm sm:text-base font-bold">
+                        {lead.name?.charAt(0).toUpperCase() || 'L'}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-gray-900 text-base truncate">{lead.name}</h3>
-                        {lead.company_name && (
-                          <p className="text-xs text-gray-600 truncate flex items-center gap-1">
-                            <Building2 size={12} />
-                            {lead.company_name}
-                          </p>
-                        )}
-                        {isConverted && (
-                          <span className="inline-block mt-0.5 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
-                            Converted
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{lead.name}</h3>
+                          {isConverted && (
+                            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Converted</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-gray-600">
+                          {lead.company_name && (
+                            <span className="truncate flex items-center gap-1">
+                              <Building2 size={12} className="flex-shrink-0" />
+                              {lead.company_name}
+                            </span>
+                          )}
+                          {lead.email && (
+                            <a href={`mailto:${lead.email}`} className="truncate text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
+                              {lead.email}
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs">
+                          <span className={`px-2 py-0.5 rounded-full font-medium ${getStatusBadgeColor(lead.status, false)}`}>
+                            {statusConfig?.label || lead.status}
                           </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="hidden lg:block h-14 w-px bg-gray-200"></div>
-
-                    {/* Contact Details */}
-                    <div className="flex-1 min-w-0 w-full lg:w-auto">
-                      <div className="space-y-1.5">
-                        {lead.email && (
-                          <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <Mail size={15} className="flex-shrink-0 text-blue-500" />
-                            <span className="truncate font-medium">{lead.email}</span>
-                          </div>
-                        )}
-                        {lead.phone && (
-                          <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <Phone size={15} className="flex-shrink-0 text-green-500" />
-                            <span className="font-medium">{lead.phone}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3">
-                          {lead.source && (
-                            <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                              <Tag size={13} className="flex-shrink-0 text-orange-500" />
-                              <span className="truncate">{lead.source}</span>
-                            </div>
+                          {lead.phone && (
+                            <span className="flex items-center gap-1 text-gray-600">
+                              <Phone size={12} className="flex-shrink-0" />
+                              {lead.phone}
+                            </span>
                           )}
-                          {lead.referred_by && (
-                            <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                              <Users size={13} className="flex-shrink-0 text-purple-500" />
-                              <span className="truncate">Ref: {lead.referred_by}</span>
-                            </div>
+                          {lead.followup_count > 0 && (
+                            <span className="flex items-center gap-1 text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded">
+                              <Calendar size={11} className="flex-shrink-0" />
+                              {lead.followup_count}
+                            </span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Divider */}
-                    <div className="hidden lg:block h-14 w-px bg-gray-200"></div>
-
-                    {/* Services Section */}
-                    <div className="w-full lg:w-auto lg:min-w-[180px]">
-                      {lead.lead_services && lead.lead_services.length > 0 ? (
-                        <div>
-                          <p className="text-xs font-medium text-gray-500 mb-1.5">Services:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {lead.lead_services.slice(0, 2).map((ls: any, idx: number) => (
-                              <span
-                                key={idx}
-                                className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded border border-blue-200"
-                              >
-                                {ls.services?.name}
-                              </span>
-                            ))}
-                            {lead.lead_services.length > 2 && (
-                              <span className="text-xs text-gray-500 px-1">
-                                +{lead.lead_services.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-400 italic">No services</p>
-                      )}
-                    </div>
-
-                    {/* Divider */}
-                    <div className="hidden lg:block h-14 w-px bg-gray-200"></div>
-
-                    {/* Status & Follow-up Section */}
-                    <div className="w-full lg:w-auto lg:min-w-[180px]">
-                      <div className="space-y-1.5">
-                        {!isConverted ? (
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2.5 py-1 text-xs rounded-lg font-semibold ${getStatusBadgeColor(lead.status, false)}`}>
-                              {statusConfig?.label || lead.status}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg text-xs font-semibold">
-                            <CheckCircle size={13} />
-                            Customer
-                          </div>
-                        )}
-
-                        {lead.followup_count > 0 && (
-                          <div className="flex items-center gap-1.5 text-xs text-orange-700 bg-orange-50 px-2 py-1 rounded-lg">
-                            <Calendar size={13} />
-                            <span className="font-medium">
-                              {lead.followup_count} follow-up{lead.followup_count > 1 ? 's' : ''}
-                            </span>
-                          </div>
-                        )}
-
-                        {lead.next_followup_date && (
-                          <div className="text-xs text-gray-600 flex items-center gap-1">
-                            <Clock size={11} />
-                            Next: {new Date(lead.next_followup_date).toLocaleDateString()}
-                          </div>
-                        )}
-
-                        <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <Calendar size={11} />
-                          {new Date(lead.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="hidden lg:block h-16 w-px bg-gray-200"></div>
-
-                    {/* Actions Section - Vertical Layout */}
-                    <div className="flex flex-col gap-2 flex-shrink-0">
+                    {/* Action Icons - Horizontal */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedLead(lead);
                           setShowDetailsModal(true);
                         }}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors whitespace-nowrap"
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="View Details"
                       >
-                        <Eye size={16} />
-                        View Details
+                        <Eye size={18} />
                       </button>
                       {!isConverted && (
                         <button
@@ -705,11 +618,10 @@ useEffect(() => {
                             setSelectedLead(lead);
                             setShowConvertModal(true);
                           }}
-                          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors whitespace-nowrap"
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           title="Convert to Customer"
                         >
-                          <UserPlus size={16} />
-                          Convert
+                          <UserPlus size={18} />
                         </button>
                       )}
                       <button
@@ -717,11 +629,10 @@ useEffect(() => {
                           e.stopPropagation();
                           deleteLead(lead.id);
                         }}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors whitespace-nowrap"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete Lead"
                       >
-                        <Trash2 size={16} />
-                        Delete
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </div>
