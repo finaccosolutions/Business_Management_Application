@@ -97,6 +97,12 @@ export default function Invoices() {
       setShowModal(true);
       sessionStorage.removeItem('prefilledCustomerId');
     }
+
+    const filterStatus = sessionStorage.getItem('invoiceFilterStatus');
+    if (filterStatus) {
+      setFilterStatus(filterStatus);
+      sessionStorage.removeItem('invoiceFilterStatus');
+    }
   }, [user]);
 
   useEffect(() => {

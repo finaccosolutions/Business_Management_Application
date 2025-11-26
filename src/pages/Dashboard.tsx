@@ -63,6 +63,9 @@ interface Stats {
   inProgressWorksRevenue: number;
   completedWorksRevenue: number;
   overdueWorksRevenue: number;
+  totalWorksRevenue: number;
+  draftInvoicesRevenue: number;
+  sentInvoicesRevenue: number;
 }
 
 interface OverdueWork {
@@ -147,6 +150,9 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     inProgressWorksRevenue: 0,
     completedWorksRevenue: 0,
     overdueWorksRevenue: 0,
+    totalWorksRevenue: 0,
+    draftInvoicesRevenue: 0,
+    sentInvoicesRevenue: 0,
   });
   const [overdueWorks, setOverdueWorks] = useState<OverdueWork[]>([]);
   const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyRevenue[]>([]);
@@ -313,6 +319,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         paidInvoicesResult,
         unpaidInvoicesResult,
         partiallyPaidInvoicesResult,
+        draftInvoiceAmountResult,
+        sentInvoiceAmountResult,
         staffResult,
         activeStaffResult,
         servicesResult,
@@ -347,6 +355,18 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           if (dateRange.end) query = query.lte('invoice_date', dateRange.end);
           return query;
         })(),
+        (() => {
+          let query = supabase.from('invoices').select('id, total_amount', { count: 'exact' }).eq('status', 'draft');
+          if (dateRange.start) query = query.gte('invoice_date', dateRange.start);
+          if (dateRange.end) query = query.lte('invoice_date', dateRange.end);
+          return query;
+        })(),
+        (() => {
+          let query = supabase.from('invoices').select('id, total_amount', { count: 'exact' }).eq('status', 'sent');
+          if (dateRange.start) query = query.gte('invoice_date', dateRange.start);
+          if (dateRange.end) query = query.lte('invoice_date', dateRange.end);
+          return query;
+        })(),
         supabase.from('staff_members').select('id', { count: 'exact', head: true }),
         supabase.from('staff_members').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('services').select('id', { count: 'exact', head: true }),
@@ -363,6 +383,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       const paidInvoicesRevenue = totalRevenue;
       const unpaidInvoicesRevenue = pendingRevenue;
       const partiallyPaidInvoicesRevenue = partiallyPaidInvoicesResult.data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
+      const draftInvoicesRevenue = draftInvoiceAmountResult.data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
+      const sentInvoicesRevenue = sentInvoiceAmountResult.data?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
 
       const pendingWorksRevenue = pendingWorksResult.data?.reduce((sum, work) => {
         return sum + (work.invoices?.reduce((invSum, inv) => invSum + Number(inv.total_amount), 0) || 0);
@@ -379,6 +401,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       const overdueWorksRevenue = overdueWorksResult.data?.reduce((sum, work) => {
         return sum + (work.invoices?.reduce((invSum, inv) => invSum + Number(inv.total_amount), 0) || 0);
       }, 0) || 0;
+
+      const totalWorksRevenue = pendingWorksRevenue + inProgressWorksRevenue + completedWorksRevenue + overdueWorksRevenue;
 
       const avgInvoiceValue = paidInvoicesResult.count && paidInvoicesResult.count > 0
         ? totalRevenue / paidInvoicesResult.count
@@ -428,6 +452,9 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         inProgressWorksRevenue,
         completedWorksRevenue,
         overdueWorksRevenue,
+        totalWorksRevenue,
+        draftInvoicesRevenue,
+        sentInvoicesRevenue,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -759,13 +786,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+      <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl shadow-sm border border-slate-200 p-8">
         <div className="flex items-center justify-between flex-wrap gap-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-1">
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-1">
               {companySettings?.company_name || 'Business Dashboard'}
             </h1>
-            <p className="text-gray-500 text-sm">
+            <p className="text-slate-600 text-sm">
               Monitor key metrics and business performance
             </p>
           </div>
@@ -946,8 +973,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
       <div className="space-y-8 pt-6 border-t border-gray-200">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-gray-700" />
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2 bg-gradient-to-r from-slate-50 to-slate-100 p-3 rounded-lg border border-slate-200">
+            <ClipboardList className="w-5 h-5 text-slate-700" />
             Work Status
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -962,10 +989,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
               <p className="text-xs font-medium text-slate-600 mb-1">All Works</p>
               <p className="text-xl font-bold text-slate-900">{stats.totalWorks}</p>
+              <p className="text-xs text-slate-700 mt-2">₹{stats.totalWorksRevenue.toLocaleString('en-IN')}</p>
             </button>
 
             <button
-              onClick={() => onNavigate('works')}
+              onClick={() => {
+                sessionStorage.setItem('workFilterStatus', 'pending');
+                onNavigate('works');
+              }}
               className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200 p-4 hover:shadow-md hover:border-amber-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -979,7 +1010,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('works')}
+              onClick={() => {
+                sessionStorage.setItem('workFilterStatus', 'in_progress');
+                onNavigate('works');
+              }}
               className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -993,7 +1027,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('works')}
+              onClick={() => {
+                sessionStorage.setItem('workFilterStatus', 'overdue');
+                onNavigate('works');
+              }}
               className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-4 hover:shadow-md hover:border-red-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -1007,7 +1044,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('works')}
+              onClick={() => {
+                sessionStorage.setItem('workFilterStatus', 'completed');
+                onNavigate('works');
+              }}
               className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg shadow-sm border border-emerald-200 p-4 hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -1023,13 +1063,16 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         </div>
 
         <div>
-          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-gray-700" />
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2 bg-gradient-to-r from-slate-50 to-slate-100 p-3 rounded-lg border border-slate-200">
+            <Receipt className="w-5 h-5 text-slate-700" />
             Invoice Payment Status
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <button
-              onClick={() => onNavigate('invoices-list')}
+              onClick={() => {
+                sessionStorage.setItem('invoiceFilterStatus', 'all');
+                onNavigate('invoices-list');
+              }}
               className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg shadow-sm border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -1039,10 +1082,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
               <p className="text-xs font-medium text-slate-600 mb-1">All</p>
               <p className="text-xl font-bold text-slate-900">{stats.totalInvoices}</p>
+              <p className="text-xs text-slate-700 mt-2">₹{stats.totalRevenue.toLocaleString('en-IN')}</p>
             </button>
 
             <button
-              onClick={() => onNavigate('invoices-list')}
+              onClick={() => {
+                sessionStorage.setItem('invoiceFilterStatus', 'draft');
+                onNavigate('invoices-list');
+              }}
               className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -1052,23 +1099,31 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
               <p className="text-xs font-medium text-gray-600 mb-1">Draft</p>
               <p className="text-xl font-bold text-gray-900">{stats.draftInvoices}</p>
+              <p className="text-xs text-gray-700 mt-2">₹{stats.draftInvoicesRevenue.toLocaleString('en-IN')}</p>
             </button>
 
             <button
-              onClick={() => onNavigate('invoices-list')}
-              className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-4 hover:shadow-md hover:border-purple-300 transition-all cursor-pointer text-left group"
+              onClick={() => {
+                sessionStorage.setItem('invoiceFilterStatus', 'sent');
+                onNavigate('invoices-list');
+              }}
+              className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 bg-purple-200 rounded-lg group-hover:bg-purple-300 transition-colors">
-                  <FileText className="w-4 h-4 text-purple-700" />
+                <div className="p-2 bg-blue-200 rounded-lg group-hover:bg-blue-300 transition-colors">
+                  <FileText className="w-4 h-4 text-blue-700" />
                 </div>
               </div>
-              <p className="text-xs font-medium text-purple-600 mb-1">Sent</p>
-              <p className="text-xl font-bold text-purple-900">{stats.sentInvoices}</p>
+              <p className="text-xs font-medium text-blue-600 mb-1">Sent</p>
+              <p className="text-xl font-bold text-blue-900">{stats.sentInvoices}</p>
+              <p className="text-xs text-blue-700 mt-2">₹{stats.sentInvoicesRevenue.toLocaleString('en-IN')}</p>
             </button>
 
             <button
-              onClick={() => onNavigate('invoices-list')}
+              onClick={() => {
+                sessionStorage.setItem('invoiceFilterStatus', 'paid');
+                onNavigate('invoices-list');
+              }}
               className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg shadow-sm border border-emerald-200 p-4 hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -1082,7 +1137,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('invoices-list')}
+              onClick={() => {
+                sessionStorage.setItem('invoiceFilterStatus', 'partially_paid');
+                onNavigate('invoices-list');
+              }}
               className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg shadow-sm border border-orange-200 p-4 hover:shadow-md hover:border-orange-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">
@@ -1096,7 +1154,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('invoices-list')}
+              onClick={() => {
+                sessionStorage.setItem('invoiceFilterStatus', 'unpaid');
+                onNavigate('invoices-list');
+              }}
               className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-4 hover:shadow-md hover:border-red-300 transition-all cursor-pointer text-left group"
             >
               <div className="flex items-center gap-2 mb-3">

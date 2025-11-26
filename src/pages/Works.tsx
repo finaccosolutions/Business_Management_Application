@@ -169,6 +169,12 @@ useEffect(() => {
       console.error('Error reading navigation state:', error);
     }
   }
+
+  const filterStatus = sessionStorage.getItem('workFilterStatus');
+  if (filterStatus) {
+    setActiveView(filterStatus as ViewType);
+    sessionStorage.removeItem('workFilterStatus');
+  }
 }, []);
 
 
