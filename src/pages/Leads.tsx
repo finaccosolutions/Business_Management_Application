@@ -379,18 +379,59 @@ useEffect(() => {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Leads</h1>
-          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Manage your potential customers</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Leads</h1>
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:block relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search..."
+              className="pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            title="Filters"
+          >
+            <Filter className="w-4 h-4" />
+            {(filters.sources.length > 0 ||
+              filters.serviceTypes.length > 0 ||
+              filters.dateFrom ||
+              filters.dateTo) && (
+              <span className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1 text-xs">
+                {[
+                  filters.sources.length,
+                  filters.serviceTypes.length,
+                  filters.dateFrom ? 1 : 0,
+                  filters.dateTo ? 1 : 0,
+                ].reduce((a, b) => a + b, 0)}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center justify-center p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+            title="Add Lead"
+          >
+            <Plus size={18} />
+          </button>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl text-sm font-medium"
-        >
-          <Plus size={18} />
-          <span className="hidden sm:inline">Add New Lead</span>
-          <span className="sm:hidden">Add</span>
-        </button>
+      </div>
+
+      <div className="sm:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search..."
+            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
       </div>
 
       {/* Colorful Tabs with Icons */}
@@ -464,53 +505,11 @@ useEffect(() => {
         }
       `}</style>
 
-      {/* Search and Filter Bar */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Search Bar */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search leads..."
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Filter Toggle Button */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium whitespace-nowrap"
-          >
-            <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">Filters</span>
-            {(filters.sources.length > 0 ||
-              filters.serviceTypes.length > 0 ||
-              filters.dateFrom ||
-              filters.dateTo) && (
-              <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
-                {[
-                  filters.sources.length,
-                  filters.serviceTypes.length,
-                  filters.dateFrom ? 1 : 0,
-                  filters.dateTo ? 1 : 0,
-                ].reduce((a, b) => a + b, 0)}
-              </span>
-            )}
-          </button>
+      {showFilters && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <LeadFilters onFilterChange={setFilters} activeFilters={filters} />
         </div>
-
-        {/* Filter Panel - Collapsible */}
-        {showFilters && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <LeadFilters onFilterChange={setFilters} activeFilters={filters} />
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Leads List - Compact Cards */}
       {filteredLeads.length === 0 ? (

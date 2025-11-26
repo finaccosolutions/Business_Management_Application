@@ -372,43 +372,24 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Customers</h1>
-          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
-            {filteredCustomers.length} of {customers.length} customers
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl text-sm font-medium"
-        >
-          <Plus size={18} />
-          <span className="hidden sm:inline">Add Customer</span>
-          <span className="sm:hidden">Add</span>
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search customers..."
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Customers</h1>
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:block relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search..."
+              className="pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
+            />
           </div>
-
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium whitespace-nowrap"
+            className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            title="Filters"
           >
             <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">Filters</span>
             {(filters.sources.length > 0 ||
               filters.serviceTypes.length > 0 ||
               filters.cities.length > 0 ||
@@ -416,7 +397,7 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
               filters.gstStatus !== 'all' ||
               filters.dateFrom ||
               filters.dateTo) && (
-              <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+              <span className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1 text-xs">
                 {[
                   filters.sources.length,
                   filters.serviceTypes.length,
@@ -429,13 +410,33 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center justify-center p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+            title="Add Customer"
+          >
+            <Plus size={18} />
+          </button>
         </div>
+      </div>
 
-        {showFilters && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <CustomerFilters onFilterChange={setFilters} activeFilters={filters} />
-          </div>
-        )}
+      {showFilters && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <CustomerFilters onFilterChange={setFilters} activeFilters={filters} />
+        </div>
+      )}
+
+      <div className="sm:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search..."
+            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
       </div>
 
       {filteredCustomers.length === 0 ? (
@@ -468,11 +469,11 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
                 onClick={() => setSelectedCustomerId(customer.id)}
                 className={`bg-white rounded-lg shadow-sm border-l-4 ${borderColor} border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
               >
-                <div className="p-3 sm:p-4">
-                  <div className="flex items-start gap-3 justify-between flex-wrap">
-                    {/* Left: Avatar + Name + Contact Info */}
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden text-sm sm:text-base font-bold">
+                <div className="p-2 sm:p-3">
+                  <div className="flex items-center gap-2 justify-between">
+                    {/* Left: Avatar + Name + Details on one line */}
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden text-xs sm:text-sm font-bold">
                         {customer.image_url ? (
                           <img
                             src={customer.image_url}
@@ -484,7 +485,7 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
                               const parent = target.parentElement;
                               if (parent) {
                                 const initials = document.createElement('span');
-                                initials.className = 'text-sm sm:text-base font-bold';
+                                initials.className = 'text-xs sm:text-sm font-bold';
                                 initials.textContent = customer.name?.charAt(0).toUpperCase() || 'C';
                                 parent.appendChild(initials);
                               }
@@ -495,31 +496,28 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate" title={customer.name}>{customer.name}</h3>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-gray-600">
-                          {customer.company_name && (
-                            <span className="truncate flex items-center gap-1">
-                              <Building size={12} className="flex-shrink-0" />
-                              {customer.company_name}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-gray-900 text-xs sm:text-sm truncate flex-shrink-0" title={customer.name}>
+                            {customer.name}
+                          </h3>
+                          {customer.entity_type && (
+                            <span className="text-xs text-gray-500 px-1.5 py-0.5 bg-gray-100 rounded whitespace-nowrap">
+                              {customer.entity_type}
                             </span>
                           )}
                           {customer.email && (
-                            <a href={`mailto:${customer.email}`} className="truncate text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
+                            <a
+                              href={`mailto:${customer.email}`}
+                              className="text-xs text-blue-600 hover:underline truncate min-w-0"
+                              onClick={(e) => e.stopPropagation()}
+                              title={customer.email}
+                            >
                               {customer.email}
                             </a>
                           )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap text-xs text-gray-600">
                           {customer.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone size={12} className="flex-shrink-0" />
+                            <span className="text-xs text-gray-600 whitespace-nowrap" title={customer.phone}>
                               {customer.phone}
-                            </span>
-                          )}
-                          {(customer.city || customer.state) && (
-                            <span className="flex items-center gap-1 truncate" title={[customer.city, customer.state].filter(Boolean).join(', ')}>
-                              <MapPin size={12} className="flex-shrink-0" />
-                              {[customer.city, customer.state].filter(Boolean).join(', ')}
                             </span>
                           )}
                         </div>
@@ -527,29 +525,29 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
                     </div>
 
                     {/* Right: Stats + Actions */}
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 ml-2">
-                      {(customer.active_services || 0) > 0 && (
-                        <div className="flex items-center gap-1 bg-blue-50 rounded px-1.5 sm:px-2 py-0.5" title="Active Services">
-                          <Briefcase size={12} className="text-blue-600 flex-shrink-0" />
-                          <span className="text-xs font-bold text-blue-700">{customer.active_services}</span>
-                        </div>
-                      )}
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                       {(customer.total_revenue || 0) > 0 && (
-                        <div className="flex items-center gap-1 bg-green-50 rounded px-1.5 sm:px-2 py-0.5" title="Total Revenue">
+                        <div className="flex items-center gap-0.5 bg-green-50 rounded px-1 sm:px-1.5 py-0.5" title="Total Revenue">
                           <DollarSign size={12} className="text-green-600 flex-shrink-0" />
-                          <span className="text-xs font-bold text-green-700">
+                          <span className="text-xs font-bold text-green-700 whitespace-nowrap">
                             ₹{((customer.total_revenue || 0) / 1000).toFixed(0)}k
                           </span>
                         </div>
                       )}
+                      {(customer.active_services || 0) > 0 && (
+                        <div className="flex items-center gap-0.5 bg-blue-50 rounded px-1 sm:px-1.5 py-0.5" title="Active Services">
+                          <Briefcase size={12} className="text-blue-600 flex-shrink-0" />
+                          <span className="text-xs font-bold text-blue-700">{customer.active_services}</span>
+                        </div>
+                      )}
                       {(customer.pending_works || 0) > 0 && (
-                        <div className="flex items-center gap-1 bg-orange-50 rounded px-1.5 sm:px-2 py-0.5" title="Pending Works">
+                        <div className="flex items-center gap-0.5 bg-orange-50 rounded px-1 sm:px-1.5 py-0.5" title="Pending Works">
                           <Clock size={12} className="text-orange-600 flex-shrink-0" />
                           <span className="text-xs font-bold text-orange-700">{customer.pending_works}</span>
                         </div>
                       )}
                       {(customer.overdue_invoices || 0) > 0 && (
-                        <div className="flex items-center gap-1 bg-red-50 rounded px-1.5 sm:px-2 py-0.5" title="Overdue Invoices">
+                        <div className="flex items-center gap-0.5 bg-red-50 rounded px-1 sm:px-1.5 py-0.5" title="Overdue Invoices">
                           <AlertCircle size={12} className="text-red-600 flex-shrink-0" />
                           <span className="text-xs font-bold text-red-700">{customer.overdue_invoices}</span>
                         </div>
@@ -559,24 +557,24 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
                           e.stopPropagation();
                           setSelectedCustomerId(customer.id);
                         }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors flex-shrink-0"
                         title="View Details"
                       >
-                        <Eye size={16} />
+                        <Eye size={14} />
                       </button>
                       <button
                         onClick={(e) => handleEdit(customer.id, e)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
+                        className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0"
                         title="Edit Customer"
                       >
-                        <Edit2 size={16} />
+                        <Edit2 size={14} />
                       </button>
                       <button
                         onClick={(e) => handleDelete(customer.id, e)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                         title="Delete Customer"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
