@@ -306,21 +306,21 @@ export default function TopNavBar({ onNavigate, sidebarCollapsed, onMenuClick }:
           </div>
         </div>
 
-        {/* Mobile Search Toggle */}
-        <button
-          onClick={() => setShowMobileSearch(!showMobileSearch)}
-          className="lg:hidden p-1.5 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0"
-          aria-label="Search"
-        >
-          {showMobileSearch ? (
-            <X className="w-5 h-5 text-white" />
-          ) : (
-            <Search className="w-5 h-5 text-slate-300" />
-          )}
-        </button>
-
         {/* Right Side Actions */}
         <div className="flex items-center space-x-0.5 sm:space-x-1.5 md:space-x-2 flex-shrink-0">
+          {/* Mobile Search Toggle */}
+          <button
+            onClick={() => setShowMobileSearch(!showMobileSearch)}
+            className="lg:hidden p-1.5 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0"
+            aria-label="Search"
+          >
+            {showMobileSearch ? (
+              <X className="w-5 h-5 text-white" />
+            ) : (
+              <Search className="w-5 h-5 text-slate-300" />
+            )}
+          </button>
+
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
