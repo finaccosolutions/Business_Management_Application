@@ -12,6 +12,8 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface Notification {
@@ -33,9 +35,10 @@ interface SearchResult {
 interface TopNavBarProps {
   onNavigate?: (page: string) => void;
   sidebarCollapsed?: boolean;
+  onMenuClick?: () => void;
 }
 
-export default function TopNavBar({ onNavigate, sidebarCollapsed }: TopNavBarProps = {}) {
+export default function TopNavBar({ onNavigate, sidebarCollapsed, onMenuClick }: TopNavBarProps = {}) {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -46,6 +49,7 @@ export default function TopNavBar({ onNavigate, sidebarCollapsed }: TopNavBarPro
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -242,10 +246,24 @@ export default function TopNavBar({ onNavigate, sidebarCollapsed }: TopNavBarPro
 
 
   return (
-    <div className={`fixed top-0 left-0 right-0 h-14 sm:h-16 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-30 transition-all duration-300 ${sidebarCollapsed ? 'lg:left-20' : 'lg:left-64'} lg:z-40`}>
-      <div className="h-full px-2 sm:px-4 flex items-center justify-between gap-2">
-        {/* Search Bar */}
-        <div className="flex-1 max-w-2xl lg:max-w-xl" ref={searchRef}>
+    <div className={`fixed top-0 left-0 right-0 h-16 bg-slate-800 dark:bg-slate-900 border-b border-slate-700 z-30 transition-all duration-300 ${sidebarCollapsed ? 'lg:left-20' : 'lg:left-64'} lg:z-40`}>
+      <div className="h-full px-3 sm:px-4 flex items-center justify-between gap-2 lg:gap-3">
+        {/* Mobile: Menu Button + Site Name */}
+        <div className="lg:hidden flex items-center gap-2">
+          <button
+            onClick={onMenuClick}
+            className="p-1.5 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0"
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          </button>
+          <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-green-400">
+            WorkFlow
+          </h1>
+        </div>
+
+        {/* Desktop: Search Bar */}
+        <div className="hidden lg:block flex-1 max-w-xl" ref={searchRef}>
           <div className="relative">
             <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
             <input
@@ -288,8 +306,21 @@ export default function TopNavBar({ onNavigate, sidebarCollapsed }: TopNavBarPro
           </div>
         </div>
 
+        {/* Mobile Search Toggle */}
+        <button
+          onClick={() => setShowMobileSearch(!showMobileSearch)}
+          className="lg:hidden p-1.5 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0"
+          aria-label="Search"
+        >
+          {showMobileSearch ? (
+            <X className="w-5 h-5 text-white" />
+          ) : (
+            <Search className="w-5 h-5 text-slate-300" />
+          )}
+        </button>
+
         {/* Right Side Actions */}
-        <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3 flex-shrink-0">
+        <div className="flex items-center space-x-0.5 sm:space-x-1.5 md:space-x-2 flex-shrink-0">
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
@@ -445,6 +476,53 @@ export default function TopNavBar({ onNavigate, sidebarCollapsed }: TopNavBarPro
           </div>
         </div>
       </div>
+
+      {/* Mobile Search Panel */}
+      {showMobileSearch && (
+        <div className="lg:hidden absolute top-full left-0 right-0 bg-slate-700 dark:bg-slate-800 border-b border-slate-600 p-3" ref={searchRef}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
+              className="w-full pl-10 pr-4 py-2 text-sm bg-slate-600 dark:bg-slate-700 text-white placeholder-slate-400 rounded-lg border border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              autoFocus
+            />
+
+            {/* Search Results Dropdown */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute top-full mt-2 left-0 right-0 bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto z-50">
+                {searchResults.map((result) => (
+                  <div
+                    key={`${result.type}-${result.id}`}
+                    className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-b-0"
+                    onClick={() => handleSearchResultClick(result)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                          {result.name}
+                        </p>
+                        {result.subtitle && (
+                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                            {result.subtitle}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full capitalize">
+                        {result.type}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

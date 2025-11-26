@@ -11,13 +11,9 @@ import {
   DollarSign,
   Award,
   Eye,
-  X,
   Search,
   Filter,
-  CheckCircle,
-  Calendar,
-  UserCheck,
-  Briefcase,
+  Edit2,
 } from 'lucide-react';
 import StaffDetails from '../components/StaffDetails';
 import StaffFormModal from '../components/StaffFormModal';
@@ -58,11 +54,10 @@ export default function Staff() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const { showConfirmation } = useConfirmation();
   const toast = useToast();
 
-  
-  // Search and Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({
     department: '',
@@ -117,19 +112,14 @@ export default function Staff() {
     });
   };
 
-  const handleEdit = (staffMember: StaffMember) => {
-    setEditingStaff(staffMember);
-    setShowModal(true);
+  const handleEdit = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingStaffId(id);
   };
 
-  // Statistics
-  const stats = {
-    total: staff.length,
-    active: staff.filter((s) => s.is_active).length,
-    onLeave: staff.filter((s) => s.availability_status === 'on-leave').length,
-    available: staff.filter(
-      (s) => s.availability_status === 'available' && s.is_active
-    ).length,
+  const handleEditSuccess = () => {
+    setEditingStaffId(null);
+    fetchData();
   };
 
   // Get unique values for filters
@@ -200,104 +190,47 @@ export default function Staff() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Staff Management</h1>
-          <p className="text-gray-600 mt-1">
-            Manage your team members, assignments, and tasks
-          </p>
-        </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Add Staff</span>
-        </button>
-      </div>
-
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border-2 border-blue-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Staff</p>
-              <p className="text-3xl font-bold text-blue-600 mt-2">{stats.total}</p>
-            </div>
-            <Users className="w-12 h-12 text-blue-600 opacity-20" />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Staff Management</h1>
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:block relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search..."
+              className="pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-48"
+            />
           </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border-2 border-emerald-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active</p>
-              <p className="text-3xl font-bold text-emerald-600 mt-2">{stats.active}</p>
-            </div>
-            <CheckCircle className="w-12 h-12 text-emerald-600 opacity-20" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border-2 border-yellow-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">On Leave</p>
-              <p className="text-3xl font-bold text-yellow-600 mt-2">{stats.onLeave}</p>
-            </div>
-            <Calendar className="w-12 h-12 text-yellow-600 opacity-20" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border-2 border-teal-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Available</p>
-              <p className="text-3xl font-bold text-teal-600 mt-2">{stats.available}</p>
-            </div>
-            <UserCheck className="w-12 h-12 text-teal-600 opacity-20" />
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filter Bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search Bar */}
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, email, employee ID, or department..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            title="Filters"
           >
-            <Filter className="w-5 h-5" />
-            <span>Filters</span>
+            <Filter className="w-4 h-4" />
             {Object.values(filters).some((v) => v && v !== 'all') && (
-              <span className="bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full">
+              <span className="bg-emerald-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">
                 {Object.values(filters).filter((v) => v && v !== 'all').length}
               </span>
             )}
           </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center justify-center p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all"
+            title="Add Staff"
+          >
+            <Plus size={18} />
+          </button>
         </div>
+      </div>
 
-        {/* Filter Panel */}
-        {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-5 gap-4">
+      {showFilters && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Department
               </label>
               <select
@@ -305,7 +238,7 @@ export default function Staff() {
                 onChange={(e) =>
                   setFilters({ ...filters, department: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="">All Departments</option>
                 {departments.map((dept) => (
@@ -317,11 +250,11 @@ export default function Staff() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Role</label>
               <select
                 value={filters.role}
                 onChange={(e) => setFilters({ ...filters, role: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="">All Roles</option>
                 {roles.map((role) => (
@@ -333,7 +266,7 @@ export default function Staff() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Employment Type
               </label>
               <select
@@ -341,7 +274,7 @@ export default function Staff() {
                 onChange={(e) =>
                   setFilters({ ...filters, employmentType: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="">All Types</option>
                 <option value="full-time">Full Time</option>
@@ -352,7 +285,7 @@ export default function Staff() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Availability
               </label>
               <select
@@ -360,7 +293,7 @@ export default function Staff() {
                 onChange={(e) =>
                   setFilters({ ...filters, availabilityStatus: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="">All Status</option>
                 <option value="available">Available</option>
@@ -371,13 +304,13 @@ export default function Staff() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Status</label>
               <select
                 value={filters.isActive}
                 onChange={(e) =>
                   setFilters({ ...filters, isActive: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="all">All Staff</option>
                 <option value="active">Active Only</option>
@@ -396,209 +329,199 @@ export default function Staff() {
                     isActive: 'all',
                   })
                 }
-                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                className="text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium"
               >
                 Clear All Filters
               </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      <div className="sm:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search..."
+            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          />
+        </div>
       </div> 
 
-      {/* Staff Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredStaff.map((member) => {
-          const tenure = calculateTenure(member.joining_date);
-
-          return (
-            <div
-              key={member.id}
-              className={`bg-white rounded-xl shadow-sm border-2 p-6 transform transition-all duration-200 hover:shadow-lg hover:scale-[1.01] flex flex-col ${
-                member.is_active ? 'border-emerald-200' : 'border-gray-200 opacity-75'
-              }`}
+      {filteredStaff.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
+          <Users size={40} className="mx-auto text-gray-400 mb-3" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No staff members found</h3>
+          <p className="text-sm text-gray-600 mb-6">
+            {searchQuery || Object.values(filters).some((v) => v && v !== 'all')
+              ? 'Try adjusting your search or filter criteria'
+              : 'Get started by adding your first staff member'}
+          </p>
+          {!searchQuery && !Object.values(filters).some((v) => v && v !== 'all') && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
             >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div
-                    className={`p-3 rounded-lg ${
-                      member.is_active ? 'bg-emerald-50' : 'bg-gray-50'
-                    }`}
-                  >
-                    <Users
-                      className={`w-7 h-7 ${
-                        member.is_active ? 'text-emerald-600' : 'text-gray-400'
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 text-lg">
-                      {member.name}
-                    </h3>
-                    {member.employee_id && (
-                      <p className="text-xs text-gray-500">{member.employee_id}</p>
-                    )}
+              <Plus size={18} />
+              Add Your First Staff Member
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {filteredStaff.map((member) => {
+            const tenure = calculateTenure(member.joining_date);
+
+            return (
+              <div
+                key={member.id}
+                onClick={() => {
+                  setSelectedStaffId(member.id);
+                  setShowDetailsModal(true);
+                }}
+                className={`bg-white rounded-lg shadow-sm border-l-4 ${
+                  member.is_active ? 'border-l-emerald-500 hover:bg-emerald-50/30' : 'border-l-gray-400 hover:bg-gray-50/30'
+                } border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
+              >
+                <div className="p-2 sm:p-3">
+                  <div className="flex items-center gap-2 justify-between">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 text-xs sm:text-sm font-bold ${
+                        member.is_active ? 'bg-emerald-500' : 'bg-gray-400'
+                      }`}>
+                        {member.name?.charAt(0).toUpperCase() || 'S'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-gray-900 text-xs sm:text-sm truncate flex-shrink-0" title={member.name}>
+                            {member.name}
+                          </h3>
+                          {member.employee_id && (
+                            <span className="text-xs text-gray-500 px-1.5 py-0.5 bg-gray-100 rounded whitespace-nowrap">
+                              {member.employee_id}
+                            </span>
+                          )}
+                          {member.department && (
+                            <span className="text-xs text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded font-medium whitespace-nowrap">
+                              {member.department}
+                            </span>
+                          )}
+                          <span
+                            className={`px-1.5 py-0.5 text-xs rounded-full font-medium whitespace-nowrap ${
+                              member.availability_status === 'available'
+                                ? 'bg-green-100 text-green-700'
+                                : member.availability_status === 'busy'
+                                ? 'bg-orange-100 text-orange-700'
+                                : member.availability_status === 'on-leave'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {member.availability_status.replace('-', ' ')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {member.email && (
+                            <a
+                              href={`mailto:${member.email}`}
+                              className="text-xs text-blue-600 hover:underline truncate min-w-0"
+                              onClick={(e) => e.stopPropagation()}
+                              title={member.email}
+                            >
+                              {member.email}
+                            </a>
+                          )}
+                          {member.phone && (
+                            <span className="text-xs text-gray-600 whitespace-nowrap" title={member.phone}>
+                              {member.phone}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                      {member.salary_amount && (
+                        <div className="flex items-center gap-0.5 bg-emerald-50 rounded px-1 sm:px-1.5 py-0.5" title="Salary">
+                          <DollarSign size={12} className="text-emerald-600 flex-shrink-0" />
+                          <span className="text-xs font-bold text-emerald-700 whitespace-nowrap">
+                            ₹{((member.salary_amount || 0) / 1000).toFixed(0)}k
+                          </span>
+                        </div>
+                      )}
+                      {member.skills && member.skills.length > 0 && (
+                        <div className="flex items-center gap-0.5 bg-purple-50 rounded px-1 sm:px-1.5 py-0.5" title="Skills">
+                          <Award size={12} className="text-purple-600 flex-shrink-0" />
+                          <span className="text-xs font-bold text-purple-700">{member.skills.length}</span>
+                        </div>
+                      )}
+                      {tenure && (
+                        <div className="flex items-center gap-0.5 bg-orange-50 rounded px-1 sm:px-1.5 py-0.5" title="Tenure">
+                          <span className="text-xs font-bold text-orange-700">{tenure}</span>
+                        </div>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedStaffId(member.id);
+                          setShowDetailsModal(true);
+                        }}
+                        className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors flex-shrink-0"
+                        title="View Details"
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => handleEdit(member.id, e)}
+                        className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0"
+                        title="Edit Staff"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(member.id);
+                        }}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                        title="Delete Staff"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-              {/* Badges */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className="text-xs text-gray-500 uppercase font-semibold bg-gray-100 px-2 py-1 rounded">
-                  {member.role}
-                </span>
-                {member.department && (
-                  <span className="text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded font-medium">
-                    {member.department}
-                  </span>
-                )}
-                <span
-                  className={`px-2 py-1 text-xs rounded-full font-medium ${
-                    member.is_active
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {member.is_active ? 'Active' : 'Inactive'}
-                </span>
-                <span
-                  className={`px-2 py-1 text-xs rounded-full font-medium ${
-                    member.availability_status === 'available'
-                      ? 'bg-green-100 text-green-700'
-                      : member.availability_status === 'busy'
-                      ? 'bg-orange-100 text-orange-700'
-                      : member.availability_status === 'on-leave'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {member.availability_status.replace('-', ' ')}
-                </span>
-              </div>
-
-              {/* Contact Info */}
-              <div className="space-y-2 mb-4 flex-grow">
-                {member.email && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Mail className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
-                    <span className="truncate">{member.email}</span>
-                  </div>
-                )}
-                {member.phone && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Phone className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
-                    <span>{member.phone}</span>
-                  </div>
-                )}
-                
-                {/* Employment Info */}
-                {member.employment_type && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Briefcase className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
-                    <span className="capitalize">{member.employment_type.replace('_', ' ')}</span>
-                    {tenure && <span className="ml-2 text-xs text-gray-500">({tenure})</span>}
-                  </div>
-                )}
-
-                {/* Salary Info */}
-                {member.salary_amount && (
-                  <div className="flex items-center text-sm font-semibold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg mt-3">
-                    <DollarSign className="w-5 h-5 mr-1" />
-                    <span className="text-base">
-                      ₹{member.salary_amount}
-                      {member.salary_method === 'hourly' && '/hr'}
-                      {member.salary_method === 'monthly' && '/mo'}
-                      {member.salary_method === 'commission' && '%'}
-                    </span>
-                  </div>
-                )}
-
-                {/* Skills */}
-                {member.skills && member.skills.length > 0 && (
-                  <div className="flex items-start text-sm text-gray-600 mt-3">
-                    <Award className="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" />
-                    <div className="flex flex-wrap gap-1">
-                      {member.skills.slice(0, 3).map((skill, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs font-medium"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                      {member.skills.length > 3 && (
-                        <span className="text-xs text-gray-500 px-2 py-1">
-                          +{member.skills.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Buttons - fixed at bottom */}
-              <div className="flex space-x-2 pt-4 border-t border-gray-100 mt-auto">
-                <button
-                  onClick={() => {
-                    setSelectedStaffId(member.id);
-                    setShowDetailsModal(true);
-                  }}
-                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors font-medium"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>View Details</span>
-                </button>
-                <button
-                  onClick={() => handleDelete(member.id)}
-                  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                  title="Delete staff member"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-
-        {filteredStaff.length === 0 && (
-          <div className="col-span-full text-center py-12">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No staff members found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchQuery || Object.values(filters).some((v) => v && v !== 'all')
-                ? 'Try adjusting your search or filters'
-                : 'Add your first team member to start managing work assignments'}
-            </p>
-            {!searchQuery && !Object.values(filters).some((v) => v && v !== 'all') && (
-              <button
-                onClick={() => setShowModal(true)}
-                className="inline-flex items-center space-x-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Add Staff Member</span>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Staff Form Modal */}
       {showModal && (
         <StaffFormModal
           onClose={() => {
             setShowModal(false);
-            setEditingStaff(null);
           }}
           onSuccess={() => {
             fetchData();
           }}
-          editingStaff={editingStaff}
+          editingStaff={undefined}
         />
       )}
 
-      {/* Staff Details Modal */}
+      {editingStaffId && (
+        <StaffFormModal
+          onClose={() => {
+            setEditingStaffId(null);
+          }}
+          onSuccess={handleEditSuccess}
+          editingStaff={staff.find((s) => s.id === editingStaffId)}
+        />
+      )}
+
       {showDetailsModal && selectedStaffId && (
         <StaffDetails
           staffId={selectedStaffId}
@@ -610,7 +533,7 @@ export default function Staff() {
             const staffToEdit = staff.find((s) => s.id === selectedStaffId);
             if (staffToEdit) {
               setShowDetailsModal(false);
-              handleEdit(staffToEdit);
+              setEditingStaffId(selectedStaffId);
             }
           }}
         />

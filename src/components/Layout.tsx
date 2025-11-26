@@ -78,25 +78,10 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      {/* Mobile Header - Only menu button and logo */}
-      <div className="lg:hidden fixed top-0 left-0 z-50 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0 bg-slate-800"
-          aria-label="Toggle menu"
-        >
-          {sidebarOpen ? (
-            <X className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          ) : (
-            <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          )}
-        </button>
-        <h1 className="text-base sm:text-xl font-bold text-white ml-3">WorkFlow Pro</h1>
-      </div>
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 lg:top-0 bottom-0 left-0 z-40 bg-slate-800 dark:bg-slate-900 border-r border-slate-700 transform transition-all duration-300 ease-in-out lg:translate-x-0 pt-14 lg:pt-0 ${
+        className={`fixed top-0 lg:top-0 bottom-0 left-0 z-40 bg-slate-800 dark:bg-slate-900 border-r border-slate-700 transform transition-all duration-300 ease-in-out lg:translate-x-0 pt-16 lg:pt-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } ${sidebarCollapsed ? 'lg:w-20' : 'w-64 sm:w-72 lg:w-64'}`}
       >
@@ -298,10 +283,14 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
       )}
 
       {/* Top Navigation Bar */}
-      <TopNavBar onNavigate={onNavigate} sidebarCollapsed={sidebarCollapsed} />
+      <TopNavBar
+        onNavigate={onNavigate}
+        sidebarCollapsed={sidebarCollapsed}
+        onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+      />
 
       {/* Main Content */}
-      <main className={`pt-14 sm:pt-16 min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
+      <main className={`pt-16 min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
         <div className="p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">{children}</div>
       </main>
     </div>
