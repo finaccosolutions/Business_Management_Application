@@ -16,14 +16,13 @@ import {
   Briefcase,
   Filter,
   DollarSign,
-  TrendingUp,
-  Users,
 } from 'lucide-react';
 import WorkDetails from '../components/works/WorkDetailsMain';
 import WorkTile from '../components/works/WorkTile';
 import CustomerDetails from '../components/CustomerDetails';
 import ServiceDetails from '../components/ServiceDetails';
 import SearchableSelect from '../components/SearchableSelect';
+import WorkFilters from '../components/WorkFilters';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { useToast } from '../contexts/ToastContext';
 
@@ -98,7 +97,7 @@ const billingStatusColors = {
   overdue: 'bg-red-100 text-red-700',
 };
 
-type ViewType = 'statistics' | 'all' | 'pending' | 'in_progress' | 'completed' | 'overdue';
+type ViewType = 'all' | 'pending' | 'in_progress' | 'completed' | 'overdue';
 
 export default function Works() {
   const { user } = useAuth();
@@ -614,7 +613,7 @@ const filteredWorks = works.filter((work) => {
   }
 
   // Status filter
-  if (activeView !== 'statistics' && activeView !== 'all') {
+  if (activeView !== 'all') {
     if (activeView === 'overdue') {
       if (work.status === 'completed' || !work.due_date || new Date(work.due_date) >= new Date()) {
         return false;
@@ -660,314 +659,150 @@ const filteredWorks = works.filter((work) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Works</h1>
-          <p className="text-gray-600 mt-1">Track and manage all work assignments</p>
+    <div className="space-y-4">
+      {/* Header - Compact with Search and Filter */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Works</h1>
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:block relative">
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent w-48"
+            />
+            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            title="Filters"
+          >
+            <Filter className="w-4 h-4" />
+            {(filterCustomer || filterService || filterCategory || filterPriority || filterBillingStatus) && (
+              <span className="bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">
+                {[filterCustomer, filterService, filterCategory, filterPriority, filterBillingStatus].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center justify-center p-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all"
+            title="Add Work"
+          >
+            <Plus size={18} />
+          </button>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center space-x-2 bg-gradient-to-r from-orange-500 to-amber-600 text-white px-6 py-3 rounded-lg hover:from-orange-600 hover:to-amber-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Add New Work</span>
-        </button>
       </div>
 
-      {/* Tabs and Search/Filter Bar */}
+      {/* Mobile Search */}
+      <div className="sm:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          />
+          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Status Tabs and Filter Bar */}
 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-  <div className="flex flex-col gap-4">
-    {/* Search and Filter Row */}
-    <div className="flex gap-3 items-center">
-      <div className="flex-1 relative">
-        <input
-          type="text"
-          placeholder="Search works by title, customer, service..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-        />
-        <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-      </div>
-      <button
-        onClick={() => setShowFilters(!showFilters)}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
-          showFilters || filterCustomer || filterService || filterCategory || filterSubcategory || filterPriority || filterBillingStatus
-            ? 'bg-orange-100 text-orange-700 border-2 border-orange-300'
-            : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
-        }`}
-      >
-        <Filter size={18} />
-        <span>Filters</span>
-        {(filterCustomer || filterService || filterCategory || filterSubcategory || filterPriority || filterBillingStatus) && (
-          <span className="ml-1 px-2 py-0.5 bg-orange-600 text-white text-xs rounded-full">
-            {[filterCustomer, filterService, filterCategory, filterSubcategory, filterPriority, filterBillingStatus].filter(Boolean).length}
-          </span>
-        )}
-      </button>
-    </div>
-
-    {/* Status Tabs */}
+  <div className="flex flex-col gap-3">
+    {/* Status Tabs - Compact */}
     <div className="flex flex-wrap gap-2">
       <button
-        onClick={() => setActiveView('statistics')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-          activeView === 'statistics'
-            ? 'bg-orange-50 text-orange-600 border-2 border-orange-200'
-            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-        }`}
-      >
-        <TrendingUp size={18} />
-        Statistics
-      </button>
-      <button
         onClick={() => setActiveView('all')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
           activeView === 'all'
             ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
             : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
         }`}
       >
-        <Briefcase size={18} />
-        All ({stats.total})
+        <Briefcase size={16} />
+        <span className="hidden sm:inline">All</span>
+        <span className="sm:hidden">({stats.total})</span>
+        <span className="hidden sm:inline">({stats.total})</span>
       </button>
       <button
         onClick={() => setActiveView('pending')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
           activeView === 'pending'
             ? 'bg-yellow-50 text-yellow-600 border-2 border-yellow-200'
             : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
         }`}
       >
-        <Clock size={18} />
-        Pending ({stats.pending})
+        <Clock size={16} />
+        <span>Pending</span>
+        <span className="hidden sm:inline">({stats.pending})</span>
       </button>
       <button
         onClick={() => setActiveView('in_progress')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
           activeView === 'in_progress'
             ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
             : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
         }`}
       >
-        <Clock size={18} />
-        In Progress ({stats.inProgress})
+        <Clock size={16} />
+        <span>In Progress</span>
+        <span className="hidden sm:inline">({stats.inProgress})</span>
       </button>
       <button
         onClick={() => setActiveView('completed')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
           activeView === 'completed'
             ? 'bg-green-50 text-green-600 border-2 border-green-200'
             : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
         }`}
       >
-        <CheckCircle size={18} />
-        Completed ({stats.completed})
+        <CheckCircle size={16} />
+        <span>Completed</span>
+        <span className="hidden sm:inline">({stats.completed})</span>
       </button>
       <button
         onClick={() => setActiveView('overdue')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
           activeView === 'overdue'
             ? 'bg-red-50 text-red-600 border-2 border-red-200'
             : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
         }`}
       >
-        <AlertCircle size={18} />
-        Overdue ({stats.overdue})
+        <AlertCircle size={16} />
+        <span>Overdue</span>
+        <span className="hidden sm:inline">({stats.overdue})</span>
       </button>
     </div>
 
     {/* Collapsible Additional Filters */}
     {showFilters && (
-    <div className="flex flex-wrap gap-3 items-center pt-3 border-t border-gray-200">
-      <select
-        value={filterCustomer}
-        onChange={(e) => setFilterCustomer(e.target.value)}
-        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-      >
-        <option value="">All Customers</option>
-        {customers.map((customer) => (
-          <option key={customer.id} value={customer.id}>
-            {customer.name}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={filterService}
-        onChange={(e) => setFilterService(e.target.value)}
-        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-      >
-        <option value="">All Services</option>
-        {services.map((service) => (
-          <option key={service.id} value={service.id}>
-            {service.name}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={filterCategory}
-        onChange={(e) => setFilterCategory(e.target.value)}
-        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-      >
-        <option value="">All Categories</option>
-        {categories.map((category) => (
-          <option key={category.id} value={category.id}>
-            {category.name}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={filterSubcategory}
-        onChange={(e) => setFilterSubcategory(e.target.value)}
-        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled={!filterCategory || subcategories.length === 0}
-      >
-        <option value="">All Subcategories</option>
-        {subcategories.map((sub) => (
-          <option key={sub.id} value={sub.id}>
-            {sub.name}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={filterPriority}
-        onChange={(e) => setFilterPriority(e.target.value)}
-        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-      >
-        <option value="">All Priorities</option>
-        <option value="low">Low</option>
-        <option value="medium">Medium</option>
-        <option value="high">High</option>
-        <option value="urgent">Urgent</option>
-      </select>
-
-      <select
-        value={filterBillingStatus}
-        onChange={(e) => setFilterBillingStatus(e.target.value)}
-        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-      >
-        <option value="">All Billing Status</option>
-        <option value="not_billed">Not Billed</option>
-        <option value="billed">Billed</option>
-        <option value="paid">Paid</option>
-      </select>
-
-      {(filterCustomer || filterService || filterCategory || filterSubcategory || filterPriority || filterBillingStatus) && (
-        <button
-          onClick={() => {
-            setFilterCustomer('');
-            setFilterService('');
-            setFilterCategory('');
-            setFilterSubcategory('');
-            setFilterPriority('');
-            setFilterBillingStatus('');
-          }}
-          className="px-4 py-2 text-sm font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors border border-orange-300"
-        >
-          Clear All Filters
-        </button>
-      )}
-    </div>
+      <WorkFilters
+        filterCustomer={filterCustomer}
+        setFilterCustomer={setFilterCustomer}
+        filterCategory={filterCategory}
+        setFilterCategory={setFilterCategory}
+        filterService={filterService}
+        setFilterService={setFilterService}
+        filterPriority={filterPriority}
+        setFilterPriority={setFilterPriority}
+        filterBillingStatus={filterBillingStatus}
+        setFilterBillingStatus={setFilterBillingStatus}
+        customers={customers}
+        categories={categories}
+        allServices={services}
+      />
     )}
   </div>
 </div>
 
-      {/* Statistics View */}
-      {activeView === 'statistics' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Briefcase className="w-5 h-5 text-blue-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600">Total Works</p>
-            </div>
-            <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-yellow-50 rounded-lg">
-                <Clock className="w-5 h-5 text-yellow-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600">Pending</p>
-            </div>
-            <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600">Completed</p>
-            </div>
-            <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-red-50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600">Overdue</p>
-            </div>
-            <p className="text-3xl font-bold text-red-600">{stats.overdue}</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-teal-50 rounded-lg">
-                <DollarSign className="w-5 h-5 text-teal-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-            </div>
-            <p className="text-3xl font-bold text-teal-600">
-              ₹{stats.totalRevenue.toLocaleString('en-IN')}
-            </p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-orange-50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-orange-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600">Not Billed</p>
-            </div>
-            <p className="text-3xl font-bold text-orange-600">{stats.notBilled}</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-cyan-50 rounded-lg">
-                <Clock className="w-5 h-5 text-cyan-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600">In Progress</p>
-            </div>
-            <p className="text-3xl font-bold text-cyan-600">{stats.inProgress}</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-50 rounded-lg">
-                <Repeat className="w-5 h-5 text-emerald-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600">Recurring</p>
-            </div>
-            <p className="text-3xl font-bold text-emerald-600">
-              {works.filter((w) => w.is_recurring_instance).length}
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Works List - Full Width Rows */}
       {filteredWorks.length === 0 ? (
