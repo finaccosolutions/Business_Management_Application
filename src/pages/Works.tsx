@@ -467,6 +467,17 @@ useEffect(() => {
 
         if (newWork) {
           console.log('Work created successfully, ID:', newWork.id);
+
+          if (formData.is_recurring) {
+            try {
+              await supabase.rpc('auto_generate_periods_and_tasks', { p_work_id: newWork.id });
+              console.log('Periods and tasks auto-generated for work:', newWork.id);
+            } catch (error) {
+              console.error('Error auto-generating periods and tasks:', error);
+              toast.warning('Work created but failed to generate periods and tasks. You can add them manually.');
+            }
+          }
+
           toast.success('Work created successfully');
         }
       }
