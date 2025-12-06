@@ -182,8 +182,7 @@ BEGIN
                 );
 
                 IF v_task_due_date IS NOT NULL
-                   AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date)
-                   AND v_task_due_date <= v_current_date THEN
+                   AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
 
                   IF v_period_id IS NULL THEN
                     SELECT id INTO v_period_id
@@ -249,8 +248,7 @@ BEGIN
               );
 
               IF v_task_due_date IS NOT NULL
-                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date)
-                AND v_task_due_date <= v_current_date THEN
+                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
 
                 IF v_period_id IS NULL THEN
                   SELECT id INTO v_period_id
@@ -296,65 +294,6 @@ BEGIN
                   );
                 END IF;
               END IF;
-            END IF;
-
-          -------------------------------------------------------------------
-          -- Yearly or fallback
-          -------------------------------------------------------------------
-          ELSE
-            v_task_period_end := v_period_end;
-            v_task_due_date := public.calculate_task_due_date_in_month(
-              v_task.id,
-              EXTRACT(YEAR FROM v_task_period_end)::int,
-              EXTRACT(MONTH FROM v_task_period_end)::int
-            );
-
-            IF v_task_due_date IS NOT NULL
-              AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date)
-              AND v_task_due_date <= v_current_date THEN
-
-              IF v_period_id IS NULL THEN
-                SELECT id INTO v_period_id
-                FROM work_recurring_instances
-                WHERE work_id = p_work_id AND period_end_date = v_period_end
-                LIMIT 1;
-
-                IF v_period_id IS NULL THEN
-                  v_period_name := 'Q' ||
-                    (((EXTRACT(MONTH FROM v_period_start)::int - 1)/3)+1)::int::text
-                    || ' ' || EXTRACT(YEAR FROM v_period_start)::int;
-
-                  INSERT INTO work_recurring_instances(
-                    work_id, period_name, period_start_date, period_end_date,
-                    status, created_at, updated_at
-                  ) VALUES (
-                    p_work_id, v_period_name, v_period_start,
-                    v_period_end, 'pending', NOW(), NOW()
-                  ) RETURNING id INTO v_period_id;
-                END IF;
-              END IF;
-
-              SELECT EXISTS(
-                SELECT 1 FROM recurring_period_tasks
-                WHERE work_recurring_instance_id = v_period_id
-                  AND service_task_id = v_task.id
-                  AND due_date = v_task_due_date
-              ) INTO v_exists;
-
-              IF NOT v_exists THEN
-                INSERT INTO recurring_period_tasks(
-                  work_recurring_instance_id, service_task_id, title,
-                  description, due_date, priority, estimated_hours,
-                  status, sort_order, created_at, updated_at
-                ) VALUES (
-                  v_period_id, v_task.id, v_task.title,
-                  v_task.description, v_task_due_date, v_task.priority,
-                  v_task.estimated_hours, 'pending',
-                  COALESCE(v_task.sort_order,0),
-                  NOW(), NOW()
-                );
-              END IF;
-
             END IF;
           END IF;
         END LOOP;
@@ -402,8 +341,7 @@ BEGIN
               );
 
               IF v_task_due_date IS NOT NULL
-                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date)
-                AND v_task_due_date <= v_current_date THEN
+                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
 
                 SELECT id INTO v_period_id
                 FROM work_recurring_instances
@@ -442,74 +380,6 @@ BEGIN
                     v_task.description, v_task_due_date,
                     v_task.priority, v_task.estimated_hours, 'pending',
                     COALESCE(v_task.sort_order,0),
-                    NOW(), NOW()
-                  );
-                END IF;
-
-              END IF;
-            END IF;
-
-          -------------------------------------------------------------------
-          -- Quarterly tasks inside monthly work
-          -------------------------------------------------------------------
-          ELSIF v_task_recurrence = 'quarterly' THEN
-            v_loop_month_start := v_period_start;
-
-            v_task_period_end :=
-              (
-                make_date(
-                  EXTRACT(YEAR FROM v_loop_month_start)::int,
-                  (((EXTRACT(MONTH FROM v_loop_month_start)::int - 1)/3)*3)+1,
-                  1
-                )
-                + INTERVAL '3 month' - INTERVAL '1 day'
-              )::date;
-
-            IF v_task_period_end <= v_current_date THEN
-              v_task_due_date := public.calculate_task_due_date_in_month(
-                v_task.id,
-                EXTRACT(YEAR FROM v_task_period_end)::int,
-                EXTRACT(MONTH FROM v_task_period_end)::int
-              );
-
-              IF v_task_due_date IS NOT NULL
-                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date)
-                AND v_task_due_date <= v_current_date THEN
-
-                SELECT id INTO v_period_id
-                FROM work_recurring_instances
-                WHERE work_id = p_work_id AND period_end_date = v_period_end
-                LIMIT 1;
-
-                IF v_period_id IS NULL THEN
-                  v_period_name := TO_CHAR(v_period_end, 'Mon YYYY');
-
-                  INSERT INTO work_recurring_instances(
-                    work_id, period_name, period_start_date, period_end_date,
-                    status, created_at, updated_at
-                  ) VALUES (
-                    p_work_id, v_period_name, v_period_start,
-                    v_period_end, 'pending', NOW(), NOW()
-                  ) RETURNING id INTO v_period_id;
-                END IF;
-
-                SELECT EXISTS(
-                  SELECT 1 FROM recurring_period_tasks
-                  WHERE work_recurring_instance_id = v_period_id
-                    AND service_task_id = v_task.id
-                    AND due_date = v_task_due_date
-                ) INTO v_exists;
-
-                IF NOT v_exists THEN
-                  INSERT INTO recurring_period_tasks(
-                    work_recurring_instance_id, service_task_id, title,
-                    description, due_date, priority, estimated_hours,
-                    status, sort_order, created_at, updated_at
-                  ) VALUES (
-                    v_period_id, v_task.id, v_task.title,
-                    v_task.description, v_task_due_date,
-                    v_task.priority, v_task.estimated_hours,
-                    'pending', COALESCE(v_task.sort_order,0),
                     NOW(), NOW()
                   );
                 END IF;
