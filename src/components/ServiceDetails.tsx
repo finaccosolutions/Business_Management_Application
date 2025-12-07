@@ -1328,21 +1328,15 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">Same as Service ({service.recurrence_type})</option>
-                          {service.recurrence_type === 'yearly' && (
+                          {['daily', 'weekly', 'monthly', 'quarterly', 'half-yearly', 'yearly'].includes(service.recurrence_type) && (
                             <>
-                              <option value="monthly">Monthly</option>
-                              <option value="quarterly">Quarterly</option>
-                              <option value="half-yearly">Half Yearly</option>
+                              {service.recurrence_type !== 'daily' && <option value="daily">Daily</option>}
+                              {service.recurrence_type !== 'weekly' && <option value="weekly">Weekly</option>}
+                              {!['daily', 'weekly'].includes(service.recurrence_type) && <option value="monthly">Monthly</option>}
+                              {!['daily', 'weekly', 'monthly'].includes(service.recurrence_type) && <option value="quarterly">Quarterly</option>}
+                              {!['daily', 'weekly', 'monthly', 'quarterly'].includes(service.recurrence_type) && <option value="half-yearly">Half Yearly</option>}
+                              {service.recurrence_type !== 'yearly' && <option value="yearly">Yearly</option>}
                             </>
-                          )}
-                          {service.recurrence_type === 'half-yearly' && (
-                            <>
-                              <option value="monthly">Monthly</option>
-                              <option value="quarterly">Quarterly</option>
-                            </>
-                          )}
-                          {service.recurrence_type === 'quarterly' && (
-                            <option value="monthly">Monthly</option>
                           )}
                         </select>
                         <p className="text-xs text-gray-500 mt-1">
