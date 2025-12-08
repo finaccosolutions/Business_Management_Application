@@ -13,7 +13,7 @@ DECLARE
   v_iter_date date;
   v_period_start date;
   v_period_end date;
-  
+
   -- task variables
   v_task RECORD;
   v_task_recurrence text;
@@ -22,13 +22,14 @@ DECLARE
   v_month_index int;
   v_quarter_index int;
   v_half_year_index int;
-  
+
   -- other variables
   v_period_id uuid;
   v_period_name text;
   v_exists boolean;
   v_task_title_with_suffix text;
-  
+  v_has_qualifying_task boolean;
+
   -- quarter/half-year/year specific
   v_quarter_num int;
   v_half_year_num int;
@@ -51,6 +52,14 @@ BEGIN
   END IF;
 
   -------------------------------------------------------------------
+  -- Helper note:
+  -- For each candidate period we first scan tasks (and sub-periods for
+  -- tasks that are monthly/weekly/daily inside larger periods) to check
+  -- whether ANY task qualifies by the 3 rules. Only if v_has_qualifying_task
+  -- is true do we create the period (if needed) and then insert tasks.
+  -------------------------------------------------------------------
+
+  -------------------------------------------------------------------
   -- DAILY WORK
   -------------------------------------------------------------------
   IF v_work_recurrence = 'daily' THEN
@@ -64,7 +73,26 @@ BEGIN
       v_period_start := v_iter_date;
       v_period_end := v_iter_date;
 
-      IF v_period_end <= v_current_date THEN
+      -- Check qualification first (any qualifying task in this period?)
+      v_has_qualifying_task := false;
+
+      FOR v_task IN
+        SELECT * FROM service_tasks
+        WHERE service_id = v_service_id AND COALESCE(is_active, true)
+          AND LOWER(COALESCE(task_recurrence_type, 'daily')) = 'daily'
+      LOOP
+        v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_period_end);
+
+        IF v_task_due_date IS NOT NULL
+           AND v_period_end <= v_current_date
+           AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+           v_has_qualifying_task := true;
+           EXIT;
+        END IF;
+      END LOOP;
+
+      IF v_has_qualifying_task THEN
+        -- create period if not exists
         SELECT id INTO v_period_id
         FROM work_recurring_instances
         WHERE work_id = p_work_id AND period_end_date = v_period_end
@@ -81,17 +109,17 @@ BEGIN
           ) RETURNING id INTO v_period_id;
         END IF;
 
+        -- Insert tasks (guarded by the same qualification checks)
         FOR v_task IN
           SELECT * FROM service_tasks
           WHERE service_id = v_service_id AND COALESCE(is_active, true)
-          AND LOWER(COALESCE(task_recurrence_type, 'daily')) = 'daily'
+            AND LOWER(COALESCE(task_recurrence_type, 'daily')) = 'daily'
         LOOP
-          v_task_due_date := public.calculate_task_due_date_in_period(
-            v_task.id, v_period_start, v_period_end
-          );
+          v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_period_end);
 
           IF v_task_due_date IS NOT NULL
-            AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+             AND v_period_end <= v_current_date
+             AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
 
             SELECT EXISTS(
               SELECT 1 FROM recurring_period_tasks
@@ -134,7 +162,46 @@ BEGIN
       v_period_start := v_iter_date;
       v_period_end := (v_iter_date + INTERVAL '6 days')::date;
 
-      IF v_period_end <= v_current_date THEN
+      v_has_qualifying_task := false;
+
+      FOR v_task IN
+        SELECT * FROM service_tasks
+        WHERE service_id = v_service_id AND COALESCE(is_active, true)
+          AND LOWER(COALESCE(task_recurrence_type, 'weekly')) IN ('weekly', 'daily')
+      LOOP
+        v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'weekly'));
+
+        IF v_task_recurrence = 'weekly' THEN
+          v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_period_end);
+
+          IF v_task_due_date IS NOT NULL
+             AND v_period_end <= v_current_date
+             AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+             v_has_qualifying_task := true;
+             EXIT;
+          END IF;
+        ELSIF v_task_recurrence = 'daily' THEN
+          -- daily tasks inside week: test each day of the week
+          FOR v_month_index IN 0..6 LOOP
+            v_task_period_end := (v_period_start + (v_month_index || ' day')::interval)::date; -- using month_index as day counter
+            v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_task_period_end, v_task_period_end);
+
+            IF v_task_due_date IS NOT NULL
+               AND v_task_period_end <= v_current_date
+               AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+               v_has_qualifying_task := true;
+               EXIT;
+            END IF;
+          END LOOP;
+
+          IF v_has_qualifying_task THEN
+            EXIT;
+          END IF;
+        END IF;
+      END LOOP;
+
+      IF v_has_qualifying_task THEN
+        -- create period if not exists
         SELECT id INTO v_period_id
         FROM work_recurring_instances
         WHERE work_id = p_work_id AND period_end_date = v_period_end
@@ -152,21 +219,23 @@ BEGIN
           ) RETURNING id INTO v_period_id;
         END IF;
 
+        -- Insert tasks (weekly and daily)
         FOR v_task IN
           SELECT * FROM service_tasks
           WHERE service_id = v_service_id AND COALESCE(is_active, true)
-          AND LOWER(COALESCE(task_recurrence_type, 'weekly')) IN ('weekly', 'daily')
+            AND LOWER(COALESCE(task_recurrence_type, 'weekly')) IN ('weekly', 'daily')
         LOOP
           v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'weekly'));
-          
-          IF v_task_recurrence = 'weekly' THEN
-            v_task_due_date := public.calculate_task_due_date_in_period(
-              v_task.id, v_period_start, v_period_end
-            );
 
-            IF v_task_due_date IS NOT NULL THEN
+          IF v_task_recurrence = 'weekly' THEN
+            v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_period_end);
+
+            IF v_task_due_date IS NOT NULL
+               AND v_period_end <= v_current_date
+               AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+
               v_task_title_with_suffix := v_task.title || ' - Week ' || EXTRACT(WEEK FROM v_period_end)::text;
-              
+
               SELECT EXISTS(
                 SELECT 1 FROM recurring_period_tasks
                 WHERE work_recurring_instance_id = v_period_id
@@ -188,6 +257,38 @@ BEGIN
                 );
               END IF;
             END IF;
+          ELSIF v_task_recurrence = 'daily' THEN
+            -- Insert daily tasks within the week (days that qualify)
+            FOR v_month_index IN 0..6 LOOP
+              v_task_period_end := (v_period_start + (v_month_index || ' day')::interval)::date;
+              v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_task_period_end, v_task_period_end);
+
+              IF v_task_due_date IS NOT NULL
+                 AND v_task_period_end <= v_current_date
+                 AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+
+                SELECT EXISTS(
+                  SELECT 1 FROM recurring_period_tasks
+                  WHERE work_recurring_instance_id = v_period_id
+                    AND service_task_id = v_task.id
+                    AND due_date = v_task_due_date
+                ) INTO v_exists;
+
+                IF NOT v_exists THEN
+                  INSERT INTO recurring_period_tasks(
+                    work_recurring_instance_id, service_task_id, title,
+                    description, due_date, priority, estimated_hours,
+                    status, sort_order, created_at, updated_at
+                  ) VALUES (
+                    v_period_id, v_task.id, v_task.title,
+                    v_task.description, v_task_due_date, v_task.priority,
+                    v_task.estimated_hours, 'pending',
+                    COALESCE(v_task.sort_order, 0),
+                    NOW(), NOW()
+                  );
+                END IF;
+              END IF;
+            END LOOP;
           END IF;
         END LOOP;
       END IF;
@@ -207,10 +308,52 @@ BEGIN
 
     WHILE v_iter_date <= v_current_date LOOP
       v_period_start := v_iter_date;
-      v_period_end := (date_trunc('month', v_iter_date)
-                       + INTERVAL '1 month' - INTERVAL '1 day')::date;
+      v_period_end := (date_trunc('month', v_iter_date) + INTERVAL '1 month' - INTERVAL '1 day')::date;
 
-      IF v_period_end <= v_current_date THEN
+      v_has_qualifying_task := false;
+
+      FOR v_task IN
+        SELECT * FROM service_tasks
+        WHERE service_id = v_service_id AND COALESCE(is_active, true)
+          AND LOWER(COALESCE(task_recurrence_type, 'monthly')) IN ('monthly', 'weekly', 'daily')
+      LOOP
+        v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'monthly'));
+
+        IF v_task_recurrence = 'monthly' THEN
+          v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_period_end);
+
+          IF v_task_due_date IS NOT NULL
+             AND v_period_end <= v_current_date
+             AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+            v_has_qualifying_task := true;
+            EXIT;
+          END IF;
+
+        ELSIF v_task_recurrence IN ('weekly','daily') THEN
+          -- For weekly/daily inside month: check each sub-week/day.
+          -- Simplest approach: check each day of the month for daily tasks,
+          -- for weekly tasks check a week window inside the month (approx)
+          -- We'll check days (safe albeit slightly heavier).
+          FOR v_month_index IN 0..(EXTRACT(DAY FROM v_period_end)::int - 1) LOOP
+            v_task_period_end := (v_period_start + (v_month_index || ' day')::interval)::date;
+            v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_task_period_end, v_task_period_end);
+
+            IF v_task_due_date IS NOT NULL
+               AND v_task_period_end <= v_current_date
+               AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+              v_has_qualifying_task := true;
+              EXIT;
+            END IF;
+          END LOOP;
+
+          IF v_has_qualifying_task THEN
+            EXIT;
+          END IF;
+        END IF;
+      END LOOP;
+
+      IF v_has_qualifying_task THEN
+        -- create period if not exists
         SELECT id INTO v_period_id
         FROM work_recurring_instances
         WHERE work_id = p_work_id AND period_end_date = v_period_end
@@ -227,21 +370,23 @@ BEGIN
           ) RETURNING id INTO v_period_id;
         END IF;
 
+        -- Insert tasks (monthly, weekly, daily) - same logic as original, but with qualification checks
         FOR v_task IN
           SELECT * FROM service_tasks
           WHERE service_id = v_service_id AND COALESCE(is_active, true)
-          AND LOWER(COALESCE(task_recurrence_type, 'monthly')) IN ('monthly', 'weekly', 'daily')
+            AND LOWER(COALESCE(task_recurrence_type, 'monthly')) IN ('monthly', 'weekly', 'daily')
         LOOP
           v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'monthly'));
-          
-          IF v_task_recurrence = 'monthly' THEN
-            v_task_due_date := public.calculate_task_due_date_in_period(
-              v_task.id, v_period_start, v_period_end
-            );
 
-            IF v_task_due_date IS NOT NULL THEN
+          IF v_task_recurrence = 'monthly' THEN
+            v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_period_end);
+
+            IF v_task_due_date IS NOT NULL
+               AND v_period_end <= v_current_date
+               AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+
               v_task_title_with_suffix := v_task.title || ' - ' || TRIM(TO_CHAR(v_period_end, 'Mon'));
-              
+
               SELECT EXISTS(
                 SELECT 1 FROM recurring_period_tasks
                 WHERE work_recurring_instance_id = v_period_id
@@ -263,6 +408,39 @@ BEGIN
                 );
               END IF;
             END IF;
+
+          ELSIF v_task_recurrence IN ('weekly','daily') THEN
+            -- for weekly/daily, iterate days of month and insert those that qualify
+            FOR v_month_index IN 0..(EXTRACT(DAY FROM v_period_end)::int - 1) LOOP
+              v_task_period_end := (v_period_start + (v_month_index || ' day')::interval)::date;
+              v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_task_period_end, v_task_period_end);
+
+              IF v_task_due_date IS NOT NULL
+                AND v_task_period_end <= v_current_date
+                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+
+                SELECT EXISTS(
+                  SELECT 1 FROM recurring_period_tasks
+                  WHERE work_recurring_instance_id = v_period_id
+                    AND service_task_id = v_task.id
+                    AND due_date = v_task_due_date
+                ) INTO v_exists;
+
+                IF NOT v_exists THEN
+                  INSERT INTO recurring_period_tasks(
+                    work_recurring_instance_id, service_task_id, title,
+                    description, due_date, priority, estimated_hours,
+                    status, sort_order, created_at, updated_at
+                  ) VALUES (
+                    v_period_id, v_task.id, v_task.title,
+                    v_task.description, v_task_due_date, v_task.priority,
+                    v_task.estimated_hours, 'pending',
+                    COALESCE(v_task.sort_order, 0),
+                    NOW(), NOW()
+                  );
+                END IF;
+              END IF;
+            END LOOP;
           END IF;
         END LOOP;
       END IF;
@@ -296,8 +474,51 @@ BEGIN
       v_period_start := v_iter_date;
       v_period_end := (v_period_start + INTERVAL '3 month' - INTERVAL '1 day')::date;
 
-      IF v_period_start <= v_current_date THEN
-        -- Check if period already exists
+      v_has_qualifying_task := false;
+
+      FOR v_task IN
+        SELECT * FROM service_tasks
+        WHERE service_id = v_service_id AND COALESCE(is_active, true)
+          AND LOWER(COALESCE(task_recurrence_type, 'quarterly')) IN ('quarterly', 'monthly', 'weekly', 'daily')
+      LOOP
+        v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'quarterly'));
+
+        IF v_task_recurrence = 'quarterly' THEN
+          v_task_period_end := v_period_end;
+          v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_task_period_end);
+
+          IF v_task_due_date IS NOT NULL
+             AND v_task_period_end <= v_current_date
+             AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+            v_has_qualifying_task := true;
+            EXIT;
+          END IF;
+
+        ELSIF v_task_recurrence IN ('monthly','weekly','daily') THEN
+          -- iterate months inside quarter
+          FOR v_month_index IN 0..2 LOOP
+            v_task_period_end := (v_period_start + (v_month_index || ' month')::interval)::date;
+            v_task_period_end := (date_trunc('month', v_task_period_end) + INTERVAL '1 month' - INTERVAL '1 day')::date;
+
+            IF v_task_period_end <= v_current_date THEN
+              v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, (v_task_period_end - INTERVAL '1 month' + INTERVAL '1 day')::date, v_task_period_end);
+
+              IF v_task_due_date IS NOT NULL
+                 AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+                v_has_qualifying_task := true;
+                EXIT;
+              END IF;
+            END IF;
+          END LOOP;
+
+          IF v_has_qualifying_task THEN
+            EXIT;
+          END IF;
+        END IF;
+      END LOOP;
+
+      IF v_has_qualifying_task THEN
+        -- create period if not exists
         SELECT id INTO v_period_id
         FROM work_recurring_instances
         WHERE work_id = p_work_id AND period_end_date = v_period_end
@@ -326,17 +547,47 @@ BEGIN
           ) RETURNING id INTO v_period_id;
         END IF;
 
+        -- Insert tasks (quarterly, monthly, weekly, daily)
         FOR v_task IN
           SELECT * FROM service_tasks
           WHERE service_id = v_service_id AND COALESCE(is_active, true)
-          AND LOWER(COALESCE(task_recurrence_type, 'monthly')) IN ('quarterly', 'monthly', 'weekly', 'daily')
+            AND LOWER(COALESCE(task_recurrence_type, 'quarterly')) IN ('quarterly', 'monthly', 'weekly', 'daily')
         LOOP
-          v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'monthly'));
-          
-          -------------------------------------------------------------------
-          -- Monthly tasks inside quarter
-          -------------------------------------------------------------------
-          IF v_task_recurrence IN ('monthly', 'weekly', 'daily') THEN
+          v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'quarterly'));
+
+          IF v_task_recurrence = 'quarterly' THEN
+            v_task_period_end := v_period_end;
+
+            IF v_task_period_end <= v_current_date THEN
+              v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_task_period_end);
+
+              IF v_task_due_date IS NOT NULL
+                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+
+                SELECT EXISTS(
+                  SELECT 1 FROM recurring_period_tasks
+                  WHERE work_recurring_instance_id = v_period_id
+                    AND service_task_id = v_task.id
+                    AND due_date = v_task_due_date
+                ) INTO v_exists;
+
+                IF NOT v_exists THEN
+                  INSERT INTO recurring_period_tasks(
+                    work_recurring_instance_id, service_task_id, title,
+                    description, due_date, priority, estimated_hours,
+                    status, sort_order, created_at, updated_at
+                  ) VALUES (
+                    v_period_id, v_task.id, v_task.title,
+                    v_task.description, v_task_due_date,
+                    v_task.priority, v_task.estimated_hours, 'pending',
+                    COALESCE(v_task.sort_order, 0),
+                    NOW(), NOW()
+                  );
+                END IF;
+              END IF;
+            END IF;
+
+          ELSIF v_task_recurrence IN ('monthly','weekly','daily') THEN
             FOR v_month_index IN 0..2 LOOP
               v_task_period_end := (v_period_start + (v_month_index || ' month')::interval)::date;
               v_task_period_end := (date_trunc('month', v_task_period_end)
@@ -375,43 +626,6 @@ BEGIN
                 END IF;
               END IF;
             END LOOP;
-
-          -------------------------------------------------------------------
-          -- Quarterly tasks
-          -------------------------------------------------------------------
-          ELSIF v_task_recurrence = 'quarterly' THEN
-            v_task_period_end := v_period_end;
-
-            IF v_task_period_end <= v_current_date THEN
-              v_task_due_date := public.calculate_task_due_date_in_period(
-                v_task.id, v_period_start, v_period_end
-              );
-
-              IF v_task_due_date IS NOT NULL
-                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
-
-                SELECT EXISTS(
-                  SELECT 1 FROM recurring_period_tasks
-                  WHERE work_recurring_instance_id = v_period_id
-                    AND service_task_id = v_task.id
-                    AND due_date = v_task_due_date
-                ) INTO v_exists;
-
-                IF NOT v_exists THEN
-                  INSERT INTO recurring_period_tasks(
-                    work_recurring_instance_id, service_task_id, title,
-                    description, due_date, priority, estimated_hours,
-                    status, sort_order, created_at, updated_at
-                  ) VALUES (
-                    v_period_id, v_task.id, v_task.title,
-                    v_task.description, v_task_due_date,
-                    v_task.priority, v_task.estimated_hours, 'pending',
-                    COALESCE(v_task.sort_order, 0),
-                    NOW(), NOW()
-                  );
-                END IF;
-              END IF;
-            END IF;
           END IF;
         END LOOP;
       END IF;
@@ -442,8 +656,75 @@ BEGIN
       v_period_start := v_iter_date;
       v_period_end := (v_period_start + INTERVAL '6 month' - INTERVAL '1 day')::date;
 
-      IF v_period_start <= v_current_date THEN
-        -- Check if period already exists
+      v_has_qualifying_task := false;
+
+      FOR v_task IN
+        SELECT * FROM service_tasks
+        WHERE service_id = v_service_id AND COALESCE(is_active, true)
+          AND LOWER(COALESCE(task_recurrence_type, 'half-yearly')) IN ('half-yearly', 'quarterly', 'monthly', 'weekly', 'daily')
+      LOOP
+        v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'half-yearly'));
+
+        IF v_task_recurrence = 'half-yearly' THEN
+          v_task_period_end := v_period_end;
+          v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_task_period_end);
+
+          IF v_task_due_date IS NOT NULL
+             AND v_task_period_end <= v_current_date
+             AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+            v_has_qualifying_task := true;
+            EXIT;
+          END IF;
+
+        ELSIF v_task_recurrence = 'quarterly' THEN
+          FOR v_quarter_index IN 0..1 LOOP
+            v_task_period_end := (v_period_start + (v_quarter_index * 3 || ' month')::interval)::date;
+            v_task_period_end := (v_task_period_end + INTERVAL '3 month' - INTERVAL '1 day')::date;
+
+            IF v_task_period_end <= v_current_date THEN
+              v_task_due_date := public.calculate_task_due_date_in_period(
+                v_task.id, (v_task_period_end - INTERVAL '3 month' + INTERVAL '1 day')::date, v_task_period_end
+              );
+
+              IF v_task_due_date IS NOT NULL
+                 AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+                v_has_qualifying_task := true;
+                EXIT;
+              END IF;
+            END IF;
+          END LOOP;
+
+          IF v_has_qualifying_task THEN
+            EXIT;
+          END IF;
+
+        ELSIF v_task_recurrence IN ('monthly','weekly','daily') THEN
+          FOR v_month_index IN 0..5 LOOP
+            v_task_period_end := (v_period_start + (v_month_index || ' month')::interval)::date;
+            v_task_period_end := (date_trunc('month', v_task_period_end)
+                                 + INTERVAL '1 month' - INTERVAL '1 day')::date;
+
+            IF v_task_period_end <= v_current_date THEN
+              v_task_due_date := public.calculate_task_due_date_in_period(
+                v_task.id, (v_task_period_end - INTERVAL '1 month' + INTERVAL '1 day')::date, v_task_period_end
+              );
+
+              IF v_task_due_date IS NOT NULL
+                 AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+                v_has_qualifying_task := true;
+                EXIT;
+              END IF;
+            END IF;
+          END LOOP;
+
+          IF v_has_qualifying_task THEN
+            EXIT;
+          END IF;
+        END IF;
+      END LOOP;
+
+      IF v_has_qualifying_task THEN
+        -- create period if not exists
         SELECT id INTO v_period_id
         FROM work_recurring_instances
         WHERE work_id = p_work_id AND period_end_date = v_period_end
@@ -468,17 +749,86 @@ BEGIN
           ) RETURNING id INTO v_period_id;
         END IF;
 
+        -- Insert tasks (half-yearly, quarterly, monthly, weekly, daily)
         FOR v_task IN
           SELECT * FROM service_tasks
           WHERE service_id = v_service_id AND COALESCE(is_active, true)
-          AND LOWER(COALESCE(task_recurrence_type, 'half-yearly')) IN ('half-yearly', 'quarterly', 'monthly', 'weekly', 'daily')
+            AND LOWER(COALESCE(task_recurrence_type, 'half-yearly')) IN ('half-yearly', 'quarterly', 'monthly', 'weekly', 'daily')
         LOOP
           v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'half-yearly'));
-          
-          -------------------------------------------------------------------
-          -- Monthly tasks inside half-year
-          -------------------------------------------------------------------
-          IF v_task_recurrence IN ('monthly', 'weekly', 'daily') THEN
+
+          IF v_task_recurrence = 'half-yearly' THEN
+            v_task_period_end := v_period_end;
+
+            IF v_task_period_end <= v_current_date THEN
+              v_task_due_date := public.calculate_task_due_date_in_period(
+                v_task.id, v_period_start, v_task_period_end
+              );
+
+              IF v_task_due_date IS NOT NULL
+                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+
+                SELECT EXISTS(
+                  SELECT 1 FROM recurring_period_tasks
+                  WHERE work_recurring_instance_id = v_period_id
+                    AND service_task_id = v_task.id
+                    AND due_date = v_task_due_date
+                ) INTO v_exists;
+
+                IF NOT v_exists THEN
+                  INSERT INTO recurring_period_tasks(
+                    work_recurring_instance_id, service_task_id, title,
+                    description, due_date, priority, estimated_hours,
+                    status, sort_order, created_at, updated_at
+                  ) VALUES (
+                    v_period_id, v_task.id, v_task.title,
+                    v_task.description, v_task_due_date,
+                    v_task.priority, v_task.estimated_hours, 'pending',
+                    COALESCE(v_task.sort_order, 0),
+                    NOW(), NOW()
+                  );
+                END IF;
+              END IF;
+            END IF;
+
+          ELSIF v_task_recurrence = 'quarterly' THEN
+            FOR v_quarter_index IN 0..1 LOOP
+              v_task_period_end := (v_period_start + (v_quarter_index * 3 || ' month')::interval)::date;
+              v_task_period_end := (v_task_period_end + INTERVAL '3 month' - INTERVAL '1 day')::date;
+
+              IF v_task_period_end <= v_current_date THEN
+                v_task_due_date := public.calculate_task_due_date_in_period(
+                  v_task.id, (v_task_period_end - INTERVAL '3 month' + INTERVAL '1 day')::date, v_task_period_end
+                );
+
+                IF v_task_due_date IS NOT NULL
+                  AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+
+                  SELECT EXISTS(
+                    SELECT 1 FROM recurring_period_tasks
+                    WHERE work_recurring_instance_id = v_period_id
+                      AND service_task_id = v_task.id
+                      AND due_date = v_task_due_date
+                  ) INTO v_exists;
+
+                  IF NOT v_exists THEN
+                    INSERT INTO recurring_period_tasks(
+                      work_recurring_instance_id, service_task_id, title,
+                      description, due_date, priority, estimated_hours,
+                      status, sort_order, created_at, updated_at
+                    ) VALUES (
+                      v_period_id, v_task.id, v_task.title,
+                      v_task.description, v_task_due_date,
+                      v_task.priority, v_task.estimated_hours, 'pending',
+                      COALESCE(v_task.sort_order, 0) + v_quarter_index * 1000,
+                      NOW(), NOW()
+                    );
+                  END IF;
+                END IF;
+              END IF;
+            END LOOP;
+
+          ELSIF v_task_recurrence IN ('monthly','weekly','daily') THEN
             FOR v_month_index IN 0..5 LOOP
               v_task_period_end := (v_period_start + (v_month_index || ' month')::interval)::date;
               v_task_period_end := (date_trunc('month', v_task_period_end)
@@ -517,18 +867,195 @@ BEGIN
                 END IF;
               END IF;
             END LOOP;
+          END IF;
+        END LOOP;
+      END IF;
 
-          -------------------------------------------------------------------
-          -- Quarterly tasks inside half-year
-          -------------------------------------------------------------------
-          ELSIF v_task_recurrence = 'quarterly' THEN
-            FOR v_quarter_index IN 0..1 LOOP
-              v_task_period_end := (v_period_start + (v_quarter_index * 3 || ' month')::interval)::date;
-              v_task_period_end := (v_task_period_end + INTERVAL '3 month' - INTERVAL '1 day')::date;
+      v_iter_date := (v_iter_date + INTERVAL '6 month')::date;
+    END LOOP;
+
+  -------------------------------------------------------------------
+  -- YEARLY WORK (Financial Year: April 1 to March 31)
+  -------------------------------------------------------------------
+  ELSIF v_work_recurrence = 'yearly' THEN
+    IF v_work_start_date IS NULL THEN
+      v_iter_date := date_trunc('month', v_current_date)::date - INTERVAL '12 month';
+    ELSE
+      v_iter_date := date_trunc('month', v_work_start_date)::date - INTERVAL '12 month';
+    END IF;
+
+    -- Adjust to start from April for financial year
+    IF EXTRACT(MONTH FROM v_iter_date)::int < 4 THEN
+      v_iter_date := make_date(EXTRACT(YEAR FROM v_iter_date)::int - 1, 4, 1);
+    ELSE
+      v_iter_date := make_date(EXTRACT(YEAR FROM v_iter_date)::int, 4, 1);
+    END IF;
+
+    WHILE v_iter_date <= v_current_date LOOP
+      v_period_start := v_iter_date;
+      v_period_end := (v_period_start + INTERVAL '12 month' - INTERVAL '1 day')::date;
+
+      v_has_qualifying_task := false;
+
+      FOR v_task IN
+        SELECT * FROM service_tasks
+        WHERE service_id = v_service_id AND COALESCE(is_active, true)
+          AND LOWER(COALESCE(task_recurrence_type, 'yearly')) IN ('yearly', 'half-yearly', 'quarterly', 'monthly', 'weekly', 'daily')
+      LOOP
+        v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'yearly'));
+
+        IF v_task_recurrence = 'yearly' THEN
+          v_task_period_end := v_period_end;
+          v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_task_period_end);
+
+          IF v_task_due_date IS NOT NULL
+             AND v_task_period_end <= v_current_date
+             AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+            v_has_qualifying_task := true;
+            EXIT;
+          END IF;
+
+        ELSIF v_task_recurrence = 'half-yearly' THEN
+          FOR v_half_year_index IN 0..1 LOOP
+            v_task_period_end := (v_period_start + (v_half_year_index * 6 || ' month')::interval)::date;
+            v_task_period_end := (v_task_period_end + INTERVAL '6 month' - INTERVAL '1 day')::date;
+
+            IF v_task_period_end <= v_current_date THEN
+              v_task_due_date := public.calculate_task_due_date_in_period(
+                v_task.id, (v_task_period_end - INTERVAL '6 month' + INTERVAL '1 day')::date, v_task_period_end
+              );
+
+              IF v_task_due_date IS NOT NULL
+                 AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+                v_has_qualifying_task := true;
+                EXIT;
+              END IF;
+            END IF;
+          END LOOP;
+
+          IF v_has_qualifying_task THEN
+            EXIT;
+          END IF;
+
+        ELSIF v_task_recurrence = 'quarterly' THEN
+          FOR v_quarter_index IN 0..3 LOOP
+            v_task_period_end := (v_period_start + (v_quarter_index * 3 || ' month')::interval)::date;
+            v_task_period_end := (v_task_period_end + INTERVAL '3 month' - INTERVAL '1 day')::date;
+
+            IF v_task_period_end <= v_current_date THEN
+              v_task_due_date := public.calculate_task_due_date_in_period(
+                v_task.id, (v_task_period_end - INTERVAL '3 month' + INTERVAL '1 day')::date, v_task_period_end
+              );
+
+              IF v_task_due_date IS NOT NULL
+                 AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+                v_has_qualifying_task := true;
+                EXIT;
+              END IF;
+            END IF;
+          END LOOP;
+
+          IF v_has_qualifying_task THEN
+            EXIT;
+          END IF;
+
+        ELSIF v_task_recurrence IN ('monthly','weekly','daily') THEN
+          FOR v_month_index IN 0..11 LOOP
+            v_task_period_end := (v_period_start + (v_month_index || ' month')::interval)::date;
+            v_task_period_end := (date_trunc('month', v_task_period_end)
+                                 + INTERVAL '1 month' - INTERVAL '1 day')::date;
+
+            IF v_task_period_end <= v_current_date THEN
+              v_task_due_date := public.calculate_task_due_date_in_period(
+                v_task.id, (v_task_period_end - INTERVAL '1 month' + INTERVAL '1 day')::date, v_task_period_end
+              );
+
+              IF v_task_due_date IS NOT NULL
+                 AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+                v_has_qualifying_task := true;
+                EXIT;
+              END IF;
+            END IF;
+          END LOOP;
+
+          IF v_has_qualifying_task THEN
+            EXIT;
+          END IF;
+        END IF;
+      END LOOP;
+
+      IF v_has_qualifying_task THEN
+        -- create period if not exists
+        SELECT id INTO v_period_id
+        FROM work_recurring_instances
+        WHERE work_id = p_work_id AND period_end_date = v_period_end
+        LIMIT 1;
+
+        IF v_period_id IS NULL THEN
+          -- Financial year format: 2024-25 for April 2024 to March 2025
+          v_financial_year := EXTRACT(YEAR FROM v_period_start)::text || '-' || 
+                             SUBSTRING((EXTRACT(YEAR FROM v_period_start) + 1)::text, 3, 2);
+          
+          v_period_name := 'FY ' || v_financial_year;
+          INSERT INTO work_recurring_instances(
+            work_id, period_name, period_start_date, period_end_date,
+            status, created_at, updated_at
+          ) VALUES(
+            p_work_id, v_period_name, v_period_start, v_period_end,
+            'pending', NOW(), NOW()
+          ) RETURNING id INTO v_period_id;
+        END IF;
+
+        -- Insert tasks (yearly, half-yearly, quarterly, monthly, weekly, daily)
+        FOR v_task IN
+          SELECT * FROM service_tasks
+          WHERE service_id = v_service_id AND COALESCE(is_active, true)
+            AND LOWER(COALESCE(task_recurrence_type, 'yearly')) IN ('yearly', 'half-yearly', 'quarterly', 'monthly', 'weekly', 'daily')
+        LOOP
+          v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'yearly'));
+
+          IF v_task_recurrence = 'yearly' THEN
+            v_task_period_end := v_period_end;
+
+            IF v_task_period_end <= v_current_date THEN
+              v_task_due_date := public.calculate_task_due_date_in_period(
+                v_task.id, v_period_start, v_task_period_end
+              );
+
+              IF v_task_due_date IS NOT NULL
+                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
+
+                SELECT EXISTS(
+                  SELECT 1 FROM recurring_period_tasks
+                  WHERE work_recurring_instance_id = v_period_id
+                    AND service_task_id = v_task.id
+                    AND due_date = v_task_due_date
+                ) INTO v_exists;
+
+                IF NOT v_exists THEN
+                  INSERT INTO recurring_period_tasks(
+                    work_recurring_instance_id, service_task_id, title,
+                    description, due_date, priority, estimated_hours,
+                    status, sort_order, created_at, updated_at
+                  ) VALUES (
+                    v_period_id, v_task.id, v_task.title,
+                    v_task.description, v_task_due_date,
+                    v_task.priority, v_task.estimated_hours, 'pending',
+                    COALESCE(v_task.sort_order, 0),
+                    NOW(), NOW()
+                  );
+                END IF;
+              END IF;
+            END IF;
+
+          ELSIF v_task_recurrence = 'half-yearly' THEN
+            FOR v_half_year_index IN 0..1 LOOP
+              v_task_period_end := (v_period_start + (v_half_year_index * 6 || ' month')::interval)::date;
+              v_task_period_end := (v_task_period_end + INTERVAL '6 month' - INTERVAL '1 day')::date;
 
               IF v_task_period_end <= v_current_date THEN
                 v_task_due_date := public.calculate_task_due_date_in_period(
-                  v_task.id, (v_task_period_end - INTERVAL '3 month' + INTERVAL '1 day')::date, v_task_period_end
+                  v_task.id, (v_task_period_end - INTERVAL '6 month' + INTERVAL '1 day')::date, v_task_period_end
                 );
 
                 IF v_task_due_date IS NOT NULL
@@ -550,7 +1077,7 @@ BEGIN
                       v_period_id, v_task.id, v_task.title,
                       v_task.description, v_task_due_date,
                       v_task.priority, v_task.estimated_hours, 'pending',
-                      COALESCE(v_task.sort_order, 0) + v_quarter_index * 1000,
+                      COALESCE(v_task.sort_order, 0) + v_half_year_index * 1000,
                       NOW(), NOW()
                     );
                   END IF;
@@ -558,182 +1085,6 @@ BEGIN
               END IF;
             END LOOP;
 
-          -------------------------------------------------------------------
-          -- Half-yearly tasks
-          -------------------------------------------------------------------
-          ELSIF v_task_recurrence = 'half-yearly' THEN
-            v_task_period_end := v_period_end;
-
-            IF v_task_period_end <= v_current_date THEN
-              v_task_due_date := public.calculate_task_due_date_in_period(
-                v_task.id, v_period_start, v_period_end
-              );
-
-              IF v_task_due_date IS NOT NULL
-                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
-
-                SELECT EXISTS(
-                  SELECT 1 FROM recurring_period_tasks
-                  WHERE work_recurring_instance_id = v_period_id
-                    AND service_task_id = v_task.id
-                    AND due_date = v_task_due_date
-                ) INTO v_exists;
-
-                IF NOT v_exists THEN
-                  INSERT INTO recurring_period_tasks(
-                    work_recurring_instance_id, service_task_id, title,
-                    description, due_date, priority, estimated_hours,
-                    status, sort_order, created_at, updated_at
-                  ) VALUES (
-                    v_period_id, v_task.id, v_task.title,
-                    v_task.description, v_task_due_date,
-                    v_task.priority, v_task.estimated_hours, 'pending',
-                    COALESCE(v_task.sort_order, 0),
-                    NOW(), NOW()
-                  );
-                END IF;
-              END IF;
-            END IF;
-          END IF;
-        END LOOP;
-      END IF;
-
-      v_iter_date := (v_iter_date + INTERVAL '6 month')::date;
-    END LOOP;
-
-  -------------------------------------------------------------------
-  -- YEARLY WORK (Financial Year: April 1 to March 31) - FIXED
-  -------------------------------------------------------------------
-  ELSIF v_work_recurrence = 'yearly' THEN
-    IF v_work_start_date IS NULL THEN
-      v_iter_date := date_trunc('month', v_current_date)::date - INTERVAL '12 month';
-    ELSE
-      v_iter_date := date_trunc('month', v_work_start_date)::date - INTERVAL '12 month';
-    END IF;
-
-    -- Adjust to start from April for financial year
-    IF EXTRACT(MONTH FROM v_iter_date)::int < 4 THEN
-      v_iter_date := make_date(EXTRACT(YEAR FROM v_iter_date)::int - 1, 4, 1);
-    ELSE
-      v_iter_date := make_date(EXTRACT(YEAR FROM v_iter_date)::int, 4, 1);
-    END IF;
-
-    WHILE v_iter_date <= v_current_date LOOP
-      v_period_start := v_iter_date;
-      v_period_end := (v_period_start + INTERVAL '12 month' - INTERVAL '1 day')::date;
-
-      IF v_period_start <= v_current_date THEN
-        -- Check if period already exists
-        SELECT id INTO v_period_id
-        FROM work_recurring_instances
-        WHERE work_id = p_work_id AND period_end_date = v_period_end
-        LIMIT 1;
-
-        IF v_period_id IS NULL THEN
-          -- Financial year format: 2024-25 for April 2024 to March 2025
-          v_financial_year := EXTRACT(YEAR FROM v_period_start)::text || '-' || 
-                             SUBSTRING((EXTRACT(YEAR FROM v_period_start) + 1)::text, 3, 2);
-          
-          v_period_name := 'FY ' || v_financial_year;
-          INSERT INTO work_recurring_instances(
-            work_id, period_name, period_start_date, period_end_date,
-            status, created_at, updated_at
-          ) VALUES(
-            p_work_id, v_period_name, v_period_start, v_period_end,
-            'pending', NOW(), NOW()
-          ) RETURNING id INTO v_period_id;
-        END IF;
-
-        FOR v_task IN
-          SELECT * FROM service_tasks
-          WHERE service_id = v_service_id AND COALESCE(is_active, true)
-          AND LOWER(COALESCE(task_recurrence_type, 'yearly')) IN ('yearly', 'half-yearly', 'quarterly', 'monthly', 'weekly', 'daily')
-        LOOP
-          v_task_recurrence := LOWER(COALESCE(v_task.task_recurrence_type, 'yearly'));
-          
-          -------------------------------------------------------------------
-          -- Yearly tasks
-          -------------------------------------------------------------------
-          IF v_task_recurrence = 'yearly' THEN
-            v_task_period_end := v_period_end;
-
-            IF v_task_period_end <= v_current_date THEN
-              v_task_due_date := public.calculate_task_due_date_in_period(
-                v_task.id, v_period_start, v_period_end
-              );
-
-              IF v_task_due_date IS NOT NULL
-                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
-
-                SELECT EXISTS(
-                  SELECT 1 FROM recurring_period_tasks
-                  WHERE work_recurring_instance_id = v_period_id
-                    AND service_task_id = v_task.id
-                    AND due_date = v_task_due_date
-                ) INTO v_exists;
-
-                IF NOT v_exists THEN
-                  INSERT INTO recurring_period_tasks(
-                    work_recurring_instance_id, service_task_id, title,
-                    description, due_date, priority, estimated_hours,
-                    status, sort_order, created_at, updated_at
-                  ) VALUES (
-                    v_period_id, v_task.id, v_task.title,
-                    v_task.description, v_task_due_date,
-                    v_task.priority, v_task.estimated_hours, 'pending',
-                    COALESCE(v_task.sort_order, 0),
-                    NOW(), NOW()
-                  );
-                END IF;
-              END IF;
-            END IF;
-
-          -------------------------------------------------------------------
-          -- Monthly tasks inside year
-          -------------------------------------------------------------------
-          ELSIF v_task_recurrence IN ('monthly', 'weekly', 'daily') THEN
-            FOR v_month_index IN 0..11 LOOP
-              v_task_period_end := (v_period_start + (v_month_index || ' month')::interval)::date;
-              v_task_period_end := (date_trunc('month', v_task_period_end)
-                                   + INTERVAL '1 month' - INTERVAL '1 day')::date;
-
-              IF v_task_period_end <= v_current_date THEN
-                v_task_due_date := public.calculate_task_due_date_in_period(
-                  v_task.id, (v_task_period_end - INTERVAL '1 month' + INTERVAL '1 day')::date, v_task_period_end
-                );
-
-                IF v_task_due_date IS NOT NULL
-                  AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
-
-                  v_task_title_with_suffix := v_task.title || ' - ' || TRIM(TO_CHAR(v_task_period_end, 'Mon'));
-                  
-                  SELECT EXISTS(
-                    SELECT 1 FROM recurring_period_tasks
-                    WHERE work_recurring_instance_id = v_period_id
-                      AND service_task_id = v_task.id
-                      AND due_date = v_task_due_date
-                  ) INTO v_exists;
-
-                  IF NOT v_exists THEN
-                    INSERT INTO recurring_period_tasks(
-                      work_recurring_instance_id, service_task_id, title,
-                      description, due_date, priority, estimated_hours,
-                      status, sort_order, created_at, updated_at
-                    ) VALUES (
-                      v_period_id, v_task.id, v_task_title_with_suffix,
-                      v_task.description, v_task_due_date, v_task.priority,
-                      v_task.estimated_hours, 'pending',
-                      COALESCE(v_task.sort_order, 0) + v_month_index * 1000,
-                      NOW(), NOW()
-                    );
-                  END IF;
-                END IF;
-              END IF;
-            END LOOP;
-
-          -------------------------------------------------------------------
-          -- Quarterly tasks inside year
-          -------------------------------------------------------------------
           ELSIF v_task_recurrence = 'quarterly' THEN
             FOR v_quarter_index IN 0..3 LOOP
               v_task_period_end := (v_period_start + (v_quarter_index * 3 || ' month')::interval)::date;
@@ -771,22 +1122,22 @@ BEGIN
               END IF;
             END LOOP;
 
-          -------------------------------------------------------------------
-          -- Half-yearly tasks inside year
-          -------------------------------------------------------------------
-          ELSIF v_task_recurrence = 'half-yearly' THEN
-            FOR v_half_year_index IN 0..1 LOOP
-              v_task_period_end := (v_period_start + (v_half_year_index * 6 || ' month')::interval)::date;
-              v_task_period_end := (v_task_period_end + INTERVAL '6 month' - INTERVAL '1 day')::date;
+          ELSIF v_task_recurrence IN ('monthly','weekly','daily') THEN
+            FOR v_month_index IN 0..11 LOOP
+              v_task_period_end := (v_period_start + (v_month_index || ' month')::interval)::date;
+              v_task_period_end := (date_trunc('month', v_task_period_end)
+                                   + INTERVAL '1 month' - INTERVAL '1 day')::date;
 
               IF v_task_period_end <= v_current_date THEN
                 v_task_due_date := public.calculate_task_due_date_in_period(
-                  v_task.id, (v_task_period_end - INTERVAL '6 month' + INTERVAL '1 day')::date, v_task_period_end
+                  v_task.id, (v_task_period_end - INTERVAL '1 month' + INTERVAL '1 day')::date, v_task_period_end
                 );
 
                 IF v_task_due_date IS NOT NULL
                   AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
 
+                  v_task_title_with_suffix := v_task.title || ' - ' || TRIM(TO_CHAR(v_task_period_end, 'Mon'));
+                  
                   SELECT EXISTS(
                     SELECT 1 FROM recurring_period_tasks
                     WHERE work_recurring_instance_id = v_period_id
@@ -800,10 +1151,10 @@ BEGIN
                       description, due_date, priority, estimated_hours,
                       status, sort_order, created_at, updated_at
                     ) VALUES (
-                      v_period_id, v_task.id, v_task.title,
-                      v_task.description, v_task_due_date,
-                      v_task.priority, v_task.estimated_hours, 'pending',
-                      COALESCE(v_task.sort_order, 0) + v_half_year_index * 1000,
+                      v_period_id, v_task.id, v_task_title_with_suffix,
+                      v_task.description, v_task_due_date, v_task.priority,
+                      v_task.estimated_hours, 'pending',
+                      COALESCE(v_task.sort_order, 0) + v_month_index * 1000,
                       NOW(), NOW()
                     );
                   END IF;

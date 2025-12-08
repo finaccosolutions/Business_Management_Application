@@ -1149,6 +1149,8 @@ const filteredWorks = works.filter((work) => {
                             onChange={(e) => setFormData({ ...formData, recurrence_pattern: e.target.value })}
                             className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                           >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
                             <option value="monthly">Monthly</option>
                             <option value="quarterly">Quarterly</option>
                             <option value="half_yearly">Half Yearly</option>

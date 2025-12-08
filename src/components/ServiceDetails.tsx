@@ -1318,31 +1318,45 @@ export default function ServiceDetails({ serviceId, onClose, onEdit, onNavigateT
                     </p>
 
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          How Often Should This Task Be Due?
-                        </label>
-                        <select
-                          name="task_recurrence_type"
-                          defaultValue={editingTask?.task_recurrence_type || service.recurrence_type}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Same as Service ({service.recurrence_type})</option>
-                          {['daily', 'weekly', 'monthly', 'quarterly', 'half-yearly', 'yearly'].includes(service.recurrence_type) && (
-                            <>
-                              {service.recurrence_type !== 'daily' && <option value="daily">Daily</option>}
-                              {service.recurrence_type !== 'weekly' && <option value="weekly">Weekly</option>}
-                              {!['daily', 'weekly'].includes(service.recurrence_type) && <option value="monthly">Monthly</option>}
-                              {!['daily', 'weekly', 'monthly'].includes(service.recurrence_type) && <option value="quarterly">Quarterly</option>}
-                              {!['daily', 'weekly', 'monthly', 'quarterly'].includes(service.recurrence_type) && <option value="half-yearly">Half Yearly</option>}
-                              {service.recurrence_type !== 'yearly' && <option value="yearly">Yearly</option>}
-                            </>
-                          )}
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Example: For quarterly GST, GSTR-3B might be monthly while GSTR-1 is quarterly
-                        </p>
-                      </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    How Often Should This Task Be Due?
+  </label>
+
+  {/* compute allowed options based on service.recurrence_type */}
+  {(() => {
+    const levels = ['daily', 'weekly', 'monthly', 'quarterly', 'half-yearly', 'yearly'] as const;
+    const svcType = service?.recurrence_type;
+
+    // If service recurrence type is not in the known list, show only "Same as Service"
+    const currentIndex = svcType && levels.includes(svcType as any) ? levels.indexOf(svcType as any) : -1;
+    const allowedOptions = currentIndex > 0 ? levels.slice(0, currentIndex) : [];
+
+    const pretty = (s: string) =>
+      s.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()); // "half-yearly" -> "Half Yearly"
+
+    return (
+      <select
+        name="task_recurrence_type"
+        defaultValue={editingTask?.task_recurrence_type || service?.recurrence_type || ''}
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">Same as Service ({service?.recurrence_type || 'unknown'})</option>
+
+        {/* map allowedOptions (will be empty for 'daily' or unknown service type) */}
+        {allowedOptions.map((opt) => (
+          <option key={opt} value={opt}>
+            {pretty(opt)}
+          </option>
+        ))}
+      </select>
+    );
+  })()}
+
+  <p className="text-xs text-gray-500 mt-1">
+    Example: For quarterly GST, GSTR-3B might be monthly while GSTR-1 is quarterly
+  </p>
+</div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
