@@ -402,105 +402,107 @@ useEffect(() => {
   };
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    try {
-      const workData: any = {
-        customer_id: formData.customer_id,
-        service_id: formData.service_id,
-        assigned_to: formData.assigned_to || null,
-        title: formData.title,
-        description: formData.description || null,
-        status: formData.status,
-        priority: formData.priority,
-        due_date: formData.is_recurring ? null : (formData.due_date || null),
-        start_date: formData.start_date || null,
-        billing_status: formData.billing_status,
-        billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
-        estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
-        is_recurring: formData.is_recurring,
-        recurrence_pattern: formData.is_recurring ? formData.recurrence_pattern : null,
-        recurrence_day: formData.is_recurring && formData.recurrence_day ? parseInt(formData.recurrence_day) : null,
-        period_type: formData.is_recurring ? formData.period_type : null,
-        work_location: formData.work_location || null,
-        department: formData.department || null,
-        requirements: formData.requirements || null,
-        deliverables: formData.deliverables || null,
-        auto_bill: formData.auto_bill,
-        weekly_start_day: formData.is_recurring && formData.recurrence_pattern === 'weekly' ? formData.weekly_start_day : null,
-        monthly_start_day: formData.is_recurring && formData.recurrence_pattern === 'monthly' ? parseInt(formData.monthly_start_day) : null,
-        quarterly_start_day: formData.is_recurring && formData.recurrence_pattern === 'quarterly' ? parseInt(formData.quarterly_start_day) : null,
-        half_yearly_start_day: formData.is_recurring && formData.recurrence_pattern === 'half_yearly' ? parseInt(formData.half_yearly_start_day) : null,
-        yearly_start_day: formData.is_recurring && formData.recurrence_pattern === 'yearly' ? parseInt(formData.yearly_start_day) : null,
-        updated_at: new Date().toISOString(),
-      };
+  try {
+    const workData: any = {
+      customer_id: formData.customer_id,
+      service_id: formData.service_id,
+      assigned_to: formData.assigned_to || null,
+      title: formData.title,
+      description: formData.description || null,
+      status: formData.status,
+      priority: formData.priority,
+      due_date: formData.is_recurring ? null : (formData.due_date || null),
+      start_date: formData.start_date || null,
+      billing_status: formData.billing_status,
+      billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
+      estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
+      is_recurring: formData.is_recurring,
+      recurrence_pattern: formData.is_recurring ? formData.recurrence_pattern : null,
+      recurrence_day: formData.is_recurring && formData.recurrence_day ? parseInt(formData.recurrence_day) : null,
+      period_type: formData.is_recurring ? formData.period_type : null,
+      period_calculation_type: formData.is_recurring ? formData.period_type : null,
+      work_location: formData.work_location || null,
+      department: formData.department || null,
+      requirements: formData.requirements || null,
+      deliverables: formData.deliverables || null,
+      auto_bill: formData.auto_bill,
+      weekly_start_day: formData.is_recurring && formData.recurrence_pattern === 'weekly' ? formData.weekly_start_day : null,
+      monthly_start_day: formData.is_recurring && formData.recurrence_pattern === 'monthly' ? parseInt(formData.monthly_start_day) : null,
+      quarterly_start_day: formData.is_recurring && formData.recurrence_pattern === 'quarterly' ? parseInt(formData.quarterly_start_day) : null,
+      half_yearly_start_day: formData.is_recurring && formData.recurrence_pattern === 'half_yearly' ? parseInt(formData.half_yearly_start_day) : null,
+      yearly_start_day: formData.is_recurring && formData.recurrence_pattern === 'yearly' ? parseInt(formData.yearly_start_day) : null,
+      updated_at: new Date().toISOString(),
+    };
 
-      if (!editingWork) {
-        workData.user_id = user!.id;
-        const workNumber = formData.work_number || await generateWorkNumber();
-        if (workNumber) {
-          workData.work_number = workNumber;
-        }
+    if (!editingWork) {
+      workData.user_id = user!.id;
+      const workNumber = formData.work_number || await generateWorkNumber();
+      if (workNumber) {
+        workData.work_number = workNumber;
       }
+    }
 
-      if (formData.assigned_to && !editingWork) {
-        workData.assigned_date = new Date().toISOString();
-      }
+    if (formData.assigned_to && !editingWork) {
+      workData.assigned_date = new Date().toISOString();
+    }
 
-      if (formData.status === 'completed' && !editingWork) {
+    if (formData.status === 'completed' && !editingWork) {
+      workData.completion_date = new Date().toISOString();
+    }
+
+    if (editingWork) {
+      if (formData.status === 'completed' && editingWork.status !== 'completed') {
         workData.completion_date = new Date().toISOString();
       }
 
-      if (editingWork) {
-        if (formData.status === 'completed' && editingWork.status !== 'completed') {
-          workData.completion_date = new Date().toISOString();
-        }
-
-        if (formData.assigned_to && formData.assigned_to !== editingWork.assigned_to) {
-          workData.assigned_date = new Date().toISOString();
-        }
-
-        const { error } = await supabase.from('works').update(workData).eq('id', editingWork.id);
-        if (error) throw error;
-      } else {
-        const { data: newWork, error } = await supabase
-          .from('works')
-          .insert(workData)
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error creating work:', error);
-          throw error;
-        }
-
-        if (newWork) {
-          console.log('Work created successfully, ID:', newWork.id);
-
-          if (formData.is_recurring) {
-            try {
-              await supabase.rpc('auto_generate_periods_and_tasks', { p_work_id: newWork.id });
-              console.log('Periods and tasks auto-generated for work:', newWork.id);
-            } catch (error) {
-              console.error('Error auto-generating periods and tasks:', error);
-              toast.warning('Work created but failed to generate periods and tasks. You can add them manually.');
-            }
-          }
-
-          toast.success('Work created successfully');
-        }
+      if (formData.assigned_to && formData.assigned_to !== editingWork.assigned_to) {
+        workData.assigned_date = new Date().toISOString();
       }
 
-      setShowModal(false);
-      setEditingWork(null);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      console.error('Error saving work:', error);
-      toast.error('Failed to save work. Please try again.');
+      const { error } = await supabase.from('works').update(workData).eq('id', editingWork.id);
+      if (error) throw error;
+    } else {
+      const { data: newWork, error } = await supabase
+        .from('works')
+        .insert(workData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating work:', error);
+        throw error;
+      }
+
+      if (newWork) {
+        console.log('Work created successfully, ID:', newWork.id);
+
+        if (formData.is_recurring) {
+          try {
+            await supabase.rpc('auto_generate_periods_and_tasks', { p_work_id: newWork.id });
+            console.log('Periods and tasks auto-generated for work:', newWork.id);
+          } catch (error) {
+            console.error('Error auto-generating periods and tasks:', error);
+            toast.error('Work created but failed to generate periods and tasks. You can add them manually.');
+          }
+        }
+
+        toast.success('Work created successfully');
+      }
     }
-  };
+
+    setShowModal(false);
+    setEditingWork(null);
+    resetForm();
+    fetchData();
+  } catch (error) {
+    console.error('Error saving work:', error);
+    toast.error('Failed to save work. Please try again.');
+  }
+};
+
 
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -526,54 +528,55 @@ useEffect(() => {
     });
   };
 
-  const handleEdit = (work: Work) => {
-    setEditingWork(work);
+const handleEdit = (work: Work) => {
+  setEditingWork(work);
 
-    // Fetch full work data with all fields
-    supabase
-      .from('works')
-      .select('*')
-      .eq('id', work.id)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          setFormData({
-            work_number: data.work_number || '',
-            customer_id: data.customer_id,
-            service_id: data.service_id,
-            assigned_to: data.assigned_to || '',
-            title: data.title,
-            description: data.description || '',
-            status: data.status,
-            priority: data.priority,
-            due_date: data.due_date || '',
-            billing_status: data.billing_status,
-            billing_amount: data.billing_amount?.toString() || '',
-            estimated_hours: data.estimated_hours?.toString() || '',
-            estimated_duration_value: data.estimated_duration_value || 0,
-            estimated_duration_unit: data.estimated_duration_unit || 'days',
-            is_recurring: data.is_recurring || false,
-            recurrence_pattern: data.recurrence_pattern || '',
-            recurrence_day: data.recurrence_day?.toString() || '',
-            auto_bill: data.auto_bill !== undefined ? data.auto_bill : true,
-            start_date: data.start_date || '',
-            completion_deadline: '',
-            department: data.department || '',
-            work_location: data.work_location || '',
-            requirements: data.requirements || '',
-            deliverables: data.deliverables || '',
-            period_type: data.period_type || 'previous_period',
-            weekly_start_day: data.weekly_start_day || 'monday',
-            monthly_start_day: data.monthly_start_day?.toString() || '1',
-            quarterly_start_day: data.quarterly_start_day?.toString() || '1',
-            half_yearly_start_day: data.half_yearly_start_day?.toString() || '4',
-            yearly_start_day: data.yearly_start_day?.toString() || '4',
-          });
-        }
-      });
+  supabase
+    .from('works')
+    .select('*')
+    .eq('id', work.id)
+    .single()
+    .then(({ data }) => {
+      if (data) {
+        setFormData({
+          work_number: data.work_number || '',
+          customer_id: data.customer_id,
+          service_id: data.service_id,
+          assigned_to: data.assigned_to || '',
+          title: data.title,
+          description: data.description || '',
+          status: data.status,
+          priority: data.priority,
+          due_date: data.due_date || '',
+          billing_status: data.billing_status,
+          billing_amount: data.billing_amount?.toString() || '',
+          estimated_hours: data.estimated_hours?.toString() || '',
+          estimated_duration_value: data.estimated_duration_value || 0,
+          estimated_duration_unit: data.estimated_duration_unit || 'days',
+          is_recurring: data.is_recurring || false,
+          recurrence_pattern: data.recurrence_pattern || '',
+          recurrence_day: data.recurrence_day?.toString() || '',
+          auto_bill: data.auto_bill !== undefined ? data.auto_bill : true,
+          start_date: data.start_date || '',
+          completion_deadline: '',
+          department: data.department || '',
+          work_location: data.work_location || '',
+          requirements: data.requirements || '',
+          deliverables: data.deliverables || '',
+          period_type: data.period_type || 'previous_period',
+          period_calculation_type: data.period_calculation_type || 'previous_period',
+          weekly_start_day: data.weekly_start_day || 'monday',
+          monthly_start_day: data.monthly_start_day?.toString() || '1',
+          quarterly_start_day: data.quarterly_start_day?.toString() || '1',
+          half_yearly_start_day: data.half_yearly_start_day?.toString() || '4',
+          yearly_start_day: data.yearly_start_day?.toString() || '4',
+        });
+      }
+    });
 
-    setShowModal(true);
-  };
+  setShowModal(true);
+};
+
 
   const resetForm = () => {
     setFormData({
