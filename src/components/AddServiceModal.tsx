@@ -691,7 +691,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
               </label>
             </div>
             <p className="text-sm text-gray-600 dark:text-slate-400 mb-4 ml-8">
-              Enable automatic work generation for services that repeat on a schedule. Task templates with individual due dates can be defined in the Service Details page after creation.
+              Enable automatic work generation for services that repeat on a schedule. Configure how often work should be generated and how periods are calculated. Task templates with individual due dates can be defined in the Service Details page after creation.
             </p>
 
             {formData.is_recurring && (
@@ -703,7 +703,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                        How Often?
+                        How Often? *
                       </label>
                       <select
                         value={formData.recurrence_type}
@@ -725,7 +725,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            Period Type
+                            Period Type *
                           </label>
                           <select
                             value={formData.period_calculation_type}
@@ -770,15 +770,27 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                         )}
 
                         <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
-                          <p className="text-xs text-blue-800 dark:text-blue-400">
-                            Recurs monthly
-                          </p>
-                          <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
-                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous month (1st to last day)' :
-                                     formData.period_calculation_type === 'current_period' ? 'Current month (1st to last day)' :
-                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due date`}
-                          </p>
+                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
+                          <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                            {formData.period_calculation_type === 'previous_period' && (
+                              <>
+                                <li>• Work generated for previous calendar month (1st to last day)</li>
+                                <li>• Example: Create on Aug 5 - first work is for July 2025</li>
+                              </>
+                            )}
+                            {formData.period_calculation_type === 'current_period' && (
+                              <>
+                                <li>• Work generated for current calendar month (1st to last day)</li>
+                                <li>• Example: Create on Aug 5 - first work is for August 2025</li>
+                              </>
+                            )}
+                            {formData.period_calculation_type === 'custom_range' && (
+                              <>
+                                <li>• Work period starts {formData.period_offset_value} {formData.period_offset_unit}(s) before due date</li>
+                                <li>• Useful for GST, monthly accounts, where work period differs from due date</li>
+                              </>
+                            )}
+                          </ul>
                         </div>
                       </div>
                     </div>
@@ -823,7 +835,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            Period Type
+                            Period Type *
                           </label>
                           <select
                             value={formData.period_calculation_type}
@@ -867,15 +879,29 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                         )}
 
                         <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
-                          <p className="text-xs text-blue-800 dark:text-blue-400">
-                            Recurs quarterly (Jan, Apr, Jul, Oct)
-                          </p>
-                          <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
-                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous quarter (3 months)' :
-                                     formData.period_calculation_type === 'current_period' ? 'Current quarter (3 months)' :
-                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due date`}
-                          </p>
+                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
+                          <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                            {formData.period_calculation_type === 'previous_period' && (
+                              <>
+                                <li>• Work generated for previous quarter (3 months)</li>
+                                <li>• Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec</li>
+                                <li>• Example: Create on May 10 - first work is for Q1 (Jan-Mar)</li>
+                              </>
+                            )}
+                            {formData.period_calculation_type === 'current_period' && (
+                              <>
+                                <li>• Work generated for current quarter (3 months)</li>
+                                <li>• Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec</li>
+                                <li>• Example: Create on May 10 - first work is for Q2 (Apr-Jun)</li>
+                              </>
+                            )}
+                            {formData.period_calculation_type === 'custom_range' && (
+                              <>
+                                <li>• Work period starts {formData.period_offset_value} {formData.period_offset_unit}(s) before due date</li>
+                                <li>• Useful for quarterly returns with custom reporting periods</li>
+                              </>
+                            )}
+                          </ul>
                         </div>
                       </div>
                     </div>
@@ -888,7 +914,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            Period Type
+                            Period Type *
                           </label>
                           <select
                             value={formData.period_calculation_type}
@@ -932,15 +958,29 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                         )}
 
                         <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
-                          <p className="text-xs text-blue-800 dark:text-blue-400">
-                            Recurs twice yearly
-                          </p>
-                          <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
-                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous half-year (6 months)' :
-                                     formData.period_calculation_type === 'current_period' ? 'Current half-year (6 months)' :
-                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due date`}
-                          </p>
+                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
+                          <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                            {formData.period_calculation_type === 'previous_period' && (
+                              <>
+                                <li>• Work generated for previous half-year (6 months)</li>
+                                <li>• Half 1: Jan-Jun, Half 2: Jul-Dec</li>
+                                <li>• Example: Create on Aug 10 - first work is for Jan-Jun 2025</li>
+                              </>
+                            )}
+                            {formData.period_calculation_type === 'current_period' && (
+                              <>
+                                <li>• Work generated for current half-year (6 months)</li>
+                                <li>• Half 1: Jan-Jun, Half 2: Jul-Dec</li>
+                                <li>• Example: Create on Aug 10 - first work is for Jul-Dec 2025</li>
+                              </>
+                            )}
+                            {formData.period_calculation_type === 'custom_range' && (
+                              <>
+                                <li>• Work period starts {formData.period_offset_value} {formData.period_offset_unit}(s) before due date</li>
+                                <li>• Useful for half-yearly audits or tax returns</li>
+                              </>
+                            )}
+                          </ul>
                         </div>
                       </div>
                     </div>
@@ -953,7 +993,7 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            Period Type
+                            Period Type *
                           </label>
                           <select
                             value={formData.period_calculation_type}
@@ -997,15 +1037,29 @@ export default function AddServiceModal({ onClose, onSuccess, service: editingSe
                         )}
 
                         <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-1">Summary:</p>
-                          <p className="text-xs text-blue-800 dark:text-blue-400">
-                            Recurs annually
-                          </p>
-                          <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
-                            Period: {formData.period_calculation_type === 'previous_period' ? 'Previous financial year (Apr-Mar)' :
-                                     formData.period_calculation_type === 'current_period' ? 'Current financial year (Apr-Mar)' :
-                                     `${formData.period_offset_value} ${formData.period_offset_unit}(s) before due date`}
-                          </p>
+                          <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
+                          <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                            {formData.period_calculation_type === 'previous_period' && (
+                              <>
+                                <li>• Work generated for previous financial year (12 months)</li>
+                                <li>• Financial year: Apr-Mar (used in India)</li>
+                                <li>• Example: Create on May 10 - first work is for FY 2024-25 (Apr 2024 - Mar 2025)</li>
+                              </>
+                            )}
+                            {formData.period_calculation_type === 'current_period' && (
+                              <>
+                                <li>• Work generated for current financial year (12 months)</li>
+                                <li>• Financial year: Apr-Mar (used in India)</li>
+                                <li>• Example: Create on May 10 - first work is for FY 2025-26 (Apr 2025 - Mar 2026)</li>
+                              </>
+                            )}
+                            {formData.period_calculation_type === 'custom_range' && (
+                              <>
+                                <li>• Work period starts {formData.period_offset_value} {formData.period_offset_unit}(s) before due date</li>
+                                <li>• Useful for annual audits, compliance filings, company registrations</li>
+                              </>
+                            )}
+                          </ul>
                         </div>
                       </div>
                     </div>

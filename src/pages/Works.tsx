@@ -1130,7 +1130,7 @@ const filteredWorks = works.filter((work) => {
                     <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-300">Recurring Work Settings</h3>
                   </div>
                   <p className="text-sm text-gray-700 dark:text-slate-400 mb-4 ml-8">
-                    Enable automatic work generation for services that repeat on a schedule. Task templates with individual due dates can be defined in the Work Details page after creation.
+                    Configure how this work repeats. Periods and tasks will be auto-generated based on these settings. Tasks can be customized in the Work Details page after creation.
                   </p>
 
                   <div className="space-y-5 mt-6">
@@ -1141,7 +1141,7 @@ const filteredWorks = works.filter((work) => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
                           <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            How Often?
+                            How Often? *
                           </label>
                           <select
                             required={formData.is_recurring}
@@ -1149,6 +1149,7 @@ const filteredWorks = works.filter((work) => {
                             onChange={(e) => setFormData({ ...formData, recurrence_pattern: e.target.value })}
                             className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                           >
+                            <option value="">Select frequency</option>
                             <option value="daily">Daily</option>
                             <option value="weekly">Weekly</option>
                             <option value="monthly">Monthly</option>
@@ -1157,6 +1158,72 @@ const filteredWorks = works.filter((work) => {
                             <option value="yearly">Yearly</option>
                           </select>
                         </div>
+
+                        {formData.recurrence_pattern === 'daily' && (
+                          <div className="md:col-span-2 space-y-4">
+                            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
+                              <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                  Period Type *
+                                </label>
+                                <select
+                                  required
+                                  value={formData.period_type}
+                                  onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
+                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                >
+                                  <option value="previous_period">Previous Day</option>
+                                  <option value="current_period">Current Day</option>
+                                  <option value="next_period">Next Day</option>
+                                </select>
+                              </div>
+
+                              <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
+                                <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
+                                <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                                  <li>• Work is generated every day</li>
+                                  <li>• Each period represents a single day</li>
+                                  <li>• All periods between start date and today will be generated automatically</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {formData.recurrence_pattern === 'weekly' && (
+                          <div className="md:col-span-2 space-y-4">
+                            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
+                              <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                  Period Type *
+                                </label>
+                                <select
+                                  required
+                                  value={formData.period_type}
+                                  onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
+                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                >
+                                  <option value="previous_period">Previous Week (Mon-Sun)</option>
+                                  <option value="current_period">Current Week (Mon-Sun)</option>
+                                  <option value="next_period">Next Week (Mon-Sun)</option>
+                                </select>
+                              </div>
+
+                              <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
+                                <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
+                                <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                                  <li>• Work is generated every week</li>
+                                  <li>• Each period represents a full week (Monday to Sunday)</li>
+                                  <li>• All periods between start date and today will be generated automatically</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {formData.recurrence_pattern === 'monthly' && (
                           <div className="md:col-span-2 space-y-4">
@@ -1173,9 +1240,9 @@ const filteredWorks = works.filter((work) => {
                                   onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                                 >
-                                  <option value="previous_period">Previous Period (e.g., last month for monthly)</option>
-                                  <option value="current_period">Current Period (e.g., current month for monthly)</option>
-                                  <option value="next_period">Next Period (e.g., next month for monthly)</option>
+                                  <option value="previous_period">Previous Period (e.g., last month)</option>
+                                  <option value="current_period">Current Period (e.g., current month)</option>
+                                  <option value="next_period">Next Period (e.g., next month)</option>
                                 </select>
                               </div>
 
@@ -1207,15 +1274,17 @@ const filteredWorks = works.filter((work) => {
                                   onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                                 >
-                                  <option value="previous_period">Previous Quarter (last 3 months)</option>
-                                  <option value="current_period">Current Quarter (current 3 months)</option>
-                                  <option value="next_period">Next Quarter (next 3 months)</option>
+                                  <option value="previous_period">Previous Quarter (e.g., Q4 2024)</option>
+                                  <option value="current_period">Current Quarter (e.g., Q1 2025)</option>
+                                  <option value="next_period">Next Quarter (e.g., Q2 2025)</option>
                                 </select>
                               </div>
 
                               <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                                 <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
                                 <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                                  <li>• Each period represents a quarter (3 months)</li>
+                                  <li>• Quarters: Q1 (Jan-Mar), Q2 (Apr-Jun), Q3 (Jul-Sep), Q4 (Oct-Dec)</li>
                                   <li>• All periods between start date and today will be generated automatically</li>
                                 </ul>
                               </div>
@@ -1238,15 +1307,17 @@ const filteredWorks = works.filter((work) => {
                                   onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                                 >
-                                  <option value="previous_period">Previous Half-Year (last 6 months)</option>
-                                  <option value="current_period">Current Half-Year (current 6 months)</option>
-                                  <option value="next_period">Next Half-Year (next 6 months)</option>
+                                  <option value="previous_period">Previous Half-Year (6 months)</option>
+                                  <option value="current_period">Current Half-Year (6 months)</option>
+                                  <option value="next_period">Next Half-Year (6 months)</option>
                                 </select>
                               </div>
 
                               <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                                 <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
                                 <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                                  <li>• Each period represents 6 months</li>
+                                  <li>• Half 1: Jan-Jun, Half 2: Jul-Dec</li>
                                   <li>• All periods between start date and today will be generated automatically</li>
                                 </ul>
                               </div>
@@ -1269,15 +1340,17 @@ const filteredWorks = works.filter((work) => {
                                   onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                                 >
-                                  <option value="previous_period">Previous Financial Year</option>
-                                  <option value="current_period">Current Financial Year</option>
-                                  <option value="next_period">Next Financial Year</option>
+                                  <option value="previous_period">Previous Financial Year (FY)</option>
+                                  <option value="current_period">Current Financial Year (FY)</option>
+                                  <option value="next_period">Next Financial Year (FY)</option>
                                 </select>
                               </div>
 
                               <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                                 <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
                                 <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                                  <li>• Each period represents a full year</li>
+                                  <li>• Based on Financial Year (Apr-Mar in India)</li>
                                   <li>• All periods between start date and today will be generated automatically</li>
                                 </ul>
                               </div>
