@@ -237,10 +237,10 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
             </p>
 
             {isRecurring && (
-              <div className="space-y-3 ml-8 pt-3 border-t border-blue-200">
+              <div className="space-y-4 ml-8 pt-3 border-t border-blue-200">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    How Often?
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    How Often? *
                   </label>
                   <select
                     value={recurrenceType}
@@ -255,71 +255,129 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                   </select>
                 </div>
 
+                {recurrenceType === 'daily' && (
+                  <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
+                    <p className="text-xs font-medium text-gray-700">Daily Recurrence Settings</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Period Type
+                      </label>
+                      <select
+                        value={periodCalculationType}
+                        onChange={(e) => setPeriodCalculationType(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="previous_period">Previous Day</option>
+                        <option value="current_period">Current Day</option>
+                        <option value="next_period">Next Day</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Work is generated every day with period spanning 24 hours</p>
+                  </div>
+                )}
+
+                {recurrenceType === 'weekly' && (
+                  <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
+                    <p className="text-xs font-medium text-gray-700">Weekly Recurrence Settings</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Start Day of Week *
+                      </label>
+                      <select
+                        value={periodCalculationType}
+                        onChange={(e) => setPeriodCalculationType(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="previous_period">Monday (Mon-Sun)</option>
+                        <option value="current_period">Sunday (Sun-Sat)</option>
+                        <option value="next_period">Custom Range</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Select which day your week starts on</p>
+                    </div>
+                  </div>
+                )}
+
                 {recurrenceType === 'monthly' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Period Type
-                    </label>
-                    <select
-                      value={periodCalculationType}
-                      onChange={(e) => setPeriodCalculationType(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="previous_period">Previous Month</option>
-                      <option value="current_period">Current Month</option>
-                      <option value="custom_range">Custom Date Range</option>
-                    </select>
+                  <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
+                    <p className="text-xs font-medium text-gray-700">Monthly Recurrence Settings</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Period Type *
+                      </label>
+                      <select
+                        value={periodCalculationType}
+                        onChange={(e) => setPeriodCalculationType(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="previous_period">Previous Month</option>
+                        <option value="current_period">Current Month</option>
+                        <option value="next_period">Next Month</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Calendar month basis (1st to last day)</p>
                   </div>
                 )}
 
                 {recurrenceType === 'quarterly' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Period Type
-                    </label>
-                    <select
-                      value={periodCalculationType}
-                      onChange={(e) => setPeriodCalculationType(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="previous_period">Previous Quarter</option>
-                      <option value="current_period">Current Quarter</option>
-                      <option value="custom_range">Custom Date Range</option>
-                    </select>
+                  <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
+                    <p className="text-xs font-medium text-gray-700">Quarterly Recurrence Settings</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Period Type *
+                      </label>
+                      <select
+                        value={periodCalculationType}
+                        onChange={(e) => setPeriodCalculationType(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="previous_period">Previous Quarter</option>
+                        <option value="current_period">Current Quarter</option>
+                        <option value="next_period">Next Quarter</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Q1 (Jan-Mar), Q2 (Apr-Jun), Q3 (Jul-Sep), Q4 (Oct-Dec)</p>
                   </div>
                 )}
 
                 {recurrenceType === 'half-yearly' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Period Type
-                    </label>
-                    <select
-                      value={periodCalculationType}
-                      onChange={(e) => setPeriodCalculationType(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="previous_period">Previous Half-Year</option>
-                      <option value="current_period">Current Half-Year</option>
-                      <option value="custom_range">Custom Date Range</option>
-                    </select>
+                  <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
+                    <p className="text-xs font-medium text-gray-700">Half-Yearly Recurrence Settings</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Period Type *
+                      </label>
+                      <select
+                        value={periodCalculationType}
+                        onChange={(e) => setPeriodCalculationType(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="previous_period">Previous Half-Year</option>
+                        <option value="current_period">Current Half-Year</option>
+                        <option value="next_period">Next Half-Year</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">H1 (Jan-Jun), H2 (Jul-Dec)</p>
                   </div>
                 )}
 
                 {recurrenceType === 'yearly' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Period Type
-                    </label>
-                    <select
-                      value={periodCalculationType}
-                      onChange={(e) => setPeriodCalculationType(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="previous_period">Previous Financial Year</option>
-                      <option value="current_period">Current Financial Year</option>
-                      <option value="custom_range">Custom Date Range</option>
-                    </select>
+                  <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
+                    <p className="text-xs font-medium text-gray-700">Yearly Recurrence Settings</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Period Type *
+                      </label>
+                      <select
+                        value={periodCalculationType}
+                        onChange={(e) => setPeriodCalculationType(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="previous_period">Previous Financial Year</option>
+                        <option value="current_period">Current Financial Year</option>
+                        <option value="next_period">Next Financial Year</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Financial Year: Apr-Mar (India standard)</p>
                   </div>
                 )}
 
@@ -335,19 +393,6 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="₹"
                   />
-                </div>
-
-                <div className="bg-white rounded p-2 text-xs border border-blue-100">
-                  <p className="font-medium text-blue-900 mb-1">Period Configuration:</p>
-                  <p className="text-blue-800">
-                    {recurrenceType === 'monthly' && 'Monthly work with '}
-                    {recurrenceType === 'quarterly' && 'Quarterly work with '}
-                    {recurrenceType === 'half-yearly' && 'Half-yearly work with '}
-                    {recurrenceType === 'yearly' && 'Yearly work with '}
-                    {periodCalculationType === 'previous_period' && 'previous period scope'}
-                    {periodCalculationType === 'current_period' && 'current period scope'}
-                    {periodCalculationType === 'custom_range' && 'custom date range'}
-                  </p>
                 </div>
               </div>
             )}
