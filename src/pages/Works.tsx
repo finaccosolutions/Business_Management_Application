@@ -153,6 +153,11 @@ export default function Works() {
     requirements: '',
     deliverables: '',
     period_type: 'previous_period',
+    weekly_start_day: 'monday',
+    monthly_start_day: '1',
+    quarterly_start_day: '1',
+    half_yearly_start_day: '1',
+    yearly_start_day: '1',
   });
 
 useEffect(() => {
@@ -423,6 +428,11 @@ useEffect(() => {
         requirements: formData.requirements || null,
         deliverables: formData.deliverables || null,
         auto_bill: formData.auto_bill,
+        weekly_start_day: formData.is_recurring && formData.recurrence_pattern === 'weekly' ? formData.weekly_start_day : null,
+        monthly_start_day: formData.is_recurring && formData.recurrence_pattern === 'monthly' ? parseInt(formData.monthly_start_day) : null,
+        quarterly_start_day: formData.is_recurring && formData.recurrence_pattern === 'quarterly' ? parseInt(formData.quarterly_start_day) : null,
+        half_yearly_start_day: formData.is_recurring && formData.recurrence_pattern === 'half_yearly' ? parseInt(formData.half_yearly_start_day) : null,
+        yearly_start_day: formData.is_recurring && formData.recurrence_pattern === 'yearly' ? parseInt(formData.yearly_start_day) : null,
         updated_at: new Date().toISOString(),
       };
 
@@ -553,6 +563,11 @@ useEffect(() => {
             requirements: data.requirements || '',
             deliverables: data.deliverables || '',
             period_type: data.period_type || 'previous_period',
+            weekly_start_day: data.weekly_start_day || 'monday',
+            monthly_start_day: data.monthly_start_day?.toString() || '1',
+            quarterly_start_day: data.quarterly_start_day?.toString() || '1',
+            half_yearly_start_day: data.half_yearly_start_day?.toString() || '1',
+            yearly_start_day: data.yearly_start_day?.toString() || '1',
           });
         }
       });
@@ -587,6 +602,11 @@ useEffect(() => {
       requirements: '',
       deliverables: '',
       period_type: 'previous_period',
+      weekly_start_day: 'monday',
+      monthly_start_day: '1',
+      quarterly_start_day: '1',
+      half_yearly_start_day: '1',
+      yearly_start_day: '1',
     });
   };
 
@@ -1197,6 +1217,36 @@ const filteredWorks = works.filter((work) => {
                             <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
                               <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
 
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                              Period Start Day *
+                            </label>
+                          
+                            <div className="grid grid-cols-7 gap-2">
+                              {["monday","tuesday","wednesday","thursday","friday","saturday","sunday"].map((day) => (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() => setFormData({ ...formData, weekly_start_day: day })}
+                                  className={`px-3 py-2 rounded-lg text-sm capitalize border 
+                                    ${
+                                      formData.weekly_start_day === day
+                                        ? "bg-orange-500 text-white border-orange-600"
+                                        : "bg-white dark:bg-slate-700 text-gray-700 dark:text-white border-gray-300 dark:border-slate-600"
+                                    }
+                                  `}
+                                >
+                                  {day}
+                                </button>
+                              ))}
+                            </div>
+                          
+                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                              Week will run from selected day to the day before it
+                            </p>
+                          </div>
+
+
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                   Period Type *
@@ -1207,17 +1257,17 @@ const filteredWorks = works.filter((work) => {
                                   onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                                 >
-                                  <option value="previous_period">Previous Week (Mon-Sun)</option>
-                                  <option value="current_period">Current Week (Mon-Sun)</option>
-                                  <option value="next_period">Next Week (Mon-Sun)</option>
+                                  <option value="previous_period">Previous Week</option>
+                                  <option value="current_period">Current Week</option>
+                                  <option value="next_period">Next Week</option>
                                 </select>
                               </div>
 
                               <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                                 <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
                                 <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
-                                  <li>• Work is generated every week</li>
-                                  <li>• Each period represents a full week (Monday to Sunday)</li>
+                                  <li>• Work is generated every week starting on your selected day</li>
+                                  <li>• Each period represents a full week from the start day to the day before it</li>
                                   <li>• All periods between start date and today will be generated automatically</li>
                                 </ul>
                               </div>
@@ -1229,6 +1279,22 @@ const filteredWorks = works.filter((work) => {
                           <div className="md:col-span-2 space-y-4">
                             <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
                               <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                  Period Start Day (1-31) *
+                                </label>
+                                <input
+                                  type="number"
+                                  required
+                                  min="1"
+                                  max="31"
+                                  value={formData.monthly_start_day}
+                                  onChange={(e) => setFormData({ ...formData, monthly_start_day: e.target.value })}
+                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                />
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Month will start from this day (e.g., 1 for 1st, 15 for 15th)</p>
+                              </div>
 
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
@@ -1266,6 +1332,22 @@ const filteredWorks = works.filter((work) => {
 
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                  Quarter Start Day (1-31) *
+                                </label>
+                                <input
+                                  type="number"
+                                  required
+                                  min="1"
+                                  max="31"
+                                  value={formData.quarterly_start_day}
+                                  onChange={(e) => setFormData({ ...formData, quarterly_start_day: e.target.value })}
+                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                />
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Each quarter will start from this day</p>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                   Period Type *
                                 </label>
                                 <select
@@ -1299,6 +1381,22 @@ const filteredWorks = works.filter((work) => {
 
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                  Half-Year Start Day (1-31) *
+                                </label>
+                                <input
+                                  type="number"
+                                  required
+                                  min="1"
+                                  max="31"
+                                  value={formData.half_yearly_start_day}
+                                  onChange={(e) => setFormData({ ...formData, half_yearly_start_day: e.target.value })}
+                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                />
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Each 6-month period will start from this day</p>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                                   Period Type *
                                 </label>
                                 <select
@@ -1329,6 +1427,22 @@ const filteredWorks = works.filter((work) => {
                           <div className="md:col-span-2 space-y-4">
                             <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
                               <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                  Year Start Day (1-31) *
+                                </label>
+                                <input
+                                  type="number"
+                                  required
+                                  min="1"
+                                  max="31"
+                                  value={formData.yearly_start_day}
+                                  onChange={(e) => setFormData({ ...formData, yearly_start_day: e.target.value })}
+                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                />
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Financial year will start from this day (default: 1 for Apr 1)</p>
+                              </div>
 
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
