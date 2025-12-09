@@ -57,6 +57,7 @@ export default function SearchableSelect({
       )}
       <div className="relative" ref={containerRef}>
         <button
+          type="button"
           onClick={() => !disabled && setIsOpen(!isOpen)}
           disabled={disabled}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-left flex items-center justify-between bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
@@ -91,6 +92,7 @@ export default function SearchableSelect({
               <div className="max-h-60 overflow-y-auto">
                 {filteredOptions.map((option) => (
                   <button
+                    type="button"
                     key={option.id}
                     onClick={() => {
                       onChange(option.id);

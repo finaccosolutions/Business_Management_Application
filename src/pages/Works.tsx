@@ -156,8 +156,8 @@ export default function Works() {
     weekly_start_day: 'monday',
     monthly_start_day: '1',
     quarterly_start_day: '1',
-    half_yearly_start_day: '1',
-    yearly_start_day: '1',
+    half_yearly_start_day: '4',
+    yearly_start_day: '4',
   });
 
 useEffect(() => {
@@ -566,8 +566,8 @@ useEffect(() => {
             weekly_start_day: data.weekly_start_day || 'monday',
             monthly_start_day: data.monthly_start_day?.toString() || '1',
             quarterly_start_day: data.quarterly_start_day?.toString() || '1',
-            half_yearly_start_day: data.half_yearly_start_day?.toString() || '1',
-            yearly_start_day: data.yearly_start_day?.toString() || '1',
+            half_yearly_start_day: data.half_yearly_start_day?.toString() || '4',
+            yearly_start_day: data.yearly_start_day?.toString() || '4',
           });
         }
       });
@@ -605,8 +605,8 @@ useEffect(() => {
       weekly_start_day: 'monday',
       monthly_start_day: '1',
       quarterly_start_day: '1',
-      half_yearly_start_day: '1',
-      yearly_start_day: '1',
+      half_yearly_start_day: '4',
+      yearly_start_day: '4',
     });
   };
 
@@ -1332,18 +1332,20 @@ const filteredWorks = works.filter((work) => {
 
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Quarter Start Day (1-31) *
+                                  Quarter Start Month (1-12) *
                                 </label>
-                                <input
-                                  type="number"
+                                <select
                                   required
-                                  min="1"
-                                  max="31"
                                   value={formData.quarterly_start_day}
                                   onChange={(e) => setFormData({ ...formData, quarterly_start_day: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                />
-                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Each quarter will start from this day</p>
+                                >
+                                  <option value="1">1 - January (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)</option>
+                                  <option value="4">4 - April (Q1: Apr-Jun, Q2: Jul-Sep, Q3: Oct-Dec, Q4: Jan-Mar)</option>
+                                  <option value="7">7 - July (Q1: Jul-Sep, Q2: Oct-Dec, Q3: Jan-Mar, Q4: Apr-Jun)</option>
+                                  <option value="10">10 - October (Q1: Oct-Dec, Q2: Jan-Mar, Q3: Apr-Jun, Q4: Jul-Sep)</option>
+                                </select>
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for quarterly periods</p>
                               </div>
 
                               <div>
@@ -1381,18 +1383,19 @@ const filteredWorks = works.filter((work) => {
 
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Half-Year Start Day (1-31) *
+                                  Half-Year Start Month (1-12) *
                                 </label>
-                                <input
-                                  type="number"
+                                <select
                                   required
-                                  min="1"
-                                  max="31"
                                   value={formData.half_yearly_start_day}
                                   onChange={(e) => setFormData({ ...formData, half_yearly_start_day: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                />
-                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Each 6-month period will start from this day</p>
+                                >
+                                  <option value="1">1 - January (H1: Jan-Jun, H2: Jul-Dec)</option>
+                                  <option value="4">4 - April (H1: Apr-Sep, H2: Oct-Mar)</option>
+                                  <option value="7">7 - July (H1: Jul-Dec, H2: Jan-Jun)</option>
+                                </select>
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for half-yearly periods</p>
                               </div>
 
                               <div>
@@ -1430,18 +1433,20 @@ const filteredWorks = works.filter((work) => {
 
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Year Start Day (1-31) *
+                                  Financial Year Start Month (1-12) *
                                 </label>
-                                <input
-                                  type="number"
+                                <select
                                   required
-                                  min="1"
-                                  max="31"
                                   value={formData.yearly_start_day}
                                   onChange={(e) => setFormData({ ...formData, yearly_start_day: e.target.value })}
                                   className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                />
-                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Financial year will start from this day (default: 1 for Apr 1)</p>
+                                >
+                                  <option value="1">1 - January (Jan-Dec)</option>
+                                  <option value="4">4 - April (Apr-Mar) - India Standard</option>
+                                  <option value="7">7 - July (Jul-Jun)</option>
+                                  <option value="10">10 - October (Oct-Sep)</option>
+                                </select>
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for the financial year</p>
                               </div>
 
                               <div>
