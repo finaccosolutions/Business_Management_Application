@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -17,6 +17,15 @@ interface AddWorkModalProps {
   autoFillCustomerName?: boolean;
 }
 
+const RECURRENCE_TYPES = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'half-yearly', label: 'Half-Yearly' },
+  { value: 'yearly', label: 'Yearly' },
+];
+
 export default function AddWorkModal({ customerId, customerName, onClose, onSuccess, autoFillCustomerName = false }: AddWorkModalProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -28,6 +37,12 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
   const [dueDate, setDueDate] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingServices, setLoadingServices] = useState(true);
+  const [isRecurring, setIsRecurring] = useState<boolean>(false);
+  const [recurrenceType, setRecurrenceType] = useState<string>('monthly');
+  const [periodCalculationType, setPeriodCalculationType] = useState<string>('previous_period');
+  const [periodOffsetValue, setPeriodOffsetValue] = useState<number>(1);
+  const [periodOffsetUnit, setPeriodOffsetUnit] = useState<string>('month');
+  const [billingAmount, setBillingAmount] = useState<string>('');
 
   useEffect(() => {
     fetchServices();
@@ -72,18 +87,27 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
 
     setLoading(true);
     try {
+      const workData: any = {
+        customer_id: customerId,
+        service_id: selectedServiceId,
+        title,
+        description: description || null,
+        priority,
+        due_date: dueDate || null,
+        status: 'pending',
+        billing_status: 'not_billed',
+        is_recurring: isRecurring,
+      };
+
+      if (isRecurring) {
+        workData.recurrence_pattern = recurrenceType;
+        workData.period_calculation_type = periodCalculationType;
+        workData.billing_amount = billingAmount ? parseFloat(billingAmount) : null;
+      }
+
       const { error } = await supabase
         .from('works')
-        .insert({
-          customer_id: customerId,
-          service_id: selectedServiceId,
-          title,
-          description: description || null,
-          priority,
-          due_date: dueDate || null,
-          status: 'pending',
-          billing_status: 'not_billed',
-        });
+        .insert(workData);
 
       if (error) throw error;
       showToast('Work created successfully', 'success');
@@ -115,7 +139,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Service *
@@ -162,7 +186,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Work description"
-              rows={3}
+              rows={2}
             />
           </div>
 
@@ -194,18 +218,153 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
             />
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-center space-x-3 mb-3">
+              <input
+                type="checkbox"
+                id="is_recurring"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="is_recurring" className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Calendar size={16} />
+                Recurring Work
+              </label>
+            </div>
+            <p className="text-xs text-gray-600 ml-8 mb-3">
+              Enable automatic period-based work generation. Configure task details in work settings after creation.
+            </p>
+
+            {isRecurring && (
+              <div className="space-y-3 ml-8 pt-3 border-t border-blue-200">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    How Often?
+                  </label>
+                  <select
+                    value={recurrenceType}
+                    onChange={(e) => setRecurrenceType(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {RECURRENCE_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {recurrenceType === 'monthly' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Period Type
+                    </label>
+                    <select
+                      value={periodCalculationType}
+                      onChange={(e) => setPeriodCalculationType(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="previous_period">Previous Month</option>
+                      <option value="current_period">Current Month</option>
+                      <option value="custom_range">Custom Date Range</option>
+                    </select>
+                  </div>
+                )}
+
+                {recurrenceType === 'quarterly' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Period Type
+                    </label>
+                    <select
+                      value={periodCalculationType}
+                      onChange={(e) => setPeriodCalculationType(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="previous_period">Previous Quarter</option>
+                      <option value="current_period">Current Quarter</option>
+                      <option value="custom_range">Custom Date Range</option>
+                    </select>
+                  </div>
+                )}
+
+                {recurrenceType === 'half-yearly' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Period Type
+                    </label>
+                    <select
+                      value={periodCalculationType}
+                      onChange={(e) => setPeriodCalculationType(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="previous_period">Previous Half-Year</option>
+                      <option value="current_period">Current Half-Year</option>
+                      <option value="custom_range">Custom Date Range</option>
+                    </select>
+                  </div>
+                )}
+
+                {recurrenceType === 'yearly' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Period Type
+                    </label>
+                    <select
+                      value={periodCalculationType}
+                      onChange={(e) => setPeriodCalculationType(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="previous_period">Previous Financial Year</option>
+                      <option value="current_period">Current Financial Year</option>
+                      <option value="custom_range">Custom Date Range</option>
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Default Billing Amount (Optional)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={billingAmount}
+                    onChange={(e) => setBillingAmount(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="₹"
+                  />
+                </div>
+
+                <div className="bg-white rounded p-2 text-xs border border-blue-100">
+                  <p className="font-medium text-blue-900 mb-1">Period Configuration:</p>
+                  <p className="text-blue-800">
+                    {recurrenceType === 'monthly' && 'Monthly work with '}
+                    {recurrenceType === 'quarterly' && 'Quarterly work with '}
+                    {recurrenceType === 'half-yearly' && 'Half-yearly work with '}
+                    {recurrenceType === 'yearly' && 'Yearly work with '}
+                    {periodCalculationType === 'previous_period' && 'previous period scope'}
+                    {periodCalculationType === 'current_period' && 'current period scope'}
+                    {periodCalculationType === 'custom_range' && 'custom date range'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create Work'}
             </button>
