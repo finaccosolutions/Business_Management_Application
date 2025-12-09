@@ -75,7 +75,7 @@ export default function InvoicePaymentModal({ invoice, onClose, onSave }: Invoic
         .from('invoice_payment_summary_view')
         .select('payments')
         .eq('invoice_id', invoice.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       setExistingPayments(data?.payments || []);

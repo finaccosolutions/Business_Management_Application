@@ -77,7 +77,8 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
 
   const autoGenerateAndFetch = async () => {
     try {
-      await supabase.rpc('auto_generate_periods_and_tasks', { p_work_id: workId });
+      const { error } = await supabase.rpc('auto_generate_periods_and_tasks', { p_work_id: workId });
+      if (error) throw error;
       await fetchPeriods();
     } catch (error) {
       console.error('Error during auto-generate:', error);
