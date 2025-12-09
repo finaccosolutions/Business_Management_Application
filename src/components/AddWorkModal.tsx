@@ -47,7 +47,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
   const [monthlyStartDay, setMonthlyStartDay] = useState<number>(1);
   const [quarterlyStartDay, setQuarterlyStartDay] = useState<number>(1);
   const [halfYearlyStartDay, setHalfYearlyStartDay] = useState<number>(1);
-  const [yearlyStartDay, setYearlyStartDay] = useState<number>(1);
+  const [yearlyStartMonth, setYearlyStartMonth] = useState<number>(4);
 
   useEffect(() => {
     fetchServices();
@@ -113,7 +113,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
         workData.monthly_start_day = monthlyStartDay;
         workData.quarterly_start_day = quarterlyStartDay;
         workData.half_yearly_start_day = halfYearlyStartDay;
-        workData.yearly_start_day = yearlyStartDay;
+        workData.yearly_start_day = yearlyStartMonth;
       }
 
       const { error } = await supabase
@@ -162,7 +162,6 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                 value={selectedServiceId}
                 onChange={(e) => setSelectedServiceId(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
               >
                 <option value="">Select a service</option>
                 {services.map(service => (
@@ -184,6 +183,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Work title"
+              required
             />
           </div>
 
@@ -330,7 +330,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                     <p className="text-xs font-medium text-gray-700">Monthly Recurrence Settings</p>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Month Start Day (1-31) *
+                        Period Start Day of Month (1-31) *
                       </label>
                       <input
                         type="number"
@@ -340,7 +340,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                         onChange={(e) => setMonthlyStartDay(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Day of month when period starts</p>
+                      <p className="text-xs text-gray-500 mt-1">Day of month when each period starts (e.g., 1 for 1st, 15 for 15th)</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -356,7 +356,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                         <option value="next_period">Next Month</option>
                       </select>
                     </div>
-                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Calendar month basis</p>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Monthly on selected day</p>
                   </div>
                 )}
 
@@ -365,21 +365,31 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                     <p className="text-xs font-medium text-gray-700">Quarterly Recurrence Settings</p>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Quarter Start Day (1-31) *
+                        Quarter Start Month (1-12)
                       </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="31"
+                      <select
                         value={quarterlyStartDay}
-                        onChange={(e) => setQuarterlyStartDay(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
+                        onChange={(e) => setQuarterlyStartDay(parseInt(e.target.value))}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Day of month when quarter starts</p>
+                      >
+                        <option value="1">1 - January</option>
+                        <option value="2">2 - February</option>
+                        <option value="3">3 - March</option>
+                        <option value="4">4 - April</option>
+                        <option value="5">5 - May</option>
+                        <option value="6">6 - June</option>
+                        <option value="7">7 - July</option>
+                        <option value="8">8 - August</option>
+                        <option value="9">9 - September</option>
+                        <option value="10">10 - October</option>
+                        <option value="11">11 - November</option>
+                        <option value="12">12 - December</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Starting month for quarterly periods</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Period Type *
+                        Period Type
                       </label>
                       <select
                         value={periodCalculationType}
@@ -391,7 +401,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                         <option value="next_period">Next Quarter</option>
                       </select>
                     </div>
-                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Q1 (Jan-Mar), Q2 (Apr-Jun), Q3 (Jul-Sep), Q4 (Oct-Dec)</p>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">E.g., Month 1 = Q1 (Jan-Mar), Q2 (Apr-Jun), Q3 (Jul-Sep), Q4 (Oct-Dec)</p>
                   </div>
                 )}
 
@@ -400,21 +410,22 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                     <p className="text-xs font-medium text-gray-700">Half-Yearly Recurrence Settings</p>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Half-Year Start Day (1-31) *
+                        Half-Year Start Month (1-12)
                       </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="31"
+                      <select
                         value={halfYearlyStartDay}
-                        onChange={(e) => setHalfYearlyStartDay(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
+                        onChange={(e) => setHalfYearlyStartDay(parseInt(e.target.value))}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Day of month when half-year starts</p>
+                      >
+                        <option value="1">1 - January (H1: Jan-Jun, H2: Jul-Dec)</option>
+                        <option value="4">4 - April (H1: Apr-Sep, H2: Oct-Mar)</option>
+                        <option value="7">7 - July (H1: Jul-Dec, H2: Jan-Jun)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Starting month for half-yearly periods</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Period Type *
+                        Period Type
                       </label>
                       <select
                         value={periodCalculationType}
@@ -426,7 +437,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                         <option value="next_period">Next Half-Year</option>
                       </select>
                     </div>
-                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">H1 (Jan-Jun), H2 (Jul-Dec)</p>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Covers 6 consecutive months</p>
                   </div>
                 )}
 
@@ -435,21 +446,23 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                     <p className="text-xs font-medium text-gray-700">Yearly Recurrence Settings</p>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Year Start Day (1-31) *
+                        Financial Year Start Month (1-12)
                       </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="31"
-                        value={yearlyStartDay}
-                        onChange={(e) => setYearlyStartDay(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
+                      <select
+                        value={yearlyStartMonth}
+                        onChange={(e) => setYearlyStartMonth(parseInt(e.target.value))}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Day of month when year starts</p>
+                      >
+                        <option value="1">1 - January (Jan-Dec)</option>
+                        <option value="4">4 - April (Apr-Mar) - India Standard</option>
+                        <option value="7">7 - July (Jul-Jun)</option>
+                        <option value="10">10 - October (Oct-Sep)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Month when financial year starts</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Period Type *
+                        Period Type
                       </label>
                       <select
                         value={periodCalculationType}
@@ -461,7 +474,7 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                         <option value="next_period">Next Financial Year</option>
                       </select>
                     </div>
-                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Financial Year: Apr-Mar (India standard)</p>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">12-month financial year period</p>
                   </div>
                 )}
 
