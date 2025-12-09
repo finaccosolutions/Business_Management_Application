@@ -43,6 +43,11 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
   const [periodOffsetValue, setPeriodOffsetValue] = useState<number>(1);
   const [periodOffsetUnit, setPeriodOffsetUnit] = useState<string>('month');
   const [billingAmount, setBillingAmount] = useState<string>('');
+  const [weeklyStartDay, setWeeklyStartDay] = useState<string>('monday');
+  const [monthlyStartDay, setMonthlyStartDay] = useState<number>(1);
+  const [quarterlyStartDay, setQuarterlyStartDay] = useState<number>(1);
+  const [halfYearlyStartDay, setHalfYearlyStartDay] = useState<number>(1);
+  const [yearlyStartDay, setYearlyStartDay] = useState<number>(1);
 
   useEffect(() => {
     fetchServices();
@@ -80,8 +85,8 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedServiceId || !title) {
-      showToast('Please fill in required fields', 'error');
+    if (!selectedServiceId || !title.trim()) {
+      showToast('Please fill in all required fields', 'error');
       return;
     }
 
@@ -103,6 +108,12 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
         workData.recurrence_pattern = recurrenceType;
         workData.period_calculation_type = periodCalculationType;
         workData.billing_amount = billingAmount ? parseFloat(billingAmount) : null;
+
+        workData.weekly_start_day = weeklyStartDay;
+        workData.monthly_start_day = monthlyStartDay;
+        workData.quarterly_start_day = quarterlyStartDay;
+        workData.half_yearly_start_day = halfYearlyStartDay;
+        workData.yearly_start_day = yearlyStartDay;
       }
 
       const { error } = await supabase
@@ -173,7 +184,6 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Work title"
-              required
             />
           </div>
 
@@ -284,15 +294,33 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                         Start Day of Week *
                       </label>
                       <select
+                        value={weeklyStartDay}
+                        onChange={(e) => setWeeklyStartDay(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="monday">Monday</option>
+                        <option value="sunday">Sunday</option>
+                        <option value="tuesday">Tuesday</option>
+                        <option value="wednesday">Wednesday</option>
+                        <option value="thursday">Thursday</option>
+                        <option value="friday">Friday</option>
+                        <option value="saturday">Saturday</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Select which day your week starts on</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Period Type *
+                      </label>
+                      <select
                         value={periodCalculationType}
                         onChange={(e) => setPeriodCalculationType(e.target.value)}
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
-                        <option value="previous_period">Monday (Mon-Sun)</option>
-                        <option value="current_period">Sunday (Sun-Sat)</option>
-                        <option value="next_period">Custom Range</option>
+                        <option value="previous_period">Previous Week</option>
+                        <option value="current_period">Current Week</option>
+                        <option value="next_period">Next Week</option>
                       </select>
-                      <p className="text-xs text-gray-500 mt-1">Select which day your week starts on</p>
                     </div>
                   </div>
                 )}
@@ -300,6 +328,20 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                 {recurrenceType === 'monthly' && (
                   <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
                     <p className="text-xs font-medium text-gray-700">Monthly Recurrence Settings</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Month Start Day (1-31) *
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={monthlyStartDay}
+                        onChange={(e) => setMonthlyStartDay(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Day of month when period starts</p>
+                    </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Period Type *
@@ -314,13 +356,27 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                         <option value="next_period">Next Month</option>
                       </select>
                     </div>
-                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Calendar month basis (1st to last day)</p>
+                    <p className="text-xs text-blue-700 bg-blue-50 p-2 rounded">Calendar month basis</p>
                   </div>
                 )}
 
                 {recurrenceType === 'quarterly' && (
                   <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
                     <p className="text-xs font-medium text-gray-700">Quarterly Recurrence Settings</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Quarter Start Day (1-31) *
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={quarterlyStartDay}
+                        onChange={(e) => setQuarterlyStartDay(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Day of month when quarter starts</p>
+                    </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Period Type *
@@ -343,6 +399,20 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                   <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
                     <p className="text-xs font-medium text-gray-700">Half-Yearly Recurrence Settings</p>
                     <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Half-Year Start Day (1-31) *
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={halfYearlyStartDay}
+                        onChange={(e) => setHalfYearlyStartDay(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Day of month when half-year starts</p>
+                    </div>
+                    <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Period Type *
                       </label>
@@ -363,6 +433,20 @@ export default function AddWorkModal({ customerId, customerName, onClose, onSucc
                 {recurrenceType === 'yearly' && (
                   <div className="bg-white rounded p-3 border border-blue-100 space-y-3">
                     <p className="text-xs font-medium text-gray-700">Yearly Recurrence Settings</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        Year Start Day (1-31) *
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={yearlyStartDay}
+                        onChange={(e) => setYearlyStartDay(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Day of month when year starts</p>
+                    </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Period Type *
