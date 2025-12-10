@@ -1,11 +1,158 @@
 /*
-  # Update auto_generate_periods_and_tasks to use financial_year_start_month from works table
+  # Complete auto_generate_periods_and_tasks with full recurrence and FY support
   
-  1. Changes
-    - Reads financial_year_start_month from works table
-    - Uses it for quarterly, half-yearly, and yearly period generation
-    - Respects work-specific financial year configuration
+  1. Key Improvements
+    - Supports all task recurrences (daily, weekly, monthly, quarterly, half-yearly, yearly) within all work recurrences
+    - Uses financial_year_start_month from works table for quarterly, half-yearly, yearly calculations
+    - Uses weekly_start_day from works table (monday, tuesday, etc.) for week boundary calculations
+    - Calculates week numbers starting from 1 (not ISO week)
+    - Properly handles same-level and all lower-level recurrence combinations
+    
+  2. Weekly Start Day Support
+    - Reads weekly_start_day from works table
+    - Calculates week boundaries based on configured start day
+    - Week numbering starts from 1 within each month
+    
+  3. Financial Year Support
+    - Uses financial_year_start_month for Q, H, FY period naming
+    - Aligns periods with actual financial year boundaries
+    
+  4. Task Recurrence Hierarchy
+    - Daily: supports daily tasks only
+    - Weekly: supports daily, weekly tasks
+    - Monthly: supports daily, weekly, monthly tasks
+    - Quarterly: supports daily, weekly, monthly, quarterly tasks
+    - Half-yearly: supports daily, weekly, monthly, quarterly, half-yearly tasks
+    - Yearly: supports all recurrence types
 */
+
+CREATE OR REPLACE FUNCTION public.calculate_task_due_date_in_period(
+  p_task_id uuid,
+  p_period_start date,
+  p_period_end date
+) RETURNS date
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  t service_tasks%ROWTYPE;
+  v_max_day int;
+  v_day_in_month int;
+  v_due date;
+BEGIN
+  SELECT * INTO t FROM service_tasks WHERE id = p_task_id;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  v_due := NULL;
+
+  IF t.exact_due_date IS NOT NULL THEN
+    v_due := t.exact_due_date;
+    RETURN v_due;
+  END IF;
+
+  IF t.specific_period_dates IS NOT NULL AND (t.specific_period_dates ? p_period_end::text) THEN
+    v_due := (t.specific_period_dates ->> p_period_end::text)::date;
+    RETURN v_due;
+  END IF;
+
+  IF t.due_offset_type IS NOT NULL AND t.due_offset_value IS NOT NULL THEN
+    IF LOWER(t.due_offset_type) IN ('day','days') THEN
+      v_due := (p_period_end + t.due_offset_value)::date;
+      RETURN v_due;
+
+    ELSIF LOWER(t.due_offset_type) IN ('month','months') THEN
+      v_due := (p_period_end + (t.due_offset_value || ' month')::interval)::date;
+      RETURN v_due;
+
+    ELSIF LOWER(t.due_offset_type) = 'day_of_month' THEN
+      v_max_day := EXTRACT(DAY FROM p_period_end)::int;
+      v_day_in_month := LEAST(GREATEST(t.due_offset_value,1)::int, v_max_day);
+      v_due := make_date(EXTRACT(YEAR FROM p_period_end)::int,
+                         EXTRACT(MONTH FROM p_period_end)::int,
+                         v_day_in_month);
+      RETURN v_due;
+    END IF;
+  END IF;
+
+  IF t.due_date_offset_days IS NOT NULL THEN
+    v_due := (p_period_end + t.due_date_offset_days)::date;
+    RETURN v_due;
+  END IF;
+
+  IF t.due_day_of_month IS NOT NULL THEN
+    v_max_day := EXTRACT(DAY FROM p_period_end)::int;
+    v_day_in_month := LEAST(GREATEST(t.due_day_of_month,1)::int, v_max_day);
+    v_due := make_date(EXTRACT(YEAR FROM p_period_end)::int,
+                       EXTRACT(MONTH FROM p_period_end)::int,
+                       v_day_in_month);
+    RETURN v_due;
+  END IF;
+
+  v_due := p_period_end;
+  RETURN v_due;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'calculate_task_due_date_in_period error: %', SQLERRM;
+    RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_week_start_date(p_date date, p_start_day text)
+RETURNS date
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_dow int;
+  v_start_dow int;
+  v_days_back int;
+BEGIN
+  v_dow := EXTRACT(DOW FROM p_date)::int;
+  
+  v_start_dow := CASE LOWER(COALESCE(p_start_day, 'monday'))
+    WHEN 'monday' THEN 1
+    WHEN 'tuesday' THEN 2
+    WHEN 'wednesday' THEN 3
+    WHEN 'thursday' THEN 4
+    WHEN 'friday' THEN 5
+    WHEN 'saturday' THEN 6
+    WHEN 'sunday' THEN 0
+    ELSE 1
+  END;
+  
+  IF v_dow = 0 THEN v_dow := 7; END IF;
+  
+  v_days_back := CASE 
+    WHEN v_start_dow = 0 THEN (v_dow - 1) % 7
+    ELSE (v_dow - v_start_dow + 7) % 7
+  END;
+  
+  RETURN (p_date - v_days_back)::date;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_week_number_in_month(p_date date, p_start_day text)
+RETURNS int
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_month_start date;
+  v_week_start date;
+  v_week_num int;
+BEGIN
+  v_month_start := make_date(EXTRACT(YEAR FROM p_date)::int, EXTRACT(MONTH FROM p_date)::int, 1);
+  v_week_start := public.get_week_start_date(p_date, p_start_day);
+  
+  IF v_week_start < v_month_start THEN
+    v_week_num := 1;
+  ELSE
+    v_week_num := ((EXTRACT(DAY FROM v_week_start)::int - 1) / 7) + 1;
+  END IF;
+  
+  RETURN v_week_num;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.auto_generate_periods_and_tasks(p_work_id uuid)
 RETURNS void
@@ -18,6 +165,7 @@ DECLARE
   v_service_id uuid;
   v_current_date date := CURRENT_DATE;
   v_fy_start_month int;
+  v_weekly_start_day text;
 
   v_iter_date date;
   v_period_start date;
@@ -28,8 +176,9 @@ DECLARE
   v_task_period_end date;
   v_task_due_date date;
   v_month_index int;
-  v_quarter_index int;
-  v_half_year_index int;
+  v_quarter_num int;
+  v_half_year_num int;
+  v_week_num int;
 
   v_period_id uuid;
   v_period_name text;
@@ -37,8 +186,6 @@ DECLARE
   v_task_title_with_suffix text;
   v_has_qualifying_task boolean;
 
-  v_quarter_num int;
-  v_half_year_num int;
   v_financial_year text;
   v_month_num int;
 
@@ -53,6 +200,7 @@ BEGIN
   v_work_start_date := v_work.start_date;
   v_service_id := v_work.service_id;
   v_fy_start_month := COALESCE(v_work.financial_year_start_month, 4);
+  v_weekly_start_day := COALESCE(v_work.weekly_start_day, 'monday');
 
   IF v_service_id IS NULL OR v_work_recurrence = '' OR v_work_recurrence = 'one-time' THEN
     RETURN;
@@ -71,7 +219,6 @@ BEGIN
     WHILE v_iter_date <= v_current_date LOOP
       v_period_start := v_iter_date;
       v_period_end := v_iter_date;
-
       v_has_qualifying_task := false;
 
       FOR v_task IN
@@ -149,15 +296,14 @@ BEGIN
   -------------------------------------------------------------------
   ELSIF v_work_recurrence = 'weekly' THEN
     IF v_work_start_date IS NULL THEN
-      v_iter_date := date_trunc('week', v_current_date)::date - INTERVAL '1 week';
+      v_iter_date := public.get_week_start_date(v_current_date - INTERVAL '1 week', v_weekly_start_day);
     ELSE
-      v_iter_date := date_trunc('week', v_work_start_date)::date;
+      v_iter_date := public.get_week_start_date(v_work_start_date, v_weekly_start_day);
     END IF;
 
     WHILE v_iter_date <= v_current_date LOOP
       v_period_start := v_iter_date;
       v_period_end := (v_iter_date + INTERVAL '6 days')::date;
-
       v_has_qualifying_task := false;
 
       FOR v_task IN
@@ -169,7 +315,6 @@ BEGIN
 
         IF v_task_recurrence = 'weekly' THEN
           v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_period_end);
-
           IF v_task_due_date IS NOT NULL
              AND v_period_end <= v_current_date
              AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
@@ -202,8 +347,8 @@ BEGIN
         LIMIT 1;
 
         IF v_period_id IS NULL THEN
-          v_period_name := 'Week ' || EXTRACT(WEEK FROM v_period_end)::text
-            || ' ' || EXTRACT(YEAR FROM v_period_end)::text;
+          v_week_num := public.get_week_number_in_month(v_period_end, v_weekly_start_day);
+          v_period_name := 'W' || v_week_num::text || ' ' || TO_CHAR(v_period_end, 'Mon YYYY');
           INSERT INTO work_recurring_instances(
             work_id, period_name, period_start_date, period_end_date,
             status, created_at, updated_at
@@ -227,7 +372,8 @@ BEGIN
                AND v_period_end <= v_current_date
                AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
 
-              v_task_title_with_suffix := v_task.title || ' - Week ' || EXTRACT(WEEK FROM v_period_end)::text;
+              v_week_num := public.get_week_number_in_month(v_period_end, v_weekly_start_day);
+              v_task_title_with_suffix := v_task.title || ' - W' || v_week_num::text;
 
               SELECT EXISTS(
                 SELECT 1 FROM recurring_period_tasks
@@ -301,7 +447,6 @@ BEGIN
     WHILE v_iter_date <= v_current_date LOOP
       v_period_start := v_iter_date;
       v_period_end := (date_trunc('month', v_iter_date) + INTERVAL '1 month' - INTERVAL '1 day')::date;
-
       v_has_qualifying_task := false;
 
       FOR v_task IN
@@ -313,7 +458,6 @@ BEGIN
 
         IF v_task_recurrence = 'monthly' THEN
           v_task_due_date := public.calculate_task_due_date_in_period(v_task.id, v_period_start, v_period_end);
-
           IF v_task_due_date IS NOT NULL
              AND v_period_end <= v_current_date
              AND (v_work_start_date IS NULL OR v_task_due_date >= v_work_start_date) THEN
@@ -434,7 +578,7 @@ BEGIN
     END LOOP;
 
   -------------------------------------------------------------------
-  -- QUARTERLY WORK (using configured FY start month)
+  -- QUARTERLY WORK (using FY start month)
   -------------------------------------------------------------------
   ELSIF v_work_recurrence = 'quarterly' THEN
     IF v_work_start_date IS NULL THEN
@@ -457,7 +601,6 @@ BEGIN
     WHILE v_iter_date <= v_current_date LOOP
       v_period_start := v_iter_date;
       v_period_end := (v_period_start + INTERVAL '3 month' - INTERVAL '1 day')::date;
-
       v_has_qualifying_task := false;
 
       FOR v_task IN
@@ -510,7 +653,7 @@ BEGIN
           v_month_num := EXTRACT(MONTH FROM v_period_start)::int;
           v_quarter_num := ((v_month_num - v_fy_start_month + 12) % 12) / 3 + 1;
           
-          v_period_name := 'Q' || v_quarter_num::text || ' ' || EXTRACT(YEAR FROM v_period_start)::int;
+          v_period_name := 'Q' || v_quarter_num::text || ' FY' || EXTRACT(YEAR FROM v_period_start)::int;
           INSERT INTO work_recurring_instances(
             work_id, period_name, period_start_date, period_end_date,
             status, created_at, updated_at
@@ -606,7 +749,7 @@ BEGIN
     END LOOP;
 
   -------------------------------------------------------------------
-  -- HALF-YEARLY WORK (using configured FY start month)
+  -- HALF-YEARLY WORK (using FY start month)
   -------------------------------------------------------------------
   ELSIF v_work_recurrence = 'half-yearly' THEN
     IF v_work_start_date IS NULL THEN
@@ -624,7 +767,6 @@ BEGIN
     WHILE v_iter_date <= v_current_date LOOP
       v_period_start := v_iter_date;
       v_period_end := (v_period_start + INTERVAL '6 month' - INTERVAL '1 day')::date;
-
       v_has_qualifying_task := false;
 
       FOR v_task IN
@@ -679,7 +821,7 @@ BEGIN
         IF v_period_id IS NULL THEN
           v_month_num := EXTRACT(MONTH FROM v_period_start)::int;
           v_half_year_num := ((v_month_num - v_fy_start_month + 12) % 12) / 6 + 1;
-          v_period_name := 'H' || v_half_year_num::text || ' ' || EXTRACT(YEAR FROM v_period_start)::int;
+          v_period_name := 'H' || v_half_year_num::text || ' FY' || EXTRACT(YEAR FROM v_period_start)::int;
 
           INSERT INTO work_recurring_instances(
             work_id, period_name, period_start_date, period_end_date,
@@ -778,7 +920,7 @@ BEGIN
     END LOOP;
 
   -------------------------------------------------------------------
-  -- YEARLY WORK (using configured FY start month)
+  -- YEARLY WORK (using FY start month)
   -------------------------------------------------------------------
   ELSIF v_work_recurrence = 'yearly' THEN
     IF v_work_start_date IS NULL THEN
@@ -796,7 +938,6 @@ BEGIN
     WHILE v_iter_date <= v_current_date LOOP
       v_period_start := v_iter_date;
       v_period_end := (v_period_start + INTERVAL '12 month' - INTERVAL '1 day')::date;
-
       v_has_qualifying_task := false;
 
       FOR v_task IN
