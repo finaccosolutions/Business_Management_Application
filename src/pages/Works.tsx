@@ -127,38 +127,40 @@ export default function Works() {
   const toast = useToast();
 
 
-  const [formData, setFormData] = useState({
-    work_number: '',
-    customer_id: '',
-    service_id: '',
-    assigned_to: '',
-    title: '',
-    description: '',
-    status: 'pending',
-    priority: 'medium',
-    due_date: '',
-    billing_status: 'not_billed',
-    billing_amount: '',
-    estimated_hours: '',
-    estimated_duration_value: 0,
-    estimated_duration_unit: 'days',
-    is_recurring: false,
-    recurrence_pattern: '',
-    recurrence_day: '',
-    auto_bill: true,
-    start_date: '',
-    completion_deadline: '',
-    department: '',
-    work_location: '',
-    requirements: '',
-    deliverables: '',
-    period_type: 'previous_period',
-    weekly_start_day: 'monday',
-    monthly_start_day: '1',
-    quarterly_start_day: '1',
-    half_yearly_start_day: '4',
-    yearly_start_day: '4',
-  });
+const [formData, setFormData] = useState({
+  work_number: '',
+  customer_id: '',
+  service_id: '',
+  assigned_to: '',
+  title: '',
+  description: '',
+  status: 'pending',
+  priority: 'medium',
+  due_date: '',
+  billing_status: 'not_billed',
+  billing_amount: '',
+  estimated_hours: '',
+  estimated_duration_value: 0,
+  estimated_duration_unit: 'days',
+  is_recurring: false,
+  recurrence_pattern: '',
+  recurrence_day: '',
+  auto_bill: true,
+  start_date: '',
+  completion_deadline: '',
+  department: '',
+  work_location: '',
+  requirements: '',
+  deliverables: '',
+  period_type: 'previous_period',
+  financial_year_start_month: 4,
+  weekly_start_day: 'monday',
+  monthly_start_day: '1',
+  quarterly_start_day: '1',
+  half_yearly_start_day: '4',
+  yearly_start_day: '4',
+});
+
 
 useEffect(() => {
   const navigationState = sessionStorage.getItem('searchNavigationState');
@@ -429,6 +431,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       requirements: formData.requirements || null,
       deliverables: formData.deliverables || null,
       auto_bill: formData.auto_bill,
+      financial_year_start_month: formData.is_recurring ? parseInt(formData.financial_year_start_month.toString()) : null,
       weekly_start_day: formData.is_recurring && formData.recurrence_pattern === 'weekly' ? formData.weekly_start_day : null,
       monthly_start_day: formData.is_recurring && formData.recurrence_pattern === 'monthly' ? parseInt(formData.monthly_start_day) : null,
       quarterly_start_day: formData.is_recurring && formData.recurrence_pattern === 'quarterly' ? parseInt(formData.quarterly_start_day) : null,
@@ -565,6 +568,7 @@ const handleEdit = (work: Work) => {
           deliverables: data.deliverables || '',
           period_type: data.period_type || 'previous_period',
           period_calculation_type: data.period_calculation_type || 'previous_period',
+          financial_year_start_month: data.financial_year_start_month || 4,
           weekly_start_day: data.weekly_start_day || 'monday',
           monthly_start_day: data.monthly_start_day?.toString() || '1',
           quarterly_start_day: data.quarterly_start_day?.toString() || '1',
@@ -578,40 +582,42 @@ const handleEdit = (work: Work) => {
 };
 
 
-  const resetForm = () => {
-    setFormData({
-      work_number: '',
-      customer_id: '',
-      service_id: '',
-      assigned_to: '',
-      title: '',
-      description: '',
-      status: 'pending',
-      priority: 'medium',
-      due_date: '',
-      billing_status: 'not_billed',
-      billing_amount: '',
-      estimated_hours: '',
-      estimated_duration_value: 0,
-      estimated_duration_unit: 'days',
-      is_recurring: false,
-      recurrence_pattern: '',
-      recurrence_day: '',
-      auto_bill: true,
-      start_date: '',
-      completion_deadline: '',
-      department: '',
-      work_location: '',
-      requirements: '',
-      deliverables: '',
-      period_type: 'previous_period',
-      weekly_start_day: 'monday',
-      monthly_start_day: '1',
-      quarterly_start_day: '1',
-      half_yearly_start_day: '4',
-      yearly_start_day: '4',
-    });
-  };
+const resetForm = () => {
+  setFormData({
+    work_number: '',
+    customer_id: '',
+    service_id: '',
+    assigned_to: '',
+    title: '',
+    description: '',
+    status: 'pending',
+    priority: 'medium',
+    due_date: '',
+    billing_status: 'not_billed',
+    billing_amount: '',
+    estimated_hours: '',
+    estimated_duration_value: 0,
+    estimated_duration_unit: 'days',
+    is_recurring: false,
+    recurrence_pattern: '',
+    recurrence_day: '',
+    auto_bill: true,
+    start_date: '',
+    completion_deadline: '',
+    department: '',
+    work_location: '',
+    requirements: '',
+    deliverables: '',
+    period_type: 'previous_period',
+    financial_year_start_month: 4,
+    weekly_start_day: 'monday',
+    monthly_start_day: '1',
+    quarterly_start_day: '1',
+    half_yearly_start_day: '4',
+    yearly_start_day: '4',
+  });
+};
+
 
   const closeModal = () => {
     setShowModal(false);
@@ -1329,43 +1335,61 @@ const filteredWorks = works.filter((work) => {
                         )}
 
                         {formData.recurrence_pattern === 'quarterly' && (
-                          <div className="md:col-span-2 space-y-4">
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
-                              <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Quarter Start Month (1-12) *
-                                </label>
-                                <select
-                                  required
-                                  value={formData.quarterly_start_day}
-                                  onChange={(e) => setFormData({ ...formData, quarterly_start_day: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="1">1 - January (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)</option>
-                                  <option value="4">4 - April (Q1: Apr-Jun, Q2: Jul-Sep, Q3: Oct-Dec, Q4: Jan-Mar)</option>
-                                  <option value="7">7 - July (Q1: Jul-Sep, Q2: Oct-Dec, Q3: Jan-Mar, Q4: Apr-Jun)</option>
-                                  <option value="10">10 - October (Q1: Oct-Dec, Q2: Jan-Mar, Q3: Apr-Jun, Q4: Jul-Sep)</option>
-                                </select>
-                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for quarterly periods</p>
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Period Type *
-                                </label>
-                                <select
-                                  required
-                                  value={formData.period_type}
-                                  onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="previous_period">Previous Quarter (e.g., Q4 2024)</option>
-                                  <option value="current_period">Current Quarter (e.g., Q1 2025)</option>
-                                  <option value="next_period">Next Quarter (e.g., Q2 2025)</option>
-                                </select>
-                              </div>
+                        <div className="md:col-span-2 space-y-4">
+                          <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
+                            <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+                      
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Financial Year Start Month (1-12) *
+                              </label>
+                              <select
+                                required
+                                value={formData.financial_year_start_month}
+                                onChange={(e) => setFormData({ ...formData, financial_year_start_month: parseInt(e.target.value) })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="1">1 - January (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)</option>
+                                <option value="4">4 - April (Q1: Apr-Jun, Q2: Jul-Sep, Q3: Oct-Dec, Q4: Jan-Mar)</option>
+                                <option value="7">7 - July (Q1: Jul-Sep, Q2: Oct-Dec, Q3: Jan-Mar, Q4: Apr-Jun)</option>
+                                <option value="10">10 - October (Q1: Oct-Dec, Q2: Jan-Mar, Q3: Apr-Jun, Q4: Jul-Sep)</option>
+                              </select>
+                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Used for quarterly period naming (e.g., Q1 FY2025)</p>
+                            </div>
+                      
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Quarter Start Month (1-12) *
+                              </label>
+                              <select
+                                required
+                                value={formData.quarterly_start_day}
+                                onChange={(e) => setFormData({ ...formData, quarterly_start_day: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="1">1 - January (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)</option>
+                                <option value="4">4 - April (Q1: Apr-Jun, Q2: Jul-Sep, Q3: Oct-Dec, Q4: Jan-Mar)</option>
+                                <option value="7">7 - July (Q1: Jul-Sep, Q2: Oct-Dec, Q3: Jan-Mar, Q4: Apr-Jun)</option>
+                                <option value="10">10 - October (Q1: Oct-Dec, Q2: Jan-Mar, Q3: Apr-Jun, Q4: Jul-Sep)</option>
+                              </select>
+                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for quarterly periods</p>
+                            </div>
+                      
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Period Type *
+                              </label>
+                              <select
+                                required
+                                value={formData.period_type}
+                                onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="previous_period">Previous Quarter (e.g., Q4 2024)</option>
+                                <option value="current_period">Current Quarter (e.g., Q1 2025)</option>
+                                <option value="next_period">Next Quarter (e.g., Q2 2025)</option>
+                              </select>
+                            </div>
 
                               <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
                                 <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
@@ -1430,55 +1454,74 @@ const filteredWorks = works.filter((work) => {
                         )}
 
                         {formData.recurrence_pattern === 'yearly' && (
-                          <div className="md:col-span-2 space-y-4">
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
-                              <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Financial Year Start Month (1-12) *
-                                </label>
-                                <select
-                                  required
-                                  value={formData.yearly_start_day}
-                                  onChange={(e) => setFormData({ ...formData, yearly_start_day: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="1">1 - January (Jan-Dec)</option>
-                                  <option value="4">4 - April (Apr-Mar) - India Standard</option>
-                                  <option value="7">7 - July (Jul-Jun)</option>
-                                  <option value="10">10 - October (Oct-Sep)</option>
-                                </select>
-                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for the financial year</p>
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Period Type *
-                                </label>
-                                <select
-                                  required
-                                  value={formData.period_type}
-                                  onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="previous_period">Previous Financial Year (FY)</option>
-                                  <option value="current_period">Current Financial Year (FY)</option>
-                                  <option value="next_period">Next Financial Year (FY)</option>
-                                </select>
-                              </div>
-
-                              <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                                <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
-                                <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
-                                  <li>• Each period represents a full year</li>
-                                  <li>• Based on Financial Year (Apr-Mar in India)</li>
-                                  <li>• All periods between start date and today will be generated automatically</li>
-                                </ul>
-                              </div>
+                        <div className="md:col-span-2 space-y-4">
+                          <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
+                            <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
+                      
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Financial Year Start Month (1-12) *
+                              </label>
+                              <select
+                                required
+                                value={formData.financial_year_start_month}
+                                onChange={(e) => setFormData({ ...formData, financial_year_start_month: parseInt(e.target.value) })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="1">1 - January (Jan-Dec)</option>
+                                <option value="4">4 - April (Apr-Mar) - India Standard</option>
+                                <option value="7">7 - July (Jul-Jun)</option>
+                                <option value="10">10 - October (Oct-Sep)</option>
+                              </select>
+                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Used for financial year naming (e.g., FY 2024-25)</p>
+                            </div>
+                      
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Year Start Month (1-12) *
+                              </label>
+                              <select
+                                required
+                                value={formData.yearly_start_day}
+                                onChange={(e) => setFormData({ ...formData, yearly_start_day: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="1">1 - January (Jan-Dec)</option>
+                                <option value="4">4 - April (Apr-Mar) - India Standard</option>
+                                <option value="7">7 - July (Jul-Jun)</option>
+                                <option value="10">10 - October (Oct-Sep)</option>
+                              </select>
+                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for the financial year</p>
+                            </div>
+                      
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                                Period Type *
+                              </label>
+                              <select
+                                required
+                                value={formData.period_type}
+                                onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                              >
+                                <option value="previous_period">Previous Financial Year (FY)</option>
+                                <option value="current_period">Current Financial Year (FY)</option>
+                                <option value="next_period">Next Financial Year (FY)</option>
+                              </select>
+                            </div>
+                      
+                            <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
+                              <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
+                              <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
+                                <li>• Each period represents a full year</li>
+                                <li>• Based on Financial Year (Apr-Mar in India)</li>
+                                <li>• All periods between start date and today will be generated automatically</li>
+                              </ul>
                             </div>
                           </div>
-                        )}
+                        </div>
+                      )}
+
 
                       </div>
                     </div>
