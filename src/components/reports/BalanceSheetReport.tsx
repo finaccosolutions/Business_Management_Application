@@ -102,9 +102,8 @@ export default function BalanceSheetReport({
                   <div
                     key={idx}
                     onClick={() => handleAccountClick(account.account_id)}
-                    className={`flex justify-between items-center py-2 px-4 hover:bg-red-50 rounded-lg transition-colors ${
-                      account.account_id === 'net_profit' ? '' : 'cursor-pointer'
-                    }`}
+                    className={`flex justify-between items-center py-2 px-4 hover:bg-red-50 rounded-lg transition-colors ${account.account_id === 'net_profit' ? '' : 'cursor-pointer'
+                      }`}
                   >
                     <span className="text-gray-700">{account.account_name}</span>
                     <span className="font-medium text-gray-900">
@@ -209,38 +208,34 @@ export default function BalanceSheetReport({
               return (
                 <tr key={rowIndex} className="hover:bg-gray-50">
                   <td
-                    className={`px-6 py-3 text-sm border-r border-gray-200 ${
-                      liabilityRow?.type === 'category' ? 'font-bold text-gray-900 bg-red-50' :
-                      liabilityRow?.type === 'total' ? 'font-semibold text-red-700 bg-red-50' :
-                      liabilityRow?.type === 'account' ? 'text-gray-700 pl-10' : ''
-                    } ${liabilityRow?.id === 'net_profit' ? '' : 'cursor-pointer hover:text-red-600'}`}
+                    className={`px-6 py-3 text-sm border-r border-gray-200 ${liabilityRow?.type === 'category' ? 'font-bold text-gray-900 bg-red-50' :
+                        liabilityRow?.type === 'total' ? 'font-semibold text-red-700 bg-red-50' :
+                          liabilityRow?.type === 'account' ? 'text-gray-700 pl-10' : ''
+                      } ${liabilityRow?.id === 'net_profit' ? '' : 'cursor-pointer hover:text-red-600'}`}
                     onClick={() => liabilityRow?.type === 'account' && liabilityRow.id && liabilityRow.id !== 'net_profit' && handleAccountClick(liabilityRow.id)}
                   >
                     {liabilityRow ? liabilityRow.name : ''}
                   </td>
-                  <td className={`px-6 py-3 text-sm text-right border-r border-gray-200 ${
-                    liabilityRow?.type === 'total' ? 'font-bold text-red-700 bg-red-50' :
-                    liabilityRow?.type === 'account' ? 'font-medium text-gray-900' : ''
-                  }`}>
+                  <td className={`px-6 py-3 text-sm text-right border-r border-gray-200 ${liabilityRow?.type === 'total' ? 'font-bold text-red-700 bg-red-50' :
+                      liabilityRow?.type === 'account' ? 'font-medium text-gray-900' : ''
+                    }`}>
                     {liabilityRow?.amount !== null && liabilityRow?.amount !== undefined
                       ? `₹${liabilityRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                       : ''}
                   </td>
                   <td
-                    className={`px-6 py-3 text-sm border-r border-gray-200 ${
-                      assetRow?.type === 'category' ? 'font-bold text-gray-900 bg-blue-50' :
-                      assetRow?.type === 'total' ? 'font-semibold text-blue-700 bg-blue-50' :
-                      assetRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-blue-600 pl-10' :
-                      ''
-                    }`}
+                    className={`px-6 py-3 text-sm border-r border-gray-200 ${assetRow?.type === 'category' ? 'font-bold text-gray-900 bg-blue-50' :
+                        assetRow?.type === 'total' ? 'font-semibold text-blue-700 bg-blue-50' :
+                          assetRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-blue-600 pl-10' :
+                            ''
+                      }`}
                     onClick={() => assetRow?.type === 'account' && assetRow.id && handleAccountClick(assetRow.id)}
                   >
                     {assetRow ? assetRow.name : ''}
                   </td>
-                  <td className={`px-6 py-3 text-sm text-right ${
-                    assetRow?.type === 'total' ? 'font-bold text-blue-700 bg-blue-50' :
-                    assetRow?.type === 'account' ? 'font-medium text-gray-900' : ''
-                  }`}>
+                  <td className={`px-6 py-3 text-sm text-right ${assetRow?.type === 'total' ? 'font-bold text-blue-700 bg-blue-50' :
+                      assetRow?.type === 'account' ? 'font-medium text-gray-900' : ''
+                    }`}>
                     {assetRow?.amount !== null && assetRow?.amount !== undefined
                       ? `₹${assetRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                       : ''}
@@ -265,7 +260,7 @@ export default function BalanceSheetReport({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Balance Sheet</h2>

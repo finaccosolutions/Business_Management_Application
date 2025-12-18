@@ -135,18 +135,7 @@ export default function AccountingMasters() {
     }
   };
 
-  const getCurrentData = () => {
-    switch (activeTab) {
-      case 'payment_terms':
-        return paymentTerms;
-      case 'tax_rates':
-        return taxRates;
-      case 'bank_accounts':
-        return bankAccounts;
-      default:
-        return [];
-    }
-  };
+
 
   const tabs = [
     { id: 'payment_terms' as MasterType, name: 'Payment Terms', icon: Calendar },
@@ -163,7 +152,7 @@ export default function AccountingMasters() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Accounting Masters</h1>
@@ -187,11 +176,10 @@ export default function AccountingMasters() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === tab.id
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-50'
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   <span>{tab.name}</span>
@@ -223,9 +211,8 @@ export default function AccountingMasters() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                        term.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}
+                      className={`px-3 py-1 text-xs font-semibold rounded-full ${term.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                        }`}
                     >
                       {term.is_active ? 'Active' : 'Inactive'}
                     </span>
@@ -274,9 +261,8 @@ export default function AccountingMasters() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                        tax.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}
+                      className={`px-3 py-1 text-xs font-semibold rounded-full ${tax.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                        }`}
                     >
                       {tax.is_active ? 'Active' : 'Inactive'}
                     </span>
@@ -329,9 +315,8 @@ export default function AccountingMasters() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                        bank.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}
+                      className={`px-3 py-1 text-xs font-semibold rounded-full ${bank.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                        }`}
                     >
                       {bank.is_active ? 'Active' : 'Inactive'}
                     </span>

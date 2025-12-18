@@ -60,7 +60,7 @@ export default function Reminders() {
     if (user) {
       fetchAllAlerts();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const fetchAllAlerts = async () => {
     setLoading(true);
@@ -184,7 +184,7 @@ export default function Reminders() {
         .from('work_recurring_instances')
         .select(`
           *,
-          works!work_id (
+          works (
             id,
             title,
             user_id,
@@ -350,7 +350,7 @@ export default function Reminders() {
         }
       });
 
-      // 6b. Check for stale leads (no status change in reasonable time)
+      // 6b. Check for stale leads
       const { data: staleLeadsData } = await supabase
         .from('leads')
         .select('*')
@@ -381,7 +381,7 @@ export default function Reminders() {
         }
       });
 
-      // 7. Works starting soon (pending status with start date approaching)
+      // 7. Works starting soon
       const { data: upcomingWorksData } = await supabase
         .from('works')
         .select(`
@@ -416,7 +416,7 @@ export default function Reminders() {
         });
       });
 
-      // 8. Inactive customers (no recent services)
+      // 8. Inactive customers
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
@@ -452,16 +452,19 @@ export default function Reminders() {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       const { data: staffData } = await supabase
+
         .from('staff_members')
-        .select(`
-          *,
-          works!works_assigned_to_fkey (id, status, due_date, completed_date)
-        `)
-        .eq('user_id', user?.id)
+        .select('*')
         .eq('is_active', true);
 
+      // Fetch works separately to avoid join ambiguity errors
+      const { data: allWorks } = await supabase
+        .from('works')
+        .select('id, status, due_date, completed_date, assigned_to')
+        .not('assigned_to', 'is', null);
+
       (staffData || []).forEach((staff: any) => {
-        const works = staff.works || [];
+        const works = (allWorks || []).filter((w: any) => w.assigned_to === staff.id);
         const recentWorks = works.filter((w: any) => new Date(w.due_date) >= thirtyDaysAgo);
         const overdueWorks = recentWorks.filter((w: any) => {
           if (w.status === 'completed') return false;
@@ -526,7 +529,7 @@ export default function Reminders() {
           *,
           customers (name, email, phone),
           services (name),
-          invoices!left (id)
+          invoices (id)
         `)
         .eq('user_id', user?.id)
         .eq('status', 'completed')
@@ -561,9 +564,9 @@ export default function Reminders() {
         .from('recurring_period_tasks')
         .select(`
           *,
-          work_recurring_instances!instance_id (
+          work_recurring_instances (
             period_name,
-            works!work_id (
+            works (
               title,
               user_id,
               customers (name, email, phone),
@@ -610,7 +613,7 @@ export default function Reminders() {
         .from('work_tasks')
         .select(`
           *,
-          works!work_id (
+          works (
             title,
             user_id,
             customers (name, email, phone),
@@ -650,7 +653,7 @@ export default function Reminders() {
         }
       });
 
-      // 14. Overdue invoice payments (more detailed)
+      // 14. Overdue invoice payments
       const { data: overduePaymentsData } = await supabase
         .from('invoices')
         .select(`
@@ -811,17 +814,6 @@ export default function Reminders() {
     }
   };
 
-  const filteredAlerts = alerts.filter(alert => {
-    const matchesUrgency = activeCategory === 'all' || alert.urgency === activeCategory;
-    const matchesType = activeTypeFilter === 'all' || alert.category === activeTypeFilter;
-    return matchesUrgency && matchesType;
-  });
-
-  const criticalCount = alerts.filter(a => a.urgency === 'critical').length;
-  const highCount = alerts.filter(a => a.urgency === 'high').length;
-  const mediumCount = alerts.filter(a => a.urgency === 'medium').length;
-  const lowCount = alerts.filter(a => a.urgency === 'low').length;
-
   const categoryGroups = {
     'Lead Management': ['Lead Follow-ups', 'Lead Management'],
     'Customer Relations': ['Customer Engagement', 'Data Quality'],
@@ -830,6 +822,31 @@ export default function Reminders() {
     'Staff & Team': ['Staff Performance', 'Staff Workload'],
     'General': ['Manual Reminders']
   };
+
+  const filteredAlerts = alerts.filter(alert => {
+    const matchesUrgency = activeCategory === 'all' || alert.urgency === activeCategory;
+
+    // Updated Logic: Check if activeTypeFilter is a group name (key in categoryGroups)
+    // If so, check if alert.category is IN that group.
+    // Otherwise fallback to exact match (though user buttons now set group names).
+    let matchesType = false;
+    if (activeTypeFilter === 'all') {
+      matchesType = true;
+    } else if (categoryGroups[activeTypeFilter as keyof typeof categoryGroups]) {
+      // It's a group
+      matchesType = categoryGroups[activeTypeFilter as keyof typeof categoryGroups].includes(alert.category);
+    } else {
+      // Direct category match (fallback)
+      matchesType = alert.category === activeTypeFilter;
+    }
+
+    return matchesUrgency && matchesType;
+  });
+
+  const criticalCount = alerts.filter(a => a.urgency === 'critical').length;
+  const highCount = alerts.filter(a => a.urgency === 'high').length;
+  const mediumCount = alerts.filter(a => a.urgency === 'medium').length;
+  const lowCount = alerts.filter(a => a.urgency === 'low').length;
 
   const getCountForCategoryGroup = (groupName: string) => {
     const categories = categoryGroups[groupName as keyof typeof categoryGroups] || [];
@@ -845,7 +862,7 @@ export default function Reminders() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -861,9 +878,8 @@ export default function Reminders() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <button
           onClick={() => setActiveCategory('all')}
-          className={`bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
-            activeCategory === 'all' ? 'ring-4 ring-gray-300 transform scale-105' : ''
-          }`}
+          className={`bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${activeCategory === 'all' ? 'ring-4 ring-gray-300 transform scale-105' : ''
+            }`}
         >
           <div className="flex items-center justify-between">
             <div className="text-left">
@@ -877,9 +893,8 @@ export default function Reminders() {
 
         <button
           onClick={() => setActiveCategory('critical')}
-          className={`bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
-            activeCategory === 'critical' ? 'ring-4 ring-red-300 transform scale-105' : ''
-          }`}
+          className={`bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${activeCategory === 'critical' ? 'ring-4 ring-red-300 transform scale-105' : ''
+            }`}
         >
           <div className="flex items-center justify-between">
             <div className="text-left">
@@ -893,9 +908,8 @@ export default function Reminders() {
 
         <button
           onClick={() => setActiveCategory('high')}
-          className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
-            activeCategory === 'high' ? 'ring-4 ring-orange-300 transform scale-105' : ''
-          }`}
+          className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${activeCategory === 'high' ? 'ring-4 ring-orange-300 transform scale-105' : ''
+            }`}
         >
           <div className="flex items-center justify-between">
             <div className="text-left">
@@ -909,9 +923,8 @@ export default function Reminders() {
 
         <button
           onClick={() => setActiveCategory('medium')}
-          className={`bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
-            activeCategory === 'medium' ? 'ring-4 ring-yellow-300 transform scale-105' : ''
-          }`}
+          className={`bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${activeCategory === 'medium' ? 'ring-4 ring-yellow-300 transform scale-105' : ''
+            }`}
         >
           <div className="flex items-center justify-between">
             <div className="text-left">
@@ -925,9 +938,8 @@ export default function Reminders() {
 
         <button
           onClick={() => setActiveCategory('low')}
-          className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${
-            activeCategory === 'low' ? 'ring-4 ring-blue-300 transform scale-105' : ''
-          }`}
+          className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all ${activeCategory === 'low' ? 'ring-4 ring-blue-300 transform scale-105' : ''
+            }`}
         >
           <div className="flex items-center justify-between">
             <div className="text-left">
@@ -949,11 +961,10 @@ export default function Reminders() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <button
             onClick={() => setActiveTypeFilter('all')}
-            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
-              activeTypeFilter === 'all'
-                ? 'border-blue-600 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${activeTypeFilter === 'all'
+              ? 'border-blue-600 bg-blue-50'
+              : 'border-gray-200 hover:border-gray-300'
+              }`}
           >
             <Bell size={24} className="text-blue-600" />
             <span className="text-sm font-medium text-gray-900">All</span>
@@ -962,14 +973,12 @@ export default function Reminders() {
 
           <button
             onClick={() => {
-              const cats = categoryGroups['Lead Management'];
-              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+              setActiveTypeFilter(activeTypeFilter === 'Lead Management' ? 'all' : 'Lead Management');
             }}
-            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
-              categoryGroups['Lead Management'].includes(activeTypeFilter)
-                ? 'border-green-600 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${activeTypeFilter === 'Lead Management'
+              ? 'border-green-600 bg-green-50'
+              : 'border-gray-200 hover:border-gray-300'
+              }`}
           >
             <Target size={24} className="text-green-600" />
             <span className="text-sm font-medium text-gray-900">Leads</span>
@@ -980,14 +989,12 @@ export default function Reminders() {
 
           <button
             onClick={() => {
-              const cats = categoryGroups['Customer Relations'];
-              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+              setActiveTypeFilter(activeTypeFilter === 'Customer Relations' ? 'all' : 'Customer Relations');
             }}
-            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
-              categoryGroups['Customer Relations'].includes(activeTypeFilter)
-                ? 'border-cyan-600 bg-cyan-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${activeTypeFilter === 'Customer Relations'
+              ? 'border-cyan-600 bg-cyan-50'
+              : 'border-gray-200 hover:border-gray-300'
+              }`}
           >
             <UserCheck size={24} className="text-cyan-600" />
             <span className="text-sm font-medium text-gray-900">Customers</span>
@@ -998,14 +1005,12 @@ export default function Reminders() {
 
           <button
             onClick={() => {
-              const cats = categoryGroups['Work & Projects'];
-              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+              setActiveTypeFilter(activeTypeFilter === 'Work & Projects' ? 'all' : 'Work & Projects');
             }}
-            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
-              categoryGroups['Work & Projects'].includes(activeTypeFilter)
-                ? 'border-orange-600 bg-orange-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${activeTypeFilter === 'Work & Projects'
+              ? 'border-orange-600 bg-orange-50'
+              : 'border-gray-200 hover:border-gray-300'
+              }`}
           >
             <Briefcase size={24} className="text-orange-600" />
             <span className="text-sm font-medium text-gray-900">Works</span>
@@ -1016,14 +1021,12 @@ export default function Reminders() {
 
           <button
             onClick={() => {
-              const cats = categoryGroups['Financial'];
-              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+              setActiveTypeFilter(activeTypeFilter === 'Financial' ? 'all' : 'Financial');
             }}
-            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
-              categoryGroups['Financial'].includes(activeTypeFilter)
-                ? 'border-red-600 bg-red-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${activeTypeFilter === 'Financial'
+              ? 'border-red-600 bg-red-50'
+              : 'border-gray-200 hover:border-gray-300'
+              }`}
           >
             <CreditCard size={24} className="text-red-600" />
             <span className="text-sm font-medium text-gray-900">Invoices</span>
@@ -1034,14 +1037,12 @@ export default function Reminders() {
 
           <button
             onClick={() => {
-              const cats = categoryGroups['Staff & Team'];
-              setActiveTypeFilter(cats.includes(activeTypeFilter) && activeTypeFilter !== 'all' ? 'all' : cats[0]);
+              setActiveTypeFilter(activeTypeFilter === 'Staff & Team' ? 'all' : 'Staff & Team');
             }}
-            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${
-              categoryGroups['Staff & Team'].includes(activeTypeFilter)
-                ? 'border-gray-600 bg-gray-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
+            className={`flex flex-col items-center gap-2 p-4 border-2 rounded-lg transition-all ${activeTypeFilter === 'Staff & Team'
+              ? 'border-gray-600 bg-gray-50'
+              : 'border-gray-200 hover:border-gray-300'
+              }`}
           >
             <Users size={24} className="text-gray-600" />
             <span className="text-sm font-medium text-gray-900">Staff</span>
@@ -1127,6 +1128,7 @@ export default function Reminders() {
                             </button>
                           </>
                         )}
+                        {/* More buttons restored */}
                         {alert.type === 'lead_followup' && (
                           <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
                             View Lead

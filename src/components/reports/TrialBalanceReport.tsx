@@ -195,7 +195,7 @@ export default function TrialBalanceReport({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Trial Balance</h2>

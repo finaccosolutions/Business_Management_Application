@@ -1,30 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
-  Calendar, Clock, CheckCircle, Edit2, Trash2, Plus, AlertTriangle,
-  DollarSign, FileText, X, ListTodo
+  Calendar, Clock, Edit2, Trash2, Plus, X, ListTodo
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { formatDateDisplay } from '../../lib/dateUtils';
 import { PeriodTaskManager } from './PeriodTaskManager';
 
-interface PeriodDocument {
-  id: string;
-  work_recurring_instance_id: string;
-  work_document_id: string;
-  is_collected: boolean;
-  collected_at: string | null;
-  file_url: string | null;
-  file_size: number | null;
-  uploaded_at: string | null;
-  notes: string | null;
-  work_documents: {
-    name: string;
-    description: string | null;
-    category: string;
-    is_required: boolean;
-  };
-}
 
 interface RecurringInstance {
   id: string;
@@ -171,59 +153,6 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
     }
   };
 
-  const handleUpdatePeriodStatus = async (periodId: string, status: string) => {
-    try {
-      const updateData: any = { status, updated_at: new Date().toISOString() };
-      if (status === 'completed') {
-        updateData.completed_at = new Date().toISOString();
-        updateData.completed_by = work.assigned_to;
-      }
-
-      const { error } = await supabase
-        .from('work_recurring_instances')
-        .update(updateData)
-        .eq('id', periodId);
-
-      if (error) throw error;
-
-      fetchPeriods();
-      onUpdate();
-      toast.success('Period status updated!');
-    } catch (error) {
-      console.error('Error updating period status:', error);
-      toast.error('Failed to update period status');
-    }
-  };
-
-  const handleToggleDocumentCollected = async (docId: string, isCollected: boolean) => {
-    try {
-      const updateData: any = {
-        is_collected: isCollected,
-        updated_at: new Date().toISOString()
-      };
-
-      if (isCollected) {
-        updateData.collected_at = new Date().toISOString();
-      } else {
-        updateData.collected_at = null;
-      }
-
-      const { error } = await supabase
-        .from('work_recurring_period_documents')
-        .update(updateData)
-        .eq('id', docId);
-
-      if (error) throw error;
-
-      if (selectedPeriod) {
-        fetchPeriodDocuments(selectedPeriod);
-      }
-      toast.success(isCollected ? 'Document marked as collected!' : 'Document marked as not collected');
-    } catch (error) {
-      console.error('Error updating document:', error);
-      toast.error('Failed to update document');
-    }
-  };
 
   const handleDeletePeriod = async (periodId: string) => {
     if (!confirm('Are you sure you want to delete this period? This action cannot be undone.')) {
@@ -286,10 +215,10 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
     <div className="space-y-6">
       {/* Periods & Tasks Management Section */}
       <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50 space-y-3">
+        <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50 space-y-2">
           <div>
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-lg">
-              <Calendar size={18} className="text-orange-600" />
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-base">
+              <Calendar size={16} className="text-orange-600" />
               Periods & Tasks Management
             </h3>
             <p className="text-sm text-gray-600 mt-2">
@@ -330,115 +259,84 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                 const completedTasks = allTasks.filter((t: any) => t.status === 'completed');
                 const firstIncompleteTask = incompleteTasks[0];
 
-                let statusText = '';
-                if (period.status === 'completed') {
-                  statusText = 'Completed';
-                } else if (incompleteTasks.length === 0 && allTasks.length > 0) {
-                  statusText = 'All Tasks Done';
-                } else if (firstIncompleteTask) {
-                  statusText = period.status === 'in_progress' ? 'Processing' : 'Pending';
-                } else {
-                  statusText = period.status === 'in_progress' ? 'In Progress' : 'Pending';
-                }
+                let statusLabel = '';
+                if (period.status === 'completed') statusLabel = 'Completed';
+                else if (period.status === 'in_progress') statusLabel = 'In Progress';
+                else statusLabel = 'Pending';
 
                 const nextTaskDueDate = firstIncompleteTask?.due_date || null;
                 const referenceDate = nextTaskDueDate || period.period_end_date;
                 const isOverdue = period.status !== 'completed' && new Date(referenceDate) < new Date();
-                const daysUntilDue = Math.ceil(
-                  (new Date(referenceDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-                );
 
                 return (
                   <div
                     key={period.id}
                     onClick={() => setSelectedPeriod(selectedPeriod === period.id ? null : period.id)}
-                    className={`border-2 rounded-lg p-2.5 cursor-pointer transition-all text-sm ${
-                      selectedPeriod === period.id
-                        ? 'border-orange-500 bg-orange-50 shadow-md'
-                        : isOverdue
-                        ? 'border-red-300 bg-red-50 hover:border-red-400'
-                        : 'border-gray-200 bg-white hover:border-orange-300'
-                    }`}
+                    className={`border rounded-lg p-2 cursor-pointer transition-all group ${selectedPeriod === period.id
+                      ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-200'
+                      : isOverdue
+                        ? 'border-red-200 bg-red-50 hover:bg-red-100'
+                        : 'border-gray-200 bg-white hover:border-orange-300 hover:bg-gray-50'
+                      }`}
                   >
-                    <div className="space-y-1.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <h5 className="font-semibold text-gray-900 truncate text-xs">{period.period_name}</h5>
-                        <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => openEditPeriodModal(period)}
-                            className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 size={12} />
-                          </button>
-                          <button
-                            onClick={() => handleDeletePeriod(period.id)}
-                            className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-1">
+                    {/* Header: Title + Status + Action */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <h5 className="font-semibold text-gray-900 truncate text-xs shrink-0 max-w-[120px]" title={period.period_name}>
+                          {period.period_name}
+                        </h5>
                         <span
-                          className={`inline-flex items-center px-1 py-0 rounded text-xs font-semibold border ${
-                            period.status === 'completed'
-                              ? 'bg-green-100 text-green-700 border-green-200'
-                              : period.status === 'in_progress'
-                              ? 'bg-blue-100 text-blue-700 border-blue-200'
-                              : 'bg-yellow-100 text-yellow-700 border-yellow-200'
-                          }`}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${period.status === 'completed'
+                            ? 'bg-green-100 text-green-700'
+                            : period.status === 'in_progress'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-gray-100 text-gray-600'
+                            }`}
                         >
-                          {statusText}
+                          {statusLabel}
                         </span>
-                        {period.billing_amount && (
-                          <span className="px-1 py-0 bg-teal-100 text-teal-700 rounded text-xs font-semibold">
-                            ₹{(period.billing_amount / 1000).toFixed(0)}K
-                          </span>
-                        )}
                       </div>
 
-                      <div className="text-xs text-gray-600 space-y-0.5">
-                        <div className="flex items-center gap-1">
-                          <Calendar size={10} className="text-blue-500 flex-shrink-0" />
-                          <span className="truncate">{formatDateDisplay(period.period_start_date)} - {formatDateDisplay(period.period_end_date)}</span>
-                        </div>
-
-                        {allTasks.length > 0 && (
-                          <div className="space-y-0.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-600 flex items-center gap-1">
-                                <ListTodo size={10} className="text-blue-500" />
-                                {completedTasks.length}/{allTasks.length}
-                              </span>
-                              <span className="text-gray-500 text-xs">
-                                {Math.round((completedTasks.length / allTasks.length) * 100)}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-1">
-                              <div
-                                className="bg-green-600 h-1 rounded-full transition-all"
-                                style={{ width: `${(completedTasks.length / allTasks.length) * 100}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-1">
-                          <Clock size={10} className={isOverdue ? 'text-red-500' : 'text-gray-500'} />
-                          <span className={isOverdue ? 'text-red-600 font-medium' : ''}>
-                            {formatDateDisplay(referenceDate)}
-                          </span>
-                          {period.status !== 'completed' && daysUntilDue <= 3 && (
-                            <span className="bg-red-100 text-red-700 rounded px-1 text-xs">
-                              {daysUntilDue < 0 ? `${Math.abs(daysUntilDue)}d` : `${daysUntilDue}d`}
-                            </span>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => openEditPeriodModal(period)} className="text-gray-400 hover:text-blue-600">
+                          <Edit2 size={12} />
+                        </button>
+                        <button onClick={() => handleDeletePeriod(period.id)} className="text-gray-400 hover:text-red-600">
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </div>
+
+                    {/* Dates & Billing */}
+                    <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1.5">
+                      <div className="flex items-center gap-1">
+                        <Calendar size={10} />
+                        <span>{formatDateDisplay(period.period_start_date)} - {formatDateDisplay(period.period_end_date)}</span>
+                      </div>
+                      {period.billing_amount && (
+                        <span className="text-emerald-600 font-medium">₹{(period.billing_amount / 1000).toFixed(0)}k</span>
+                      )}
+                    </div>
+
+                    {/* Progress */}
+                    {allTasks.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-gray-500 flex items-center gap-1">
+                            <ListTodo size={10} /> {completedTasks}/{allTasks.length}
+                          </span>
+                          <span className={`${isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                            {Math.round((completedTasks.length / allTasks.length) * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1">
+                          <div
+                            className={`h-1 rounded-full transition-all ${isOverdue ? 'bg-red-500' : 'bg-green-500'}`}
+                            style={{ width: `${(completedTasks.length / allTasks.length) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -478,6 +376,8 @@ export function RecurringPeriodManager({ workId, work, onUpdate }: Props) {
                   periodName={selectedPeriodData.period_name}
                   periodStatus={selectedPeriodData.status}
                   workId={workId}
+                  periodStartDate={selectedPeriodData.period_start_date}
+                  periodEndDate={selectedPeriodData.period_end_date}
                   onTasksUpdate={() => {
                     fetchPeriods();
                     onUpdate();

@@ -1,6 +1,6 @@
 export interface WorkDetailsProps {
   workId: string;
-  onClose: () => void;
+  onBack: () => void;
   onUpdate: () => void;
   onEdit?: () => void;
   onNavigateToCustomer?: (customerId: string) => void;

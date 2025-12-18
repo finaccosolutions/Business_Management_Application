@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "date-fns": "^4.1.0",
     "html2pdf.js": "^0.12.1",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",

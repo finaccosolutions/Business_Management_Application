@@ -1,11 +1,13 @@
-import { Calendar, Users, Briefcase, DollarSign, Clock, AlertCircle, CheckCircle, Repeat, Edit2, Trash2, MapPin, ListTodo } from 'lucide-react';
+import { Calendar, Users, Briefcase, DollarSign, Clock, AlertCircle, CheckCircle, Repeat, Edit2, Trash2, MapPin, ListTodo, UserPlus } from 'lucide-react';
 
 interface WorkTileProps {
   work: any;
   onEdit: (work: any) => void;
-  onDelete: (id: string, e: React.MouseEvent) => void;
+  onDelete?: (id: string, e: React.MouseEvent) => void;
+  onAssign?: (work: any) => void;
   onClick: () => void;
 }
+
 
 const statusConfig = {
   pending: { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: Clock },
@@ -28,7 +30,7 @@ const billingStatusColors = {
   overdue: 'bg-red-100 text-red-700',
 };
 
-export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTileProps) {
+export default function WorkTile({ work, onEdit, onDelete, onAssign, onClick }: WorkTileProps) {
   const StatusIcon = statusConfig[work.status as keyof typeof statusConfig]?.icon || Clock;
   const isOverdue = work.status !== 'completed' && work.due_date && new Date(work.due_date) < new Date();
 
@@ -86,9 +88,8 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-sm border-l-4 ${
-        work.is_recurring_instance ? 'border-l-emerald-500' : 'border-l-orange-500'
-      } border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md hover:bg-orange-50/30`}
+      className={`bg-white rounded-lg shadow-sm border-l-4 ${work.is_recurring_instance ? 'border-l-emerald-500' : 'border-l-orange-500'
+        } border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md hover:bg-orange-50/30`}
       onClick={onClick}
     >
       <div className="p-3">
@@ -112,11 +113,10 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
           {/* Center: Status, Priority, Billing Status + Additional Info */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${
-                isOverdue
-                  ? statusConfig.overdue.color
-                  : statusConfig[work.status as keyof typeof statusConfig]?.color || 'bg-gray-100 text-gray-700'
-              }`}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${isOverdue
+                ? statusConfig.overdue.color
+                : statusConfig[work.status as keyof typeof statusConfig]?.color || 'bg-gray-100 text-gray-700'
+                }`}
             >
               <StatusIcon size={10} />
               <span className="truncate max-w-[100px]" title={getStatusDisplay()}>
@@ -125,17 +125,15 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
             </span>
 
             <span
-              className={`px-2 py-0.5 rounded text-xs font-medium ${
-                priorityColors[work.priority as keyof typeof priorityColors] || priorityColors.medium
-              }`}
+              className={`px-2 py-0.5 rounded text-xs font-medium ${priorityColors[work.priority as keyof typeof priorityColors] || priorityColors.medium
+                }`}
             >
               {work.priority}
             </span>
 
             <span
-              className={`px-2 py-0.5 rounded text-xs font-medium ${
-                billingStatusColors[work.billing_status as keyof typeof billingStatusColors] || 'bg-gray-100 text-gray-700'
-              }`}
+              className={`px-2 py-0.5 rounded text-xs font-medium ${billingStatusColors[work.billing_status as keyof typeof billingStatusColors] || 'bg-gray-100 text-gray-700'
+                }`}
             >
               {work.billing_status ? work.billing_status.replace('_', ' ') : 'not billed'}
             </span>
@@ -144,6 +142,19 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
               <span className="inline-flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-medium">
                 <Repeat size={9} />
                 Recurring
+              </span>
+            )}
+
+            {work.staff_members && work.acceptance_status === 'pending' && (
+              <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium animate-pulse">
+                <AlertCircle size={9} />
+                Waiting Acceptance
+              </span>
+            )}
+            {work.acceptance_status === 'accepted' && (
+              <span className="inline-flex items-center gap-1 text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded font-medium">
+                <CheckCircle size={9} />
+                Accepted
               </span>
             )}
 
@@ -192,6 +203,18 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
               </div>
             )}
             <div className="flex items-center gap-1">
+              {onAssign && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAssign(work);
+                  }}
+                  className="p-1.5 bg-purple-50 text-purple-600 rounded hover:bg-purple-100 transition-colors"
+                  title="Assign/Reassign Staff"
+                >
+                  <UserPlus size={13} />
+                </button>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -202,13 +225,15 @@ export default function WorkTile({ work, onEdit, onDelete, onClick }: WorkTilePr
               >
                 <Edit2 size={13} />
               </button>
-              <button
-                onClick={(e) => onDelete(work.id, e)}
-                className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
-                title="Delete work"
-              >
-                <Trash2 size={13} />
-              </button>
+              {onDelete && (
+                <button
+                  onClick={(e) => onDelete(work.id, e)}
+                  className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
+                  title="Delete work"
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
             </div>
           </div>
         </div>

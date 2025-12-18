@@ -6,29 +6,17 @@ import {
   Plus,
   Search,
   Filter,
-  UserCog,
-  Mail,
-  Phone,
-  Building,
-  MapPin,
   Trash2,
-  TrendingUp,
   Users,
   DollarSign,
   Briefcase,
-  Calendar,
-  Globe,
-  FileText,
   Clock,
   AlertCircle,
   Eye,
   Edit2,
 } from 'lucide-react';
 import CustomerDetails from '../components/CustomerDetails';
-import CustomerFormModal from '../components/CustomerFormModal';
 import CustomerFilters, { FilterState } from '../components/CustomerFilters';
-import ServiceDetails from '../components/ServiceDetails';
-import WorkDetails from '../components/works/WorkDetailsMain';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { useToast } from '../contexts/ToastContext';
 
@@ -38,25 +26,22 @@ interface Customer {
   email: string | null;
   phone: string | null;
   company_name: string | null;
+  gstin: string | null; // Added GSTIN
+  pan_number: string | null; // Added PAN
   address: string | null;
   city: string | null;
   state: string | null;
   pincode: string | null;
   country: string | null;
-  gstin: string | null;
-  pan_number: string | null;
   website: string | null;
   notes: string | null;
-  image_url: string | null;
-  entity_type: string | null;
-  legal_form: string | null;
   created_at: string;
   service_count?: number;
   total_revenue?: number;
   last_invoice_date?: string;
-  pending_works?: number;
   active_services?: number;
-  overdue_invoices?: number;
+  pending_works?: number; // Added pending works count
+  overdue_invoices?: number; // Added overdue invoices count
 }
 
 interface CustomerStatistics {
@@ -67,25 +52,13 @@ interface CustomerStatistics {
   averageRevenue: number;
 }
 
-const getCustomerBorderColor = (customer: Customer, avgRevenue: number): string => {
-  const daysSinceCreated = Math.floor(
-    (Date.now() - new Date(customer.created_at).getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  if (daysSinceCreated <= 30) {
-    return 'border-l-teal-500 hover:bg-teal-50/30';
-  }
-
+const getCustomerBorderColor = (customer: Customer) => {
   if (customer.overdue_invoices && customer.overdue_invoices > 0) {
     return 'border-l-red-500 hover:bg-red-50/30';
   }
 
-  if (customer.total_revenue && customer.total_revenue > avgRevenue && avgRevenue > 0) {
-    return 'border-l-green-500 hover:bg-green-50/30';
-  }
-
   if (customer.pending_works && customer.pending_works > 0) {
-    return 'border-l-orange-500 hover:bg-orange-50/30';
+    return 'border-l-amber-500 hover:bg-amber-50/30';
   }
 
   if (customer.active_services && customer.active_services >= 3) {
@@ -96,24 +69,19 @@ const getCustomerBorderColor = (customer: Customer, avgRevenue: number): string 
 };
 
 interface CustomersProps {
-  onNavigate?: (page: string) => void;
+  isDetailsView?: boolean;
+  customerId?: string;
+  onNavigate?: (page: string, params?: any) => void;
 }
 
-export default function Customers({ onNavigate }: CustomersProps = {}) {
-  const { user } = useAuth();
+export default function Customers({ isDetailsView, customerId, onNavigate }: CustomersProps = {}) {
+  const { user, permissions } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const [selectedWorkId, setSelectedWorkId] = useState<string | null>(null);
-  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [statistics, setStatistics] = useState<CustomerStatistics | null>(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [prefilledCustomerId, setPrefilledCustomerId] = useState<string | null>(null);
-  const [navigationTarget, setNavigationTarget] = useState<'service' | 'work' | 'invoice' | null>(null);
+
   const confirmation = useConfirmation();
   const toast = useToast();
 
@@ -128,533 +96,376 @@ export default function Customers({ onNavigate }: CustomersProps = {}) {
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-  const navigationState = sessionStorage.getItem('searchNavigationState');
-  if (navigationState) {
-    try {
-      const state = JSON.parse(navigationState);
-      if (state.itemType === 'customer' && state.shouldShowDetails) {
-        // Set the selected customer to show detail view
-        setSelectedCustomerId(state.selectedId);
-        setShowCustomerDetails(true);
-        sessionStorage.removeItem('searchNavigationState');
-      }
-    } catch (error) {
-      console.error('Error reading navigation state:', error);
-    }
-  }
-}, []);
+  // Handle detailed view
 
-
-  useEffect(() => {
-    if (user) {
-      fetchCustomers();
-      fetchStatistics();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    applyFilters();
-  }, [customers, filters, searchTerm]);
-
-  useEffect(() => {
-    if (navigationTarget && prefilledCustomerId && onNavigate) {
-      sessionStorage.setItem('prefilledCustomerId', prefilledCustomerId);
-
-      if (navigationTarget === 'service') {
-        onNavigate('services');
-      } else if (navigationTarget === 'work') {
-        onNavigate('works');
-      } else if (navigationTarget === 'invoice') {
-        onNavigate('invoices');
-      }
-
-      setNavigationTarget(null);
-      setPrefilledCustomerId(null);
-    }
-  }, [navigationTarget, prefilledCustomerId, onNavigate]);
 
   const fetchCustomers = async () => {
     try {
+      setLoading(true);
+
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+        .order('name');
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      const enrichedCustomers = await Promise.all(
-        (data || []).map(async (customer) => {
-          const { data: servicesData } = await supabase
-            .from('customer_services')
-            .select('id')
-            .eq('customer_id', customer.id)
-            .eq('status', 'active');
+      const transformedData: Customer[] = (data || []).map((item) => ({
+        id: item.id,
+        name: item.name,
+        email: item.email,
+        phone: item.phone,
+        company_name: item.company_name,
+        gstin: item.gstin,
+        pan_number: item.pan_number,
+        address: item.address,
+        city: item.city,
+        state: item.state,
+        pincode: item.pincode,
+        country: item.country,
+        website: item.website,
+        notes: item.notes,
+        created_at: item.created_at,
+        service_count: 0, // Placeholder as view is removed
+        total_revenue: 0, // Placeholder as view is removed
+        last_invoice_date: undefined, // Placeholder as view is removed
+        active_services: 0, // Placeholder as view is removed
+        pending_works: 0, // Placeholder as view is removed
+        overdue_invoices: 0, // Placeholder as view is removed
+      }));
 
-          const { data: invoicesData } = await supabase
-            .from('invoices')
-            .select('total_amount, invoice_date, status, due_date')
-            .eq('customer_id', customer.id)
-            .order('invoice_date', { ascending: false });
+      // Calculate Statistics
+      const totalCustomers = transformedData.length;
+      const activeCustomers = transformedData.filter(
+        (c) => (c.active_services && c.active_services > 0)
+      ).length;
 
-          const totalRevenue =
-            invoicesData
-              ?.filter((inv) => inv.status === 'paid')
-              .reduce((sum, inv) => sum + inv.total_amount, 0) || 0;
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const newThisMonth = transformedData.filter((c) =>
+        new Date(c.created_at) >= firstDayOfMonth
+      ).length;
 
-          const lastInvoiceDate = invoicesData?.[0]?.invoice_date || null;
-
-          const now = new Date();
-          const overdueCount = invoicesData?.filter(
-            (inv) => inv.status !== 'paid' && new Date(inv.due_date) < now
-          ).length || 0;
-
-          const { data: worksData } = await supabase
-            .from('works')
-            .select('id')
-            .eq('customer_id', customer.id)
-            .neq('status', 'completed');
-
-          return {
-            ...customer,
-            service_count: servicesData?.length || 0,
-            active_services: servicesData?.length || 0,
-            total_revenue: totalRevenue,
-            last_invoice_date: lastInvoiceDate,
-            pending_works: worksData?.length || 0,
-            overdue_invoices: overdueCount,
-          };
-        })
+      const totalRevenue = transformedData.reduce(
+        (sum, c) => sum + (c.total_revenue || 0),
+        0
       );
 
-      setCustomers(enrichedCustomers);
+      setStatistics({
+        totalCustomers,
+        activeCustomers,
+        newThisMonth,
+        totalRevenue,
+        averageRevenue: totalCustomers > 0 ? totalRevenue / totalCustomers : 0,
+      });
+
+
+      setCustomers(transformedData);
+      setFilteredCustomers(transformedData);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      toast.error('Failed to fetch customers');
+      toast.showToast('error', 'Failed to load customers');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchStatistics = async () => {
-    try {
-      setLoadingStats(true);
 
-      const [customersRes, invoicesRes] = await Promise.all([
-        supabase.from('customers').select('id, created_at').eq('user_id', user?.id),
-        supabase.from('invoices').select('customer_id, total_amount, status').eq('user_id', user?.id),
-      ]);
-
-      if (customersRes.error) throw customersRes.error;
-      if (invoicesRes.error) throw invoicesRes.error;
-
-      const customers = customersRes.data || [];
-      const invoices = invoicesRes.data || [];
-
-      const totalRevenue = invoices
-        .filter((inv) => inv.status === 'paid')
-        .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-
-      const averageRevenue = customers.length > 0 ? totalRevenue / customers.length : 0;
-
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const newThisMonth = customers.filter((c) => new Date(c.created_at) >= startOfMonth).length;
-
-      const stats: CustomerStatistics = {
-        totalCustomers: customers.length,
-        activeCustomers: customers.length,
-        newThisMonth,
-        totalRevenue,
-        averageRevenue,
-      };
-
-      setStatistics(stats);
-    } catch (error: any) {
-      console.error('Error fetching statistics:', error);
-      toast.error('Failed to fetch statistics');
-    } finally {
-      setLoadingStats(false);
+  useEffect(() => {
+    if (user && !isDetailsView) {
+      fetchCustomers();
     }
-  };
+  }, [user, isDetailsView]);
+
+
+  useEffect(() => {
+    applyFilters();
+  }, [customers, searchTerm, filters]);
+
 
   const applyFilters = () => {
-    let filtered = customers;
-
-    if (filters.cities.length > 0) {
-      filtered = filtered.filter((c) => c.city && filters.cities.includes(c.city));
-    }
-
-    if (filters.states.length > 0) {
-      filtered = filtered.filter((c) => c.state && filters.states.includes(c.state));
-    }
-
-    if (filters.gstStatus === 'has_gst') {
-      filtered = filtered.filter((c) => c.gstin);
-    } else if (filters.gstStatus === 'no_gst') {
-      filtered = filtered.filter((c) => !c.gstin);
-    }
-
-    if (filters.dateFrom) {
-      filtered = filtered.filter((c) => new Date(c.created_at) >= new Date(filters.dateFrom));
-    }
-    if (filters.dateTo) {
-      filtered = filtered.filter((c) => new Date(c.created_at) <= new Date(filters.dateTo));
-    }
+    let result = customers;
 
     if (searchTerm) {
-      filtered = filtered.filter(
-        (c) =>
-          c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.phone?.includes(searchTerm) ||
-          c.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.gstin?.toLowerCase().includes(searchTerm.toLowerCase())
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter(
+        (customer) =>
+          customer.name.toLowerCase().includes(lowerSearch) ||
+          customer.email?.toLowerCase().includes(lowerSearch) ||
+          customer.phone?.includes(lowerSearch) ||
+          customer.company_name?.toLowerCase().includes(lowerSearch) ||
+          customer.city?.toLowerCase().includes(lowerSearch)
       );
     }
 
-    setFilteredCustomers(filtered);
+    if (filters.cities.length > 0) {
+      result = result.filter(c => c.city && filters.cities.includes(c.city));
+    }
+
+    if (filters.states.length > 0) {
+      result = result.filter(c => c.state && filters.states.includes(c.state));
+    }
+
+    if (filters.gstStatus !== 'all') {
+      if (filters.gstStatus === 'has_gst') {
+        result = result.filter(c => !!c.gstin);
+      } else {
+        result = result.filter(c => !c.gstin);
+      }
+    }
+    // Date ranges logic if needed...
+
+    setFilteredCustomers(result);
   };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
+    if (!permissions?.customers?.delete) {
+      toast.showToast('error', "You don't have permission to delete customers");
+      return;
+    }
+
     confirmation.showConfirmation({
       title: 'Delete Customer',
       message: 'Are you sure you want to delete this customer? This action cannot be undone.',
-      confirmText: 'Delete',
-      confirmColor: 'red',
       onConfirm: async () => {
         try {
           const { error } = await supabase.from('customers').delete().eq('id', id);
           if (error) throw error;
-          toast.success('Customer deleted successfully');
+          toast.showToast('success', 'Customer deleted successfully');
           fetchCustomers();
-          fetchStatistics();
         } catch (error) {
           console.error('Error deleting customer:', error);
-          toast.error('Failed to delete customer');
+          toast.showToast('error', 'Failed to delete customer');
         }
       },
     });
   };
 
-  const handleAddSuccess = (customerId: string) => {
-    setShowAddModal(false);
-    fetchCustomers();
-    fetchStatistics();
-    setSelectedCustomerId(customerId);
-  };
-
-  const handleEditSuccess = () => {
-    setEditingCustomerId(null);
-    fetchCustomers();
-    fetchStatistics();
-  };
-
   const handleEdit = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditingCustomerId(id);
+    onNavigate?.('create-customer', { id });
   };
 
-  if (loading) {
+  // Handle detailed view
+  if (isDetailsView && customerId) {
+    return (
+      <CustomerDetails
+        customerId={customerId}
+        onBack={() => onNavigate?.('customers')}
+        onUpdate={() => {
+          fetchCustomers(); // Refresh list when coming back or updating
+        }}
+      />
+    );
+  }
+
+  if (loading && !isDetailsView) { // Only show loading spinner if NOT in details view
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
       </div>
     );
   }
 
-  const editingCustomer = editingCustomerId ? customers.find(c => c.id === editingCustomerId) : null;
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Customers</h1>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:block relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search..."
-              className="pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
-            />
+    <div className="space-y-4 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
+      {/* Header and Statistics (Top Component) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="p-4 sm:p-6 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Customer Management
+              </h1>
+              <p className="text-gray-500 text-sm mt-1">
+                Manage your client relationships and history
+              </p>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <div className="relative flex-1 sm:flex-initial">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search customers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full sm:w-64 pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2 border rounded-lg hover:bg-gray-50 transition-colors ${showFilters
+                  ? 'border-green-500 text-green-600 bg-green-50'
+                  : 'border-gray-300 text-gray-600'
+                  }`}
+                title="Filter"
+              >
+                <Filter size={20} />
+              </button>
+              {permissions?.customers?.create && (
+                <button
+                  onClick={() => onNavigate?.('create-customer')}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                >
+                  <Plus size={18} />
+                </button>
+              )}
+            </div>
           </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            title="Filters"
-          >
-            <Filter className="w-4 h-4" />
-            {(filters.sources.length > 0 ||
-              filters.serviceTypes.length > 0 ||
-              filters.cities.length > 0 ||
-              filters.states.length > 0 ||
-              filters.gstStatus !== 'all' ||
-              filters.dateFrom ||
-              filters.dateTo) && (
-              <span className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1 text-xs">
-                {[
-                  filters.sources.length,
-                  filters.serviceTypes.length,
-                  filters.cities.length,
-                  filters.states.length,
-                  filters.gstStatus !== 'all' ? 1 : 0,
-                  filters.dateFrom ? 1 : 0,
-                  filters.dateTo ? 1 : 0,
-                ].reduce((a, b) => a + b, 0)}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center justify-center p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-            title="Add Customer"
-          >
-            <Plus size={18} />
-          </button>
         </div>
       </div>
 
       {showFilters && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-          <CustomerFilters onFilterChange={setFilters} activeFilters={filters} />
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <CustomerFilters
+            activeFilters={filters}
+            onFilterChange={setFilters}
+            cities={Array.from(new Set(customers.map((c) => c.city).filter(Boolean))) as string[]}
+            states={Array.from(new Set(customers.map((c) => c.state).filter(Boolean))) as string[]}
+            uniqueSources={[]} // Pass empty or actual sources if available
+            uniqueServiceTypes={[]} // Pass empty or actual service types if available
+          />
         </div>
       )}
 
-      <div className="sm:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </div>
 
-      {filteredCustomers.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
-          <Users size={40} className="mx-auto text-gray-400 mb-3" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No customers found</h3>
-          <p className="text-sm text-gray-600 mb-6">
-            {searchTerm || filters.cities.length > 0
-              ? 'Try adjusting your search or filter criteria'
-              : 'Get started by adding your first customer'}
-          </p>
-          {!searchTerm && filters.cities.length === 0 && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-            >
-              <Plus size={18} />
-              Add Your First Customer
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {filteredCustomers.map((customer) => {
-            const borderColor = getCustomerBorderColor(customer, statistics?.averageRevenue || 0);
-
-            return (
-              <div
-                key={customer.id}
-                onClick={() => setSelectedCustomerId(customer.id)}
-                className={`bg-white rounded-lg shadow-sm border-l-4 ${borderColor} border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
+      {/* Customer List */}
+      <div className="grid grid-cols-1 gap-3">
+        {filteredCustomers.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <Users size={48} className="mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No customers found</h3>
+            <p className="text-gray-500 mb-6">
+              {searchTerm || showFilters
+                ? 'Try adjusting your search or filters'
+                : 'Get started by adding your first customer'}
+            </p>
+            {!searchTerm && !showFilters && permissions?.customers?.create && (
+              <button
+                onClick={() => onNavigate?.('create-customer')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
               >
-                <div className="p-2 sm:p-3">
-                  <div className="flex items-center gap-2 justify-between">
-                    {/* Left: Avatar + Name + Details on one line */}
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white flex-shrink-0 overflow-hidden text-xs sm:text-sm font-bold">
-                        {customer.image_url ? (
-                          <img
-                            src={customer.image_url}
-                            alt={customer.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.currentTarget;
-                              target.style.display = 'none';
-                              const parent = target.parentElement;
-                              if (parent) {
-                                const initials = document.createElement('span');
-                                initials.className = 'text-xs sm:text-sm font-bold';
-                                initials.textContent = customer.name?.charAt(0).toUpperCase() || 'C';
-                                parent.appendChild(initials);
-                              }
-                            }}
-                          />
-                        ) : (
-                          <span>{customer.name?.charAt(0).toUpperCase() || 'C'}</span>
+                <Plus size={18} />
+                Add Customer
+              </button>
+            )}
+          </div>
+        ) : (
+          filteredCustomers.map((customer) => (
+            <div
+              key={customer.id}
+              onClick={() => onNavigate?.('customer-details', { id: customer.id })}
+              className={`group bg-white rounded-lg border-t border-b border-r border-gray-200 border-l-[3px] shadow-sm hover:shadow-md transition-all cursor-pointer ${getCustomerBorderColor(
+                customer
+              )}`}
+            >
+              <div className="p-3 sm:p-4">
+                <div className="flex items-center justify-between gap-4">
+                  {/* Left Section: Avatar + Basic Info */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="hidden sm:flex h-10 w-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 items-center justify-center text-gray-600 font-bold text-sm shrink-0 uppercase border border-gray-300">
+                      {customer.name.substring(0, 2)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate group-hover:text-green-700 transition-colors">
+                          {customer.name}
+                        </h3>
+                        {customer.company_name && (
+                          <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 truncate max-w-[150px]">
+                            <Briefcase size={10} className="mr-1" />
+                            {customer.company_name}
+                          </span>
                         )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-gray-900 text-xs sm:text-sm truncate flex-shrink-0" title={customer.name}>
-                            {customer.name}
-                          </h3>
-                          {customer.entity_type && (
-                            <span className="text-xs text-gray-500 px-1.5 py-0.5 bg-gray-100 rounded whitespace-nowrap">
-                              {customer.entity_type}
-                            </span>
-                          )}
-                          {customer.email && (
-                            <a
-                              href={`mailto:${customer.email}`}
-                              className="text-xs text-blue-600 hover:underline truncate min-w-0"
-                              onClick={(e) => e.stopPropagation()}
-                              title={customer.email}
-                            >
-                              {customer.email}
-                            </a>
-                          )}
-                          {customer.phone && (
-                            <span className="text-xs text-gray-600 whitespace-nowrap" title={customer.phone}>
-                              {customer.phone}
-                            </span>
-                          )}
-                        </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-500">
+                        {customer.city && (
+                          <span className="flex items-center truncate">
+                            {customer.city}, {customer.state}
+                          </span>
+                        )}
+                        {customer.phone && (
+                          <span className="hidden sm:flex items-center truncate">
+                            {customer.phone}
+                          </span>
+                        )}
                       </div>
                     </div>
+                  </div>
 
-                    {/* Right: Stats + Actions */}
-                    <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-                      {(customer.total_revenue || 0) > 0 && (
-                        <div className="flex items-center gap-0.5 bg-green-50 rounded px-1 sm:px-1.5 py-0.5" title="Total Revenue">
-                          <DollarSign size={12} className="text-green-600 flex-shrink-0" />
-                          <span className="text-xs font-bold text-green-700 whitespace-nowrap">
-                            ₹{((customer.total_revenue || 0) / 1000).toFixed(0)}k
+                  {/* Right Section: Metrics + Actions */}
+                  <div className="flex items-center gap-6 shrink-0">
+                    <div className="hidden md:flex items-center gap-6">
+                      {customer.pending_works !== undefined && customer.pending_works > 0 && (
+                        <div className="flex flex-col items-end text-right" title="Pending Works">
+                          <span className="text-xs text-gray-500 uppercase font-semibold">Pending</span>
+                          <span className="text-sm font-bold text-amber-600 flex items-center gap-1">
+                            <Clock size={14} />
+                            {customer.pending_works}
                           </span>
                         </div>
                       )}
-                      {(customer.active_services || 0) > 0 && (
-                        <div className="flex items-center gap-0.5 bg-blue-50 rounded px-1 sm:px-1.5 py-0.5" title="Active Services">
-                          <Briefcase size={12} className="text-blue-600 flex-shrink-0" />
-                          <span className="text-xs font-bold text-blue-700">{customer.active_services}</span>
+
+                      {customer.overdue_invoices !== undefined && customer.overdue_invoices > 0 && (
+                        <div className="flex flex-col items-end text-right" title="Overdue Invoices">
+                          <span className="text-xs text-gray-500 uppercase font-semibold">Overdue</span>
+                          <span className="text-sm font-bold text-red-600 flex items-center gap-1">
+                            <AlertCircle size={14} />
+                            {customer.overdue_invoices}
+                          </span>
                         </div>
                       )}
-                      {(customer.pending_works || 0) > 0 && (
-                        <div className="flex items-center gap-0.5 bg-orange-50 rounded px-1 sm:px-1.5 py-0.5" title="Pending Works">
-                          <Clock size={12} className="text-orange-600 flex-shrink-0" />
-                          <span className="text-xs font-bold text-orange-700">{customer.pending_works}</span>
+
+                      {(customer.total_revenue || 0) > 0 && (
+                        <div className="flex flex-col items-end text-right min-w-[80px]">
+                          <span className="text-xs text-gray-500 uppercase font-semibold">Revenue</span>
+                          <span className="text-sm font-bold text-gray-900 flex items-center justify-end gap-1">
+                            <DollarSign size={12} className="text-gray-400" />
+                            {(customer.total_revenue! / 1000).toFixed(1)}k
+                          </span>
                         </div>
                       )}
-                      {(customer.overdue_invoices || 0) > 0 && (
-                        <div className="flex items-center gap-0.5 bg-red-50 rounded px-1 sm:px-1.5 py-0.5" title="Overdue Invoices">
-                          <AlertCircle size={12} className="text-red-600 flex-shrink-0" />
-                          <span className="text-xs font-bold text-red-700">{customer.overdue_invoices}</span>
-                        </div>
-                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 pl-4 border-l border-gray-100">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedCustomerId(customer.id);
+                          onNavigate?.('customer-details', { id: customer.id });
                         }}
-                        className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors flex-shrink-0"
+                        className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                         title="View Details"
                       >
-                        <Eye size={14} />
+                        <Eye size={18} />
                       </button>
                       <button
                         onClick={(e) => handleEdit(customer.id, e)}
-                        className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0"
-                        title="Edit Customer"
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit"
                       >
-                        <Edit2 size={14} />
+                        <Edit2 size={18} />
                       </button>
-                      <button
-                        onClick={(e) => handleDelete(customer.id, e)}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0"
-                        title="Delete Customer"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {permissions?.customers?.delete && (
+                        <button
+                          onClick={(e) => handleDelete(customer.id, e)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {showAddModal && (
-        <CustomerFormModal
-          onClose={() => setShowAddModal(false)}
-          onSuccess={handleAddSuccess}
-          mode="create"
-        />
-      )}
-
-      {editingCustomerId && editingCustomer && (
-        <CustomerFormModal
-          onClose={() => setEditingCustomerId(null)}
-          onSuccess={handleEditSuccess}
-          initialData={editingCustomer}
-          mode="edit"
-          customerId={editingCustomerId}
-          title={`Edit Customer: ${editingCustomer.name}`}
-        />
-      )}
-
-      {selectedCustomerId && (
-        <CustomerDetails
-          customerId={selectedCustomerId}
-          onClose={() => setSelectedCustomerId(null)}
-          onUpdate={fetchCustomers}
-          onNavigateToService={(serviceId) => {
-            setSelectedCustomerId(null);
-            setSelectedServiceId(serviceId);
-          }}
-          onNavigateToWork={(workId) => {
-            setSelectedCustomerId(null);
-            setSelectedWorkId(workId);
-          }}
-          onNavigateToCreateService={(customerId) => {
-            setPrefilledCustomerId(customerId);
-            setNavigationTarget('service');
-          }}
-          onNavigateToCreateWork={(customerId) => {
-            setPrefilledCustomerId(customerId);
-            setNavigationTarget('work');
-          }}
-          onNavigateToCreateInvoice={(customerId) => {
-            setPrefilledCustomerId(customerId);
-            setNavigationTarget('invoice');
-          }}
-        />
-      )}
-
-      {selectedServiceId && (
-        <ServiceDetails
-          serviceId={selectedServiceId}
-          onClose={() => setSelectedServiceId(null)}
-          onEdit={() => {}}
-          onNavigateToCustomer={(customerId) => {
-            setSelectedServiceId(null);
-            setSelectedCustomerId(customerId);
-          }}
-          onNavigateToWork={(workId) => {
-            setSelectedServiceId(null);
-            setSelectedWorkId(workId);
-          }}
-        />
-      )}
-
-      {selectedWorkId && (
-        <WorkDetails
-          workId={selectedWorkId}
-          onClose={() => setSelectedWorkId(null)}
-          onUpdate={fetchCustomers}
-        />
-      )}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

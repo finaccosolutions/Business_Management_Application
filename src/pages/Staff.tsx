@@ -1,544 +1,349 @@
-// src/pages/Staff.tsx
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  Plus,
-  Users,
-  Trash2,
-  Mail,
-  Phone,
-  DollarSign,
-  Award,
-  Eye,
-  Search,
-  Filter,
-  Edit2,
+  Plus, Trash2, Edit, Shield,
+  ClipboardList, Clock, Search
 } from 'lucide-react';
 import StaffDetails from '../components/StaffDetails';
-import StaffFormModal from '../components/StaffFormModal';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { useToast } from '../contexts/ToastContext';
+import { format } from 'date-fns';
 
+export default function AdminStaffManager({ isDetailsView, staffId, onNavigate }: any = {}) {
+  const { user, role, permissions } = useAuth();
+  const [activeTab, setActiveTab] = useState<'directory' | 'monitor' | 'timesheets'>('directory');
 
-interface StaffMember {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  employee_id: string | null;
-  role: string;
-  department: string | null;
-  joining_date: string | null;
-  employment_type: string;
-  salary_method: string;
-  salary_amount: number | null;
-  hourly_rate: number | null;
-  is_active: boolean;
-  availability_status: string;
-  skills: string[] | null;
-  expertise_areas: string[] | null;
-  education: any;
-  emergency_contact: any;
-  certifications: any[] | null;
-  notes: string | null;
-  created_at: string;
-}
-
-
-export default function Staff() {
-  const { user } = useAuth();
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const canViewMonitor = role === 'admin' || permissions?.staff?.view_monitor;
+  const canViewTimesheets = role === 'admin' || permissions?.staff?.view_timesheets;
+  const [staff, setStaff] = useState<any[]>([]);
+  const [globalWorks, setGlobalWorks] = useState<any[]>([]);
+  const [globalLogs, setGlobalLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
-  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
-  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+
+  // Reuse existing directory logic
+  const [searchQuery, setSearchQuery] = useState('');
   const { showConfirmation } = useConfirmation();
   const toast = useToast();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({
-    department: '',
-    role: '',
-    employmentType: '',
-    availabilityStatus: '',
-    isActive: 'all',
-  });
-  const [showFilters, setShowFilters] = useState(false);
-
   useEffect(() => {
     if (user) {
-      fetchData();
+      if (activeTab === 'directory') fetchData();
+      if (activeTab === 'monitor') fetchGlobalWorks();
+      if (activeTab === 'timesheets') fetchGlobalLogs();
     }
-  }, [user]);
+  }, [user, activeTab]);
 
   const fetchData = async () => {
-    try {
-      const staffRes = await supabase
-        .from('staff_members')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (staffRes.error) throw staffRes.error;
-
-      setStaff(staffRes.data || []);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const { data, error } = await supabase.from('staff_members').select('*').order('name');
+    if (!error) setStaff(data || []);
+    setLoading(false);
   };
+
+  const fetchGlobalWorks = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('works')
+      .select('*, staff_members(name)')
+      .order('due_date');
+    setGlobalWorks(data || []);
+    setLoading(false);
+  };
+
+  const fetchGlobalLogs = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('work_time_logs')
+      .select('*, staff_members(name), works(title)')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setGlobalLogs(data || []);
+    setLoading(false);
+  }
 
   const handleDelete = async (id: string) => {
     showConfirmation({
       title: 'Delete Staff Member',
-      message: 'Are you sure you want to delete this staff member? This action cannot be undone.',
+      message: 'Are you sure?',
       confirmText: 'Delete',
-      cancelText: 'Cancel',
       confirmColor: 'red',
       onConfirm: async () => {
-        try {
-          const { error } = await supabase.from('staff_members').delete().eq('id', id);
-          if (error) throw error;
+        const { error } = await supabase.from('staff_members').delete().eq('id', id);
+        if (!error) {
+          toast.success('Deleted');
           fetchData();
-          toast.success('Staff member deleted successfully');
-        } catch (error) {
-          console.error('Error deleting staff member:', error);
-          toast.error('Failed to delete staff member');
+        } else {
+          toast.error('Failed to delete');
         }
       }
     });
   };
 
-  const handleEdit = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingStaffId(id);
-  };
+  if (isDetailsView && staffId) {
+    return <StaffDetails staffId={staffId} onBack={() => onNavigate?.('staff')} />;
+  }
 
-  const handleEditSuccess = () => {
-    setEditingStaffId(null);
-    fetchData();
-  };
-
-  // Get unique values for filters
-  const departments = Array.from(
-    new Set(staff.map((s) => s.department).filter(Boolean))
-  ) as string[];
-  const roles = Array.from(new Set(staff.map((s) => s.role)));
-
-  const filteredStaff = staff.filter((member) => {
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        member.name.toLowerCase().includes(query) ||
-        member.email?.toLowerCase().includes(query) ||
-        member.employee_id?.toLowerCase().includes(query) ||
-        member.department?.toLowerCase().includes(query);
-      if (!matchesSearch) return false;
-    }
-
-    // Department filter
-    if (filters.department && member.department !== filters.department) return false;
-
-    // Role filter
-    if (filters.role && member.role !== filters.role) return false;
-
-    // Employment type filter
-    if (filters.employmentType && member.employment_type !== filters.employmentType)
-      return false;
-
-    // Availability filter
-    if (
-      filters.availabilityStatus &&
-      member.availability_status !== filters.availabilityStatus
-    )
-      return false;
-
-    // Active status filter
-    if (filters.isActive !== 'all') {
-      const isActive = filters.isActive === 'active';
-      if (member.is_active !== isActive) return false;
-    }
-
-    return true;
-  });
-
-
-  const calculateTenure = (joiningDate: string | null) => {
-    if (!joiningDate) return null;
-    const start = new Date(joiningDate);
-    const now = new Date();
-    const months = (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth();
-    const years = Math.floor(months / 12);
-    const remainingMonths = months % 12;
-    
-    if (years > 0) {
-      return `${years}y ${remainingMonths}m`;
-    }
-    return `${months}m`;
-  };
-
-  if (loading) {
+  if (loading && staff.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Staff Management</h1>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:block relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-48"
-            />
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            title="Filters"
-          >
-            <Filter className="w-4 h-4" />
-            {Object.values(filters).some((v) => v && v !== 'all') && (
-              <span className="bg-emerald-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">
-                {Object.values(filters).filter((v) => v && v !== 'all').length}
-              </span>
+    <div className="space-y-6 p-6">
+      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 border-b pb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Shield className="w-8 h-8 text-blue-600" /> Staff & Workflow
+          </h1>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+          {activeTab === 'directory' && (
+            <>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 text-sm border-gray-200 rounded-lg w-40 focus:ring-2 focus:ring-blue-500 outline-none transition-all focus:w-56"
+                />
+              </div>
+              <button
+                onClick={() => onNavigate?.('create-staff')}
+                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                title="Add New Staff"
+              >
+                <Plus size={18} />
+              </button>
+            </>
+          )}
+
+          <div className="flex bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('directory')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'directory' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+            >
+              Directory
+            </button>
+            {canViewMonitor && (
+              <button
+                onClick={() => setActiveTab('monitor')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'monitor' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+              >
+                Monitor
+              </button>
             )}
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center justify-center p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all"
-            title="Add Staff"
-          >
-            <Plus size={18} />
-          </button>
+            {canViewTimesheets && (
+              <button
+                onClick={() => setActiveTab('timesheets')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'timesheets' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+              >
+                Logs
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {showFilters && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                Department
-              </label>
-              <select
-                value={filters.department}
-                onChange={(e) =>
-                  setFilters({ ...filters, department: e.target.value })
-                }
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+      {activeTab === 'directory' && (
+        <div className="space-y-4">
+          {/* Staff List Full Width */}
+          <div className="flex flex-col space-y-3">
+            {staff.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())).map(member => (
+              <div
+                key={member.id}
+                onClick={() => onNavigate?.('staff-details', { id: member.id })}
+                className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between hover:shadow-md transition-all cursor-pointer group"
               >
-                <option value="">All Departments</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg group-hover:scale-110 transition-transform">
+                    {member.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">{member.name}</h3>
+                    <p className="text-xs text-gray-500">{member.role} &bull; {member.department || 'General'}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-full ${member.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {member.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Role</label>
-              <select
-                value={filters.role}
-                onChange={(e) => setFilters({ ...filters, role: e.target.value })}
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="">All Roles</option>
-                {roles.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                Employment Type
-              </label>
-              <select
-                value={filters.employmentType}
-                onChange={(e) =>
-                  setFilters({ ...filters, employmentType: e.target.value })
-                }
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="">All Types</option>
-                <option value="full-time">Full Time</option>
-                <option value="part-time">Part Time</option>
-                <option value="contract">Contract</option>
-                <option value="intern">Intern</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                Availability
-              </label>
-              <select
-                value={filters.availabilityStatus}
-                onChange={(e) =>
-                  setFilters({ ...filters, availabilityStatus: e.target.value })
-                }
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="">All Status</option>
-                <option value="available">Available</option>
-                <option value="busy">Busy</option>
-                <option value="on-leave">On Leave</option>
-                <option value="unavailable">Unavailable</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Status</label>
-              <select
-                value={filters.isActive}
-                onChange={(e) =>
-                  setFilters({ ...filters, isActive: e.target.value })
-                }
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="all">All Staff</option>
-                <option value="active">Active Only</option>
-                <option value="inactive">Inactive Only</option>
-              </select>
-            </div>
-
-            <div className="md:col-span-5 flex justify-end">
-              <button
-                onClick={() =>
-                  setFilters({
-                    department: '',
-                    role: '',
-                    employmentType: '',
-                    availabilityStatus: '',
-                    isActive: 'all',
-                  })
-                }
-                className="text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-              >
-                Clear All Filters
-              </button>
-            </div>
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onNavigate?.('create-staff', { id: member.id }); }}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit Profile"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(member.id); }}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete User"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      <div className="sm:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-          />
-        </div>
-      </div> 
+      {activeTab === 'monitor' && canViewMonitor && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-2">
+              <ClipboardList className="w-5 h-5 text-indigo-600" /> Staff Workload Monitor
+            </h3>
+            <p className="text-sm text-gray-500">
+              Overview of task distribution and performance across all staff members.
+            </p>
+          </div>
 
-      {filteredStaff.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
-          <Users size={40} className="mx-auto text-gray-400 mb-3" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No staff members found</h3>
-          <p className="text-sm text-gray-600 mb-6">
-            {searchQuery || Object.values(filters).some((v) => v && v !== 'all')
-              ? 'Try adjusting your search or filter criteria'
-              : 'Get started by adding your first staff member'}
-          </p>
-          {!searchQuery && !Object.values(filters).some((v) => v && v !== 'all') && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
-            >
-              <Plus size={18} />
-              Add Your First Staff Member
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {filteredStaff.map((member) => {
-            const tenure = calculateTenure(member.joining_date);
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {staff.filter(s => s.is_active).map(member => {
+              const memberWorks = globalWorks.filter(w => w.assigned_to === member.id);
+              const pending = memberWorks.filter(w => w.status === 'pending').length;
+              const inProgress = memberWorks.filter(w => w.status === 'in_progress').length;
+              const completed = memberWorks.filter(w => w.status === 'completed').length;
+              const overdue = memberWorks.filter(w => w.status !== 'completed' && w.due_date && new Date(w.due_date) < new Date()).length;
+              const totalActive = pending + inProgress;
 
-            return (
-              <div
-                key={member.id}
-                onClick={() => {
-                  setSelectedStaffId(member.id);
-                  setShowDetailsModal(true);
-                }}
-                className={`bg-white rounded-lg shadow-sm border-l-4 ${
-                  member.is_active ? 'border-l-emerald-500 hover:bg-emerald-50/30' : 'border-l-gray-400 hover:bg-gray-50/30'
-                } border-t border-r border-b border-gray-200 transition-all cursor-pointer hover:shadow-md`}
-              >
-                <div className="p-2 sm:p-3">
-                  <div className="flex items-center gap-2 justify-between">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 text-xs sm:text-sm font-bold ${
-                        member.is_active ? 'bg-emerald-500' : 'bg-gray-400'
-                      }`}>
-                        {member.name?.charAt(0).toUpperCase() || 'S'}
+              // Calculate easy stats
+
+
+              return (
+                <div key={member.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="p-5 border-b border-gray-100 flex justify-between items-start">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg">
+                        {member.name.charAt(0)}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-gray-900 text-xs sm:text-sm truncate flex-shrink-0" title={member.name}>
-                            {member.name}
-                          </h3>
-                          {member.employee_id && (
-                            <span className="text-xs text-gray-500 px-1.5 py-0.5 bg-gray-100 rounded whitespace-nowrap">
-                              {member.employee_id}
-                            </span>
-                          )}
-                          {member.department && (
-                            <span className="text-xs text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded font-medium whitespace-nowrap">
-                              {member.department}
-                            </span>
-                          )}
-                          <span
-                            className={`px-1.5 py-0.5 text-xs rounded-full font-medium whitespace-nowrap ${
-                              member.availability_status === 'available'
-                                ? 'bg-green-100 text-green-700'
-                                : member.availability_status === 'busy'
-                                ? 'bg-orange-100 text-orange-700'
-                                : member.availability_status === 'on-leave'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {member.availability_status.replace('-', ' ')}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {member.email && (
-                            <a
-                              href={`mailto:${member.email}`}
-                              className="text-xs text-blue-600 hover:underline truncate min-w-0"
-                              onClick={(e) => e.stopPropagation()}
-                              title={member.email}
-                            >
-                              {member.email}
-                            </a>
-                          )}
-                          {member.phone && (
-                            <span className="text-xs text-gray-600 whitespace-nowrap" title={member.phone}>
-                              {member.phone}
-                            </span>
-                          )}
-                        </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{member.name}</h4>
+                        <p className="text-xs text-gray-500">{member.role}</p>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-gray-900">{totalActive}</div>
+                      <div className="text-xs text-gray-500 uppercase font-medium">Active Tasks</div>
+                    </div>
+                  </div>
 
-                    <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-                      {member.salary_amount && (
-                        <div className="flex items-center gap-0.5 bg-emerald-50 rounded px-1 sm:px-1.5 py-0.5" title="Salary">
-                          <DollarSign size={12} className="text-emerald-600 flex-shrink-0" />
-                          <span className="text-xs font-bold text-emerald-700 whitespace-nowrap">
-                            ₹{((member.salary_amount || 0) / 1000).toFixed(0)}k
-                          </span>
+                  <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 bg-gray-50/50">
+                    <div className="text-center p-2 bg-white rounded-lg border border-gray-100 shadow-sm">
+                      <div className="text-amber-600 font-bold text-lg">{pending}</div>
+                      <div className="text-[10px] text-gray-500 uppercase">Pending</div>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded-lg border border-gray-100 shadow-sm">
+                      <div className="text-blue-600 font-bold text-lg">{inProgress}</div>
+                      <div className="text-[10px] text-gray-500 uppercase">In Progress</div>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded-lg border border-gray-100 shadow-sm">
+                      <div className="text-green-600 font-bold text-lg">{completed}</div>
+                      <div className="text-[10px] text-gray-500 uppercase">Completed</div>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded-lg border border-gray-100 shadow-sm">
+                      <div className="text-red-600 font-bold text-lg">{overdue}</div>
+                      <div className="text-[10px] text-gray-500 uppercase">Overdue</div>
+                    </div>
+                  </div>
+
+                  <div className="p-5">
+                    <h5 className="text-xs font-semibold text-gray-500 uppercase mb-3 px-1">Current Active Works</h5>
+                    <div className="space-y-2">
+                      {memberWorks
+                        .filter(w => w.status === 'in_progress' || w.status === 'pending')
+                        .slice(0, 3)
+                        .map(work => (
+                          <div key={work.id} onClick={() => onNavigate?.('work-details', { id: work.id })} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer border border-transparent hover:border-gray-100 transition-all">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm font-medium text-gray-800 truncate">{work.title}</span>
+                              <span className="text-xs text-gray-500 truncate">{format(new Date(work.created_at), 'MMM d')} • {work.priority}</span>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${work.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                              {work.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                        ))}
+                      {memberWorks.filter(w => w.status === 'in_progress' || w.status === 'pending').length === 0 && (
+                        <div className="text-center py-4 text-gray-400 text-xs italic">
+                          No active tasks assigned
                         </div>
                       )}
-                      {member.skills && member.skills.length > 0 && (
-                        <div className="flex items-center gap-0.5 bg-purple-50 rounded px-1 sm:px-1.5 py-0.5" title="Skills">
-                          <Award size={12} className="text-purple-600 flex-shrink-0" />
-                          <span className="text-xs font-bold text-purple-700">{member.skills.length}</span>
+                      {memberWorks.filter(w => w.status === 'in_progress' || w.status === 'pending').length > 3 && (
+                        <div className="text-center pt-2">
+                          <button className="text-xs text-indigo-600 hover:underline">
+                            + {memberWorks.filter(w => w.status === 'in_progress' || w.status === 'pending').length - 3} more
+                          </button>
                         </div>
                       )}
-                      {tenure && (
-                        <div className="flex items-center gap-0.5 bg-orange-50 rounded px-1 sm:px-1.5 py-0.5" title="Tenure">
-                          <span className="text-xs font-bold text-orange-700">{tenure}</span>
-                        </div>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedStaffId(member.id);
-                          setShowDetailsModal(true);
-                        }}
-                        className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors flex-shrink-0"
-                        title="View Details"
-                      >
-                        <Eye size={14} />
-                      </button>
-                      <button
-                        onClick={(e) => handleEdit(member.id, e)}
-                        className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors flex-shrink-0"
-                        title="Edit Staff"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(member.id);
-                        }}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0"
-                        title="Delete Staff"
-                      >
-                        <Trash2 size={14} />
-                      </button>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {showModal && (
-        <StaffFormModal
-          onClose={() => {
-            setShowModal(false);
-          }}
-          onSuccess={() => {
-            fetchData();
-          }}
-          editingStaff={undefined}
-        />
+      {activeTab === 'timesheets' && canViewTimesheets && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-indigo-600" /> Recent Time Logs
+            </h3>
+            <button className="text-sm text-indigo-600 font-medium hover:underline">Download Report</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-3">Staff Member</th>
+                  <th className="px-6 py-3">Work Item</th>
+                  <th className="px-6 py-3">Date & Time</th>
+                  <th className="px-6 py-3 text-right">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {globalLogs.map(log => (
+                  <tr key={log.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium text-gray-900">
+                      {log.staff_members?.name}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {log.works?.title || 'Unknown Work'}
+                    </td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {format(new Date(log.created_at), 'MMM d, yyyy h:mm a')}
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-gray-900">
+                      {log.duration_minutes} min
+                    </td>
+                  </tr>
+                ))}
+                {globalLogs.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                      No time logs found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
-
-      {editingStaffId && (
-        <StaffFormModal
-          onClose={() => {
-            setEditingStaffId(null);
-          }}
-          onSuccess={handleEditSuccess}
-          editingStaff={staff.find((s) => s.id === editingStaffId)}
-        />
-      )}
-
-      {showDetailsModal && selectedStaffId && (
-        <StaffDetails
-          staffId={selectedStaffId}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedStaffId(null);
-          }}
-          onEdit={() => {
-            const staffToEdit = staff.find((s) => s.id === selectedStaffId);
-            if (staffToEdit) {
-              setShowDetailsModal(false);
-              setEditingStaffId(selectedStaffId);
-            }
-          }}
-        />
-      )}
-
     </div>
   );
 }

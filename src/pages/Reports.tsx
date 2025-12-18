@@ -2,36 +2,43 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  FileText,
   Users,
   Briefcase,
   DollarSign,
   TrendingUp,
   Calendar,
-  Download,
   Package,
   Target,
   BarChart3,
-  FileSpreadsheet,
-  TrendingDown,
   Building2,
   Scale,
-  PieChart as PieChartIcon,
   Receipt,
   Wallet,
   ArrowUpDown,
+  LayoutDashboard
 } from 'lucide-react';
 import TrialBalanceReport from '../components/reports/TrialBalanceReport';
 import BalanceSheetReport from '../components/reports/BalanceSheetReport';
 import ProfitLossReport from '../components/reports/ProfitLossReport';
 import ReceivablesReport from '../components/reports/ReceivablesReport';
-import ReportFilters from '../components/reports/ReportFilters';
-import { exportToXLSX, exportToPDF } from '../lib/exportUtils';
+// ReportFilters removed
+
+// New Modular Components
+import CustomerPerformanceReport from '../components/reports/CustomerPerformanceReport';
+import WorkPerformanceReport from '../components/reports/WorkPerformanceReport';
+import StaffPerformanceReport from '../components/reports/StaffPerformanceReport';
+import ServicePerformanceReport from '../components/reports/ServicePerformanceReport';
+import InvoiceReportComponent from '../components/reports/InvoiceReport';
+import LeadConversionReport from '../components/reports/LeadConversionReport';
+import RevenueAnalysisReport from '../components/reports/RevenueAnalysisReport';
+import CategoryAnalysisReport from '../components/reports/CategoryAnalysisReport';
+// exportUtils removed
 
 interface ReportCategory {
   id: string;
   name: string;
-  icon: any;
+  icon: any; // Lucide Icon
+  color: string;
   reports: Report[];
 }
 
@@ -43,6 +50,7 @@ interface Report {
   action: () => void;
 }
 
+// ... Interfaces keep existing ...
 interface CustomerReport {
   customer_id: string;
   customer_name: string;
@@ -191,7 +199,7 @@ interface ReportsProps {
 export default function Reports({ onNavigate }: ReportsProps = {}) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
   const [activeReport, setActiveReport] = useState<string | null>(null);
 
   const [customerReports, setCustomerReports] = useState<CustomerReport[]>([]);
@@ -207,7 +215,8 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
   const [profitLoss, setProfitLoss] = useState<ProfitLossEntry[]>([]);
 
   const [dateRange, setDateRange] = useState({
-    start: new Date(new Date().setDate(1)).toISOString().split('T')[0],
+    // Default to Jan 1st of current year for better data visibility
+    start: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0],
   });
 
@@ -351,36 +360,37 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
       const today = new Date();
 
       for (const member of staff) {
-        const { data: assignments } = await supabase
-          .from('work_assignments')
-          .select('*, works(status, due_date, actual_hours, created_at, completion_date)')
-          .eq('staff_member_id', member.id)
-          .gte('assigned_at', dateRange.start)
-          .lte('assigned_at', dateRange.end);
+        const { data: works } = await supabase
+          .from('works')
+          .select('status, due_date, actual_hours, created_at, completion_date')
+          .eq('assigned_to', member.id)
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end);
 
-        const totalWorks = assignments?.length || 0;
-        const completedWorks = assignments?.filter(a => a.works?.status === 'completed').length || 0;
-        const pendingWorks = assignments?.filter(a =>
-          a.works?.status === 'pending' || a.works?.status === 'in_progress'
+        const totalWorks = works?.length || 0;
+        const completedWorks = works?.filter(w => w.status === 'completed').length || 0;
+        const pendingWorks = works?.filter(w =>
+          w.status === 'pending' || w.status === 'in_progress'
         ).length || 0;
-        const overdueWorks = assignments?.filter(a => {
-          if (a.works?.due_date && a.works?.status !== 'completed') {
-            return new Date(a.works.due_date) < today;
+        const overdueWorks = works?.filter(w => {
+          if (w.due_date && w.status !== 'completed') {
+            return new Date(w.due_date) < today;
           }
           return false;
         }).length || 0;
 
-        const totalHours = assignments?.reduce((sum, a) => sum + (a.works?.actual_hours || 0), 0) || 0;
+        const totalHours = works?.reduce((sum, w) => sum + (w.actual_hours || 0), 0) || 0;
 
-        const completedAssignments = assignments?.filter(a =>
-          a.works?.status === 'completed' && a.works?.created_at && a.works?.completion_date
+        const completedAssignments = works?.filter(w =>
+          w.status === 'completed' && w.created_at && w.completion_date
         ) || [];
 
         let avgCompletionTime = 0;
         if (completedAssignments.length > 0) {
-          const totalDays = completedAssignments.reduce((sum, a) => {
-            const start = new Date(a.works.created_at);
-            const end = new Date(a.works.completion_date);
+          const totalDays = completedAssignments.reduce((sum, w) => {
+            if (!w.completion_date) return sum;
+            const start = new Date(w.created_at);
+            const end = new Date(w.completion_date);
             return sum + Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
           }, 0);
           avgCompletionTime = totalDays / completedAssignments.length;
@@ -665,7 +675,8 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
           .gte('invoice_date', month.start)
           .lte('invoice_date', month.end);
 
-        const { data: customers } = await supabase
+        // Check for new customers in this period
+        const { count: customersCount } = await supabase
           .from('customers')
           .select('id', { count: 'exact', head: true })
           .gte('created_at', month.start)
@@ -688,8 +699,8 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
           unpaid_invoices: unpaidInvoices,
           partially_paid_invoices: partiallyPaidInvoices,
           avg_invoice_value: avgInvoiceValue,
-          total_customers: customers?.count || 0,
-          new_customers: customers?.count || 0,
+          total_customers: customersCount || 0,
+          new_customers: customersCount || 0,
           revenue_growth: 0,
         });
       }
@@ -1007,6 +1018,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
       id: 'accounting',
       name: 'Accounting Reports',
       icon: Scale,
+      color: 'blue',
       reports: [
         {
           id: 'trial_balance',
@@ -1044,6 +1056,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
       id: 'financial',
       name: 'Financial Reports',
       icon: DollarSign,
+      color: 'emerald',
       reports: [
         {
           id: 'receivables',
@@ -1080,6 +1093,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
       id: 'operations',
       name: 'Operations Reports',
       icon: Briefcase,
+      color: 'indigo',
       reports: [
         {
           id: 'work',
@@ -1117,6 +1131,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
       id: 'customer',
       name: 'Customer Reports',
       icon: Users,
+      color: 'orange',
       reports: [
         {
           id: 'customer',
@@ -1144,6 +1159,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
       id: 'staff',
       name: 'Staff Reports',
       icon: Users,
+      color: 'purple',
       reports: [
         {
           id: 'staff',
@@ -1167,19 +1183,31 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
     );
   }
 
+  // Color mapping helper
+  const getColorClasses = (color: string) => {
+    switch (color) {
+      case 'blue': return { bg: 'bg-blue-50', border: 'border-blue-100', iconBg: 'bg-blue-100', iconText: 'text-blue-600', hoverBorder: 'hover:border-blue-400', groupHoverBg: 'group-hover:bg-blue-600' };
+      case 'emerald': return { bg: 'bg-emerald-50', border: 'border-emerald-100', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', hoverBorder: 'hover:border-emerald-400', groupHoverBg: 'group-hover:bg-emerald-600' };
+      case 'indigo': return { bg: 'bg-indigo-50', border: 'border-indigo-100', iconBg: 'bg-indigo-100', iconText: 'text-indigo-600', hoverBorder: 'hover:border-indigo-400', groupHoverBg: 'group-hover:bg-indigo-600' };
+      case 'orange': return { bg: 'bg-orange-50', border: 'border-orange-100', iconBg: 'bg-orange-100', iconText: 'text-orange-600', hoverBorder: 'hover:border-orange-400', groupHoverBg: 'group-hover:bg-orange-600' };
+      case 'purple': return { bg: 'bg-purple-50', border: 'border-purple-100', iconBg: 'bg-purple-100', iconText: 'text-purple-600', hoverBorder: 'hover:border-purple-400', groupHoverBg: 'group-hover:bg-purple-600' };
+      default: return { bg: 'bg-gray-50', border: 'border-gray-100', iconBg: 'bg-gray-100', iconText: 'text-gray-600', hoverBorder: 'hover:border-gray-400', groupHoverBg: 'group-hover:bg-gray-600' };
+    }
+  };
+
   if (activeReport) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setActiveReport(null)}
-            className="text-blue-600 hover:text-blue-700 font-medium"
+            className="flex items-center text-gray-600 hover:text-gray-900 font-medium transition-colors"
           >
-            ← Back to Reports
+            <span className="mr-2">←</span> Back to Dashboard
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sticky top-4 z-10 backdrop-blur-sm bg-white/90 support-[backdrop-filter]:bg-white/50">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
               <Calendar className="w-5 h-5 text-gray-400" />
@@ -1188,7 +1216,7 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 type="date"
                 value={dateRange.start}
                 onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
             <div className="flex items-center space-x-2">
@@ -1197,687 +1225,132 @@ export default function Reports({ onNavigate }: ReportsProps = {}) {
                 type="date"
                 value={dateRange.end}
                 onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
             <button
               onClick={() => {
-                if (activeReport === 'trial_balance') {
-                  fetchTrialBalance();
-                } else if (activeReport === 'balance_sheet') {
-                  fetchBalanceSheet();
-                } else if (activeReport === 'profit_loss') {
-                  fetchProfitLoss();
+                switch (activeReport) {
+                  case 'trial_balance': fetchTrialBalance(); break;
+                  case 'balance_sheet': fetchBalanceSheet(); break;
+                  case 'profit_loss': fetchProfitLoss(); break;
+                  case 'work': fetchWorkReports(); break;
+                  case 'customer': fetchCustomerReports(); break;
+                  case 'staff': fetchStaffReports(); break;
+                  case 'service': fetchServiceReports(); break;
+                  case 'invoice': fetchInvoiceReports(); break;
+                  case 'category': fetchCategoryReports(); break;
+                  case 'lead': fetchLeadReports(); break;
+                  case 'revenue': fetchRevenueReports(); break;
                 }
               }}
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors"
+              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all shadow-sm hover:shadow-md"
             >
-              {loading ? 'Loading...' : 'Generate Report'}
+              {loading ? 'Generating...' : 'Refresh Report'}
             </button>
           </div>
         </div>
 
-        {activeReport === 'receivables' && (
-          <ReceivablesReport />
-        )}
+        <div className="animate-fade-in-up">
+          {activeReport === 'receivables' && <ReceivablesReport />}
 
-        {activeReport === 'trial_balance' && (
-          <TrialBalanceReport
-            data={trialBalance}
-            startDate={dateRange.start}
-            endDate={dateRange.end}
-            onAccountClick={handleAccountClick}
-          />
-        )}
+          {activeReport === 'trial_balance' && (
+            <TrialBalanceReport
+              data={trialBalance}
+              startDate={dateRange.start}
+              endDate={dateRange.end}
+              onAccountClick={handleAccountClick}
+            />
+          )}
 
-        {activeReport === 'balance_sheet' && (
-          <BalanceSheetReport
-            data={balanceSheet}
-            asOnDate={dateRange.end}
-            startDate={dateRange.start}
-            onAccountClick={(accountId, asOnDate) => handleAccountClick(accountId, dateRange.start, asOnDate)}
-          />
-        )}
+          {activeReport === 'balance_sheet' && (
+            <BalanceSheetReport
+              data={balanceSheet}
+              asOnDate={dateRange.end}
+              startDate={dateRange.start}
+              onAccountClick={(accountId, asOnDate) => handleAccountClick(accountId, dateRange.start, asOnDate)}
+            />
+          )}
 
-        {activeReport === 'profit_loss' && (
-          <ProfitLossReport
-            data={profitLoss}
-            startDate={dateRange.start}
-            endDate={dateRange.end}
-            onAccountClick={handleAccountClick}
-          />
-        )}
+          {activeReport === 'profit_loss' && (
+            <ProfitLossReport
+              data={profitLoss}
+              startDate={dateRange.start}
+              endDate={dateRange.end}
+              onAccountClick={handleAccountClick}
+            />
+          )}
 
-        {activeReport === 'customer' && customerReports.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Customer Performance Report</h2>
-                <p className="text-sm text-gray-600 mt-1">Detailed analysis of customer engagement and revenue</p>
-              </div>
-              <button
-                onClick={() => exportToXLSX(customerReports.map(r => ({
-                  'Customer': r.customer_name,
-                  'Email': r.email,
-                  'Phone': r.phone,
-                  'Total Works': r.total_works,
-                  'Completed': r.completed_works,
-                  'Pending': r.pending_works,
-                  'Total Billed': r.total_billed,
-                  'Paid': r.total_paid,
-                  'Pending Amount': r.total_pending,
-                })), 'customer_report', 'Customer Performance')}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Works</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Completed</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Billed</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Pending</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {customerReports.map((report) => (
-                      <tr key={report.customer_id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.customer_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          <div>{report.email}</div>
-                          <div className="text-xs text-gray-500">{report.phone}</div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_works}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                            {report.completed_works}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                          ₹{report.total_billed.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-green-600 font-semibold">
-                          ₹{report.total_paid.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-red-600 font-semibold">
-                          ₹{report.total_pending.toLocaleString('en-IN')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeReport === 'work' && workReports.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Work Performance Report</h2>
-                <p className="text-sm text-gray-600 mt-1">Comprehensive work tracking and analysis</p>
-              </div>
-              <button
-                onClick={() => exportToXLSX(workReports.map(r => ({
-                  'Work Title': r.work_title,
-                  'Customer': r.customer_name,
-                  'Service': r.service_name,
-                  'Status': r.status,
-                  'Priority': r.priority,
-                  'Due Date': r.due_date,
-                  'Amount': r.total_amount,
-                })), 'work_report', 'Work Performance')}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Work Title</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Priority</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {workReports.map((report) => (
-                      <tr key={report.work_id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.work_title}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{report.customer_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{report.service_name}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            report.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            report.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {report.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            report.priority === 'high' ? 'bg-red-100 text-red-700' :
-                            report.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {report.priority}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {report.due_date ? new Date(report.due_date).toLocaleDateString() : 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                          ₹{report.total_amount.toLocaleString('en-IN')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeReport === 'staff' && staffReports.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Staff Performance Report</h2>
-                <p className="text-sm text-gray-600 mt-1">Individual staff member performance metrics</p>
-              </div>
-              <button
-                onClick={() => exportToXLSX(staffReports.map(r => ({
-                  'Staff Name': r.staff_name,
-                  'Role': r.role,
-                  'Total Works': r.total_works,
-                  'Completed': r.completed_works,
-                  'Pending': r.pending_works,
-                  'Total Hours': r.total_hours,
-                  'Efficiency': r.efficiency_rating + '%',
-                })), 'staff_report', 'Staff Performance')}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Staff Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Works</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Completed</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Pending</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Hours</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Efficiency</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {staffReports.map((report) => (
-                      <tr key={report.staff_id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.staff_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{report.role}</td>
-                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_works}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                            {report.completed_works}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
-                            {report.pending_works}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">{report.total_hours.toFixed(1)}h</td>
-                        <td className="px-4 py-3 text-sm text-right">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            report.efficiency_rating >= 80 ? 'bg-green-100 text-green-700' :
-                            report.efficiency_rating >= 60 ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            {report.efficiency_rating.toFixed(1)}%
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeReport === 'service' && serviceReports.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Service Performance Report</h2>
-                <p className="text-sm text-gray-600 mt-1">Service-wise revenue and performance analysis</p>
-              </div>
-              <button
-                onClick={() => exportToXLSX(serviceReports.map(r => ({
-                  'Service': r.service_name,
-                  'Category': r.category,
-                  'Total Orders': r.total_orders,
-                  'Completed': r.completed_orders,
-                  'Total Revenue': r.total_revenue,
-                  'Avg Revenue': r.avg_revenue_per_order,
-                  'Avg Days': r.avg_completion_time,
-                })), 'service_report', 'Service Performance')}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Orders</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Completed</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Revenue</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Days</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {serviceReports.map((report) => (
-                      <tr key={report.service_id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.service_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{report.category}</td>
-                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_orders}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                            {report.completed_orders}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                          ₹{report.total_revenue.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">
-                          ₹{report.avg_revenue_per_order.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-600">
-                          {report.avg_completion_time.toFixed(1)} days
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeReport === 'invoice' && invoiceReports.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Invoice Report</h2>
-                <p className="text-sm text-gray-600 mt-1">Detailed invoice tracking and payment analysis</p>
-              </div>
-              <button
-                onClick={() => exportToXLSX(invoiceReports.map(r => ({
-                  'Invoice No': r.invoice_number,
-                  'Customer': r.customer_name,
-                  'Invoice Date': r.invoice_date,
-                  'Due Date': r.due_date,
-                  'Total Amount': r.total_amount,
-                  'Paid': r.amount_paid,
-                  'Balance': r.balance,
-                  'Status': r.status,
-                })), 'invoice_report', 'Invoice Report')}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Amount</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {invoiceReports.map((report) => (
-                      <tr key={report.invoice_id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.invoice_number}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{report.customer_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {new Date(report.invoice_date).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {report.due_date ? new Date(report.due_date).toLocaleDateString() : 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                          ₹{report.total_amount.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-green-600 font-semibold">
-                          ₹{report.amount_paid.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-red-600 font-semibold">
-                          ₹{report.balance.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            report.status === 'paid' ? 'bg-green-100 text-green-700' :
-                            report.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-700' :
-                            report.overdue_days > 0 ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {report.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeReport === 'category' && categoryReports.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Category Analysis Report</h2>
-                <p className="text-sm text-gray-600 mt-1">Service category analysis and comparison</p>
-              </div>
-              <button
-                onClick={() => exportToXLSX(categoryReports.map(r => ({
-                  'Category': r.category,
-                  'Total Services': r.total_services,
-                  'Total Works': r.total_works,
-                  'Completed': r.completed_works,
-                  'Total Revenue': r.total_revenue,
-                  'Avg Revenue': r.avg_revenue_per_work,
-                  'Active Customers': r.active_customers,
-                })), 'category_report', 'Category Analysis')}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Services</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Works</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Completed</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Revenue/Work</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Active Customers</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {categoryReports.map((report, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.category}</td>
-                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_services}</td>
-                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.total_works}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                            {report.completed_works}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                          ₹{report.total_revenue.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">
-                          ₹{report.avg_revenue_per_work.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.active_customers}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeReport === 'lead' && leadReports.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Lead Conversion Report</h2>
-                <p className="text-sm text-gray-600 mt-1">Lead tracking and conversion analysis</p>
-              </div>
-              <button
-                onClick={() => exportToXLSX(leadReports.map(r => ({
-                  'Lead Name': r.lead_name,
-                  'Source': r.source,
-                  'Status': r.status,
-                  'Created Date': r.created_date,
-                  'Days to Convert': r.days_to_convert || 'N/A',
-                  'Estimated Value': r.estimated_value,
-                  'Assigned Staff': r.assigned_staff,
-                })), 'lead_report', 'Lead Conversion')}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lead Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created Date</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Days to Convert</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Estimated Value</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned Staff</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {leadReports.map((report) => (
-                      <tr key={report.lead_id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.lead_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{report.source}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            report.status === 'converted' ? 'bg-green-100 text-green-700' :
-                            report.status === 'contacted' ? 'bg-blue-100 text-blue-700' :
-                            report.status === 'qualified' ? 'bg-cyan-100 text-cyan-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {report.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {new Date(report.created_date).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center text-gray-600">
-                          {report.days_to_convert !== null ? `${report.days_to_convert} days` : 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                          ₹{report.estimated_value.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{report.assigned_staff}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeReport === 'revenue' && revenueReports.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Revenue Analysis Report</h2>
-                <p className="text-sm text-gray-600 mt-1">Monthly revenue trends and growth analysis</p>
-              </div>
-              <button
-                onClick={() => exportToXLSX(revenueReports.map(r => ({
-                  'Period': r.period,
-                  'Total Revenue': r.total_revenue,
-                  'Paid Invoices': r.paid_invoices,
-                  'Unpaid': r.unpaid_invoices,
-                  'Avg Invoice': r.avg_invoice_value,
-                  'New Customers': r.new_customers,
-                  'Growth': r.revenue_growth + '%',
-                })), 'revenue_report', 'Revenue Analysis')}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Paid Invoices</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Unpaid</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Invoice</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">New Customers</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Growth</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {revenueReports.map((report, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{report.period}</td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
-                          ₹{report.total_revenue.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                            {report.paid_invoices}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-                            {report.unpaid_invoices}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900">
-                          ₹{report.avg_invoice_value.toLocaleString('en-IN')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center text-gray-600">{report.new_customers}</td>
-                        <td className="px-4 py-3 text-sm text-right">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            report.revenue_growth >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                          }`}>
-                            {report.revenue_growth >= 0 ? '+' : ''}{report.revenue_growth.toFixed(1)}%
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
+          {activeReport === 'customer' && <CustomerPerformanceReport data={customerReports} />}
+          {activeReport === 'work' && <WorkPerformanceReport data={workReports} />}
+          {activeReport === 'staff' && <StaffPerformanceReport data={staffReports} />}
+          {activeReport === 'service' && <ServicePerformanceReport data={serviceReports} />}
+          {activeReport === 'invoice' && <InvoiceReportComponent data={invoiceReports} />}
+          {activeReport === 'category' && <CategoryAnalysisReport data={categoryReports} />}
+          {activeReport === 'lead' && <LeadConversionReport data={leadReports} />}
+          {activeReport === 'revenue' && <RevenueAnalysisReport data={revenueReports} />}
+        </div>
       </div>
     );
   }
 
+  // Dashboard View
   return (
-    <div className="space-y-6">
-      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 rounded-xl shadow-xl p-6 text-white">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-              <FileSpreadsheet className="w-8 h-8" />
-              Business Reports & Analytics
+    <div className="space-y-8 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8 min-h-screen bg-gray-50/50">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl shadow-xl p-8 text-white relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-12 opacity-10 transform translate-x-12 -translate-y-12 group-hover:scale-110 transition-transform duration-700">
+          <BarChart3 className="w-64 h-64" />
+        </div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-2">
+            <LayoutDashboard className="w-8 h-8 text-blue-400" />
+            <h1 className="text-3xl font-bold text-white tracking-tight">
+              Reports Dashboard
             </h1>
-            <p className="text-slate-300 mt-2">Comprehensive reports for data-driven business decisions</p>
           </div>
+          <p className="text-slate-300 max-w-2xl text-lg">
+            Access comprehensive insights and analytics to drive your business decisions. Select a category below to generate detailed reports.
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-8">
         {reportCategories.map((category) => {
+          const colors = getColorClasses(category.color);
           const Icon = category.icon;
+
           return (
-            <div key={category.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg shadow-sm">
-                    <Icon className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <h2 className="text-xl font-bold text-gray-900">{category.name}</h2>
+            <div key={category.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
+              <div className={`px-6 py-4 border-b ${colors.border} flex items-center gap-4 ${colors.bg}`}>
+                <div className={`p-2.5 rounded-xl ${colors.iconBg} shadow-sm`}>
+                  <Icon className={`w-6 h-6 ${colors.iconText}`} />
                 </div>
+                <h2 className="text-xl font-bold text-gray-900">{category.name}</h2>
               </div>
+
               <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {category.reports.map((report) => {
                     const ReportIcon = report.icon;
                     return (
                       <button
                         key={report.id}
                         onClick={report.action}
-                        className="group text-left p-5 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all duration-200"
+                        className={`group text-left p-5 rounded-xl border border-gray-200 ${colors.hoverBorder} hover:shadow-lg transition-all duration-300 bg-white relative overflow-hidden`}
                       >
-                        <div className="flex items-start gap-4">
-                          <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-600 transition-colors">
-                            <ReportIcon className="w-6 h-6 text-blue-600 group-hover:text-white" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-gray-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div className="relative z-10 flex items-start gap-4">
+                          <div className={`p-3 rounded-lg ${colors.iconBg} ${colors.groupHoverBg} transition-colors duration-300 mt-1`}>
+                            <ReportIcon className={`w-6 h-6 ${colors.iconText} group-hover:text-white transition-colors duration-300`} />
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 mb-1">
+                          <div>
+                            <h3 className={`font-semibold text-gray-900 group-hover:${colors.iconText} transition-colors duration-300 mb-1.5 text-lg`}>
                               {report.name}
                             </h3>
-                            <p className="text-sm text-gray-600">{report.description}</p>
+                            <p className="text-sm text-gray-500 leading-relaxed font-medium">
+                              {report.description}
+                            </p>
                           </div>
                         </div>
                       </button>

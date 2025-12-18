@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import TopNavBar from './TopNavBar';
 import {
   LayoutDashboard,
@@ -9,20 +10,15 @@ import {
   ClipboardList,
   Bell,
   LogOut,
-  Menu,
-  X,
   BarChart3,
   UsersRound,
   Calculator,
-  ChevronDown,
-  ChevronRight,
-  Receipt,
-  BookOpen,
-  FileText,
-  AlertTriangle,
   ChevronsLeft,
   ChevronsRight,
+  Shield,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -30,34 +26,73 @@ interface LayoutProps {
   onNavigate: (page: string) => void;
 }
 
-const navigation = [
-  { name: 'Dashboard', icon: LayoutDashboard, id: 'dashboard' },
-  { name: 'Leads', icon: Users, id: 'leads' },
-  { name: 'Customers', icon: UserCog, id: 'customers' },
-  { name: 'Staff', icon: UsersRound, id: 'staff' },
-  { name: 'Services', icon: Briefcase, id: 'services' },
-  { name: 'Works', icon: ClipboardList, id: 'works' },
-  {
-    name: 'Accounting',
-    icon: Calculator,
-    id: 'accounting',
-    subItems: [
-      { name: 'Vouchers', icon: Receipt, id: 'vouchers' },
-      { name: 'Chart of Accounts', icon: BookOpen, id: 'chart-of-accounts' },
-    ],
-  },
-  { name: 'Reports', icon: BarChart3, id: 'reports' },
-  { name: 'Reminders', icon: Bell, id: 'reminders' },
+const allNavigation = [
+  { name: 'Dashboard', icon: LayoutDashboard, id: 'dashboard', roles: ['admin'] },
+  { name: 'My Dashboard', icon: LayoutDashboard, id: 'staff-dashboard', roles: ['staff'] },
+  { name: 'Leads', icon: Users, id: 'leads', roles: ['admin', 'staff'] },
+  { name: 'Customers', icon: UserCog, id: 'customers', roles: ['admin', 'staff'] },
+  { name: 'Staff Management', icon: UsersRound, id: 'staff', roles: ['admin'] },
+  { name: 'Services', icon: Briefcase, id: 'services', roles: ['admin', 'staff'] },
+  { name: 'Works Management', icon: ClipboardList, id: 'works', roles: ['admin', 'staff'] },
+  { name: 'Accounting', icon: Calculator, id: 'accounting', roles: ['admin', 'staff'] },
+  { name: 'Reports', icon: BarChart3, id: 'reports', roles: ['admin'] },
+  { name: 'Reminders', icon: Bell, id: 'reminders', roles: ['admin', 'staff'] },
+  { name: 'Admin Panel', icon: Shield, id: 'admin', roles: ['admin'] },
 ];
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [accountingExpanded, setAccountingExpanded] = useState(
-    ['accounting', 'vouchers', 'chart-of-accounts'].includes(currentPage)
-  );
-  const [showAccountingDropdown, setShowAccountingDropdown] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [allowedModules, setAllowedModules] = useState<string[]>([]);
+  const [loadingPermissions, setLoadingPermissions] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchPermissions() {
+      if (!user) return;
+      try {
+        // 1. Get Profile for Role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (!mounted) return;
+
+        const role = profile?.role || 'admin';
+        setUserRole(role);
+
+        // 2. If Staff, get allowed modules
+        if (role === 'staff') {
+          const { data: staff } = await supabase
+            .from('staff_members')
+            .select('allowed_modules')
+            .eq('auth_user_id', user.id)
+            .single();
+
+          if (mounted) {
+            const defaults = ['staff-dashboard', 'works', 'customers', 'leads', 'services', 'calendar'];
+            setAllowedModules(staff?.allowed_modules || defaults);
+          }
+        } else {
+          // Admin
+          setAllowedModules([]); // Not used
+        }
+      } catch (err) {
+        console.error("Error fetching permissions", err);
+      } finally {
+        if (mounted) setLoadingPermissions(false);
+      }
+    }
+
+    fetchPermissions();
+
+    return () => { mounted = false; };
+  }, [user]);
 
   const handleSignOut = async () => {
     try {
@@ -68,22 +103,37 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
   };
 
   const handleNavClick = (id: string) => {
-    if (id === 'accounting') {
-      setAccountingExpanded(!accountingExpanded);
-    } else {
-      onNavigate(id);
-      setSidebarOpen(false);
-    }
+    onNavigate(id);
+    setSidebarOpen(false);
   };
+
+  const getFilteredNavigation = () => {
+    if (loadingPermissions) return [];
+
+    return allNavigation.filter(item => {
+      // 1. Check Role Match
+      if (!item.roles.includes(userRole || 'admin')) return false;
+
+      // 2. If Admin, show everything that matches 'admin' role.
+      if (userRole === 'admin') return true;
+
+      // 3. If Staff
+      if (item.id === 'staff-dashboard') return true;
+
+      // Check allowed list
+      return allowedModules.includes(item.id);
+    });
+  };
+
+  const visibleNavigation = getFilteredNavigation();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 lg:top-0 bottom-0 left-0 z-40 bg-slate-800 dark:bg-slate-900 border-r border-slate-700 transform transition-all duration-300 ease-in-out lg:translate-x-0 pt-16 lg:pt-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${sidebarCollapsed ? 'lg:w-20' : 'w-64 sm:w-72 lg:w-64'}`}
+        className={`fixed top-0 lg:top-0 bottom-0 left-0 z-40 bg-slate-800 dark:bg-slate-900 border-r border-slate-700 transform transition-all duration-300 ease-in-out lg:translate-x-0 pt-16 lg:pt-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } ${sidebarCollapsed ? 'lg:w-20' : 'w-64 sm:w-72 lg:w-64'}`}
       >
         <div className="h-full flex flex-col">
           <div className="p-4 sm:p-6 border-b border-slate-700 hidden lg:flex lg:items-center lg:justify-between">
@@ -109,146 +159,19 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
           </div>
 
           <nav className="flex-1 p-3 sm:p-4 space-y-1 overflow-y-auto overflow-x-hidden">
-            {navigation.map((item) => {
+            {visibleNavigation.map((item) => {
               const Icon = item.icon;
-              const isActive = currentPage === item.id;
-              const isAccountingSubpage = ['vouchers', 'chart-of-accounts'].includes(currentPage);
-              const isAccountingActive = item.id === 'accounting' && (isActive || isAccountingSubpage);
-
- if (item.subItems) {
-  return (
-    <div key={item.id} className="relative w-full">
-      <button
-        onClick={() => {
-          handleNavClick(item.id);
-        }}
-        onMouseEnter={() => !sidebarOpen && sidebarCollapsed && setShowAccountingDropdown(true)}
-        onMouseLeave={() => !sidebarOpen && sidebarCollapsed && setShowAccountingDropdown(false)}
-        className={`w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-200 ${
-          isAccountingActive
-            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
-            : 'text-slate-300 hover:bg-slate-700'
-        }`}
-        title={sidebarCollapsed ? item.name : ''}
-      >
-        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
-          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${isAccountingActive ? '' : 'text-slate-400'}`} />
-          {!sidebarCollapsed && (
-            <>
-              <span className="font-medium text-sm sm:text-base truncate">{item.name}</span>
-              <div className="ml-auto">
-                {accountingExpanded ? (
-                  <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 flex-shrink-0" />
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </button>
-
-      {/* Expanded list for non-collapsed sidebar (desktop) */}
-      {accountingExpanded && !sidebarCollapsed && (
-        <div className="ml-3 sm:ml-4 mt-1 space-y-1 border-l-2 border-slate-700 pl-2">
-          {item.subItems.map((subItem) => {
-            const SubIcon = subItem.icon;
-            const isSubActive = currentPage === subItem.id;
-            return (
-              <button
-                key={subItem.id}
-                onClick={() => {
-                  onNavigate(subItem.id);
-                  setSidebarOpen(false);
-                }}
-                className={`w-full flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-200 min-w-0 ${
-                  isSubActive
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-300 hover:bg-slate-700 hover:translate-x-1'
-                }`}
-                title={subItem.name}
-              >
-                <SubIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${isSubActive ? '' : 'text-slate-400'}`} />
-                <span className="text-xs sm:text-sm font-medium truncate">{subItem.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Hover dropdown for collapsed desktop sidebar */}
-      {sidebarCollapsed && !sidebarOpen && showAccountingDropdown && (
-        <div className="absolute left-full top-0 ml-2 w-48 bg-slate-800 dark:bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-50 py-1">
-          {item.subItems.map((subItem) => {
-            const SubIcon = subItem.icon;
-            const isSubActive = currentPage === subItem.id;
-            return (
-              <button
-                key={subItem.id}
-                onClick={() => {
-                  onNavigate(subItem.id);
-                  setSidebarOpen(false);
-                  setShowAccountingDropdown(false);
-                }}
-                onMouseEnter={() => setShowAccountingDropdown(true)}
-                onMouseLeave={() => setShowAccountingDropdown(false)}
-                className={`w-full flex items-center space-x-3 px-4 py-2.5 text-left transition-all duration-200 ${
-                  isSubActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                <SubIcon className={`w-4 h-4 flex-shrink-0 ${isSubActive ? '' : 'text-slate-400'}`} />
-                <span className="text-sm font-medium">{subItem.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Expanded list below icon for collapsed mobile/small sidebar (click to expand) */}
-      {sidebarCollapsed && sidebarOpen && accountingExpanded && (
-        <div className="w-full mt-1 space-y-1 pl-3">
-          {item.subItems.map((subItem) => {
-            const SubIcon = subItem.icon;
-            const isSubActive = currentPage === subItem.id;
-            return (
-              <button
-                key={subItem.id}
-                onClick={() => {
-                  onNavigate(subItem.id);
-                  setSidebarOpen(false);
-                  setAccountingExpanded(false);
-                }}
-                className={`w-full flex items-center space-x-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-200 ${
-                  isSubActive
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-300 hover:bg-slate-700'
-                }`}
-                title={subItem.name}
-              >
-                <SubIcon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${isSubActive ? '' : 'text-slate-400'}`} />
-                <span className="text-sm font-medium">{subItem.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
+              const isAccountingChild = ['vouchers', 'chart-of-accounts', 'accounting-masters'].includes(currentPage);
+              const isActive = currentPage === item.id || (item.id === 'accounting' && isAccountingChild);
 
               return (
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className={`w-full flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-200 min-w-0 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md transform scale-[1.02]'
-                      : 'text-slate-300 hover:bg-slate-700 hover:translate-x-1'
-                  }`}
+                  className={`w-full flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-200 min-w-0 ${isActive
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md transform scale-[1.02]'
+                    : 'text-slate-300 hover:bg-slate-700 hover:translate-x-1'
+                    }`}
                   title={sidebarCollapsed ? item.name : ''}
                 >
                   <Icon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${isActive ? '' : 'text-slate-400'}`} />
@@ -291,7 +214,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
       {/* Main Content */}
       <main className={`pt-16 min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
-        <div className="p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">{children}</div>
+        <div>{children}</div>
       </main>
     </div>
   );

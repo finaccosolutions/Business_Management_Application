@@ -531,14 +531,14 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
   const filteredAccounts = selectedGroup
     ? accounts.filter((account) => account.account_group_id === selectedGroup.id)
     : accounts.filter((account) => {
-        const matchesSearch =
-          searchQuery === '' ||
-          account.account_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          account.account_name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesType =
-          filterType === 'all' || account.account_groups.account_type === filterType;
-        return matchesSearch && matchesType;
-      });
+      const matchesSearch =
+        searchQuery === '' ||
+        account.account_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        account.account_name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesType =
+        filterType === 'all' || account.account_groups.account_type === filterType;
+      return matchesSearch && matchesType;
+    });
 
   const buildHierarchy = (parentId: string | null, allGroups: AccountGroup[], level: number = 0): (AccountGroup & { level: number; children?: AccountGroup[] })[] => {
     const children = allGroups.filter(g => g.parent_group_id === parentId);
@@ -578,295 +578,471 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
 
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Chart of Accounts</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage groups, ledgers, and view account details</p>
-        </div>
-        <div className="flex gap-3">
-          {activeTab === 'groups' && (
-            <>
-
-              <button
-                onClick={() => {
-                  resetGroupForm();
-                  setShowGroupModal(true);
-                }}
-                className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Add Group</span>
-              </button>
-            </>
-          )}
-          {activeTab === 'ledgers' && (
-            <>
-
-              <button
-                onClick={async () => {
-                  await resetForm();
-                  setShowModal(true);
-                }}
-                className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Add Ledger</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-        <div className="flex border-b border-gray-200 dark:border-slate-700">
-          <button
-            onClick={() => setActiveTab('ledgers')}
-            className={`flex-1 px-6 py-4 font-semibold transition-all ${
-              activeTab === 'ledgers'
-                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
-            }`}
-          >
-            Ledgers
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('groups');
-              setSelectedGroup(null);
-            }}
-            className={`flex-1 px-6 py-4 font-semibold transition-all ${
-              activeTab === 'groups'
-                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
-            }`}
-          >
-            Groups
-          </button>
-        </div>
-      </div>
-
-      {activeTab === 'groups' && (
-        <>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search groups..."
-                value={groupSearchQuery}
-                onChange={(e) => setGroupSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-              />
-            </div>
-            <select
-              value={groupFilterType}
-              onChange={(e) => setGroupFilterType(e.target.value)}
-              className="px-6 py-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors focus:ring-2 focus:ring-blue-500 dark:text-white"
-            >
-              <option value="all">All Types</option>
-              <option value="asset">Assets</option>
-              <option value="liability">Liabilities</option>
-              <option value="income">Income</option>
-              <option value="expense">Expenses</option>
-              <option value="equity">Equity</option>
-            </select>
-            <div className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-1">
-              <button
-                onClick={() => setGroupViewMode('table')}
-                className={`p-2 rounded-lg transition-colors ${
-                  groupViewMode === 'table'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
-                }`}
-                title="Table View"
-              >
-                <List className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setGroupViewMode('cards')}
-                className={`p-2 rounded-lg transition-colors ${
-                  groupViewMode === 'cards'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
-                }`}
-                title="Card View"
-              >
-                <Grid3x3 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setGroupViewMode('tree')}
-                className={`p-2 rounded-lg transition-colors ${
-                  groupViewMode === 'tree'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
-                }`}
-                title="Tree View"
-              >
-                <Network className="w-5 h-5" />
-              </button>
-            </div>
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
+      <div className="bg-white border-b border-gray-200 px-8 py-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Chart of Accounts</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage groups, ledgers, and view account details</p>
           </div>
+          <div className="flex gap-3">
+            {activeTab === 'groups' && (
+              <>
 
-        <div className="space-y-4">
-          {groupViewMode === 'tree' ? (
-            <AccountTreeView
-              groups={groups.filter(g => {
-                const matchesType = groupFilterType === 'all' || g.account_type === groupFilterType;
-                const matchesSearch = groupSearchQuery === '' ||
-                  g.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) ||
-                  g.description?.toLowerCase().includes(groupSearchQuery.toLowerCase());
-                return matchesType && matchesSearch;
-              })}
-              accounts={accounts}
-              onGroupClick={(group) => handleGroupClick(group)}
-              onAccountClick={(account) => handleAccountClick(account)}
-            />
-          ) : (
-            groupsByType.map(({ type, groups: typeGroups }) => {
-              if (typeGroups.length === 0) return null;
-
-              const groupAccounts = accounts.filter((a) =>
-                typeGroups.some((g) => g.id === a.account_group_id)
-              );
-              const totalBalance = groupAccounts.reduce((sum, a) => sum + a.current_balance, 0);
-
-              return (
-                <div
-                  key={type}
-                  className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden"
+                <button
+                  onClick={() => {
+                    resetGroupForm();
+                    setShowGroupModal(true);
+                  }}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
                 >
-                  <div
-                    className={`bg-gradient-to-r ${
-                      accountTypeBgColors[type as keyof typeof accountTypeBgColors]
-                    } px-6 py-4 flex items-center justify-between`}
-                  >
-                    <h2 className="text-xl font-bold text-white uppercase">{type}</h2>
-                    <div className="text-right">
-                      <p className="text-white/80 text-sm">Total Balance</p>
-                      {totalBalance >= 0 ? (
-                        <p className="text-2xl font-bold text-white">₹{Math.abs(totalBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                      ) : (
-                        <p className="text-2xl font-bold text-white">₹{Math.abs(totalBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                      )}
-                    </div>
-                  </div>
+                  <Plus className="w-5 h-5" />
+                  <span>Add Group</span>
+                </button>
+              </>
+            )}
+            {activeTab === 'ledgers' && (
+              <>
 
-                  {groupViewMode === 'table' ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
-                        <tr>
-                          {groupColumns.includes('name') && (
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                              Group Name
-                            </th>
-                          )}
-                          {groupColumns.includes('description') && (
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                              Description
-                            </th>
-                          )}
-                          {groupColumns.includes('ledger_count') && (
-                            <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                              Ledgers
-                            </th>
-                          )}
-                          {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
-                            <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                              Closing Balance (₹)
-                            </th>
-                          )}
-                          <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                        {typeGroups.map((group) => {
-                          const ledgerCount = accounts.filter((a) => a.account_group_id === group.id).length;
-                          const groupBalance = accounts
-                            .filter((a) => a.account_group_id === group.id)
-                            .reduce((sum, a) => sum + a.current_balance, 0);
-                          const isExpanded = expandedGroups.has(group.id);
-                          const groupLedgers = accounts.filter((a) => a.account_group_id === group.id);
-                          const subGroups = groups.filter((g) => g.parent_group_id === group.id);
-                          const hasChildren = subGroups.length > 0 || groupLedgers.length > 0;
+                <button
+                  onClick={async () => {
+                    await resetForm();
+                    setShowModal(true);
+                  }}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Add Ledger</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
 
-                          return (
-                            <>
-                              <tr
-                                key={group.id}
-                                className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                                onClick={() => handleGroupClick(group)}
-                              >
+      <div className="px-4 sm:px-6 md:px-8 lg:pl-12 lg:pr-8 space-y-6">
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+          <div className="flex border-b border-gray-200 dark:border-slate-700">
+            <button
+              onClick={() => setActiveTab('ledgers')}
+              className={`flex-1 px-6 py-4 font-semibold transition-all ${activeTab === 'ledgers'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                }`}
+            >
+              Ledgers
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('groups');
+                setSelectedGroup(null);
+              }}
+              className={`flex-1 px-6 py-4 font-semibold transition-all ${activeTab === 'groups'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                }`}
+            >
+              Groups
+            </button>
+          </div>
+        </div>
+
+        {activeTab === 'groups' && (
+          <>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search groups..."
+                  value={groupSearchQuery}
+                  onChange={(e) => setGroupSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                />
+              </div>
+              <select
+                value={groupFilterType}
+                onChange={(e) => setGroupFilterType(e.target.value)}
+                className="px-6 py-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors focus:ring-2 focus:ring-blue-500 dark:text-white"
+              >
+                <option value="all">All Types</option>
+                <option value="asset">Assets</option>
+                <option value="liability">Liabilities</option>
+                <option value="income">Income</option>
+                <option value="expense">Expenses</option>
+                <option value="equity">Equity</option>
+              </select>
+              <div className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-1">
+                <button
+                  onClick={() => setGroupViewMode('table')}
+                  className={`p-2 rounded-lg transition-colors ${groupViewMode === 'table'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                    }`}
+                  title="Table View"
+                >
+                  <List className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setGroupViewMode('cards')}
+                  className={`p-2 rounded-lg transition-colors ${groupViewMode === 'cards'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                    }`}
+                  title="Card View"
+                >
+                  <Grid3x3 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setGroupViewMode('tree')}
+                  className={`p-2 rounded-lg transition-colors ${groupViewMode === 'tree'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                    }`}
+                  title="Tree View"
+                >
+                  <Network className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {groupViewMode === 'tree' ? (
+                <AccountTreeView
+                  groups={groups.filter(g => {
+                    const matchesType = groupFilterType === 'all' || g.account_type === groupFilterType;
+                    const matchesSearch = groupSearchQuery === '' ||
+                      g.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) ||
+                      g.description?.toLowerCase().includes(groupSearchQuery.toLowerCase());
+                    return matchesType && matchesSearch;
+                  })}
+                  accounts={accounts}
+                  onGroupClick={(group) => handleGroupClick(group)}
+                  onAccountClick={(account) => handleAccountClick(account)}
+                />
+              ) : (
+                groupsByType.map(({ type, groups: typeGroups }) => {
+                  if (typeGroups.length === 0) return null;
+
+                  const groupAccounts = accounts.filter((a) =>
+                    typeGroups.some((g) => g.id === a.account_group_id)
+                  );
+                  const totalBalance = groupAccounts.reduce((sum, a) => sum + a.current_balance, 0);
+
+                  return (
+                    <div
+                      key={type}
+                      className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden"
+                    >
+                      <div
+                        className={`bg-gradient-to-r ${accountTypeBgColors[type as keyof typeof accountTypeBgColors]
+                          } px-6 py-4 flex items-center justify-between`}
+                      >
+                        <h2 className="text-xl font-bold text-white uppercase">{type}</h2>
+                        <div className="text-right">
+                          <p className="text-white/80 text-sm">Total Balance</p>
+                          {totalBalance >= 0 ? (
+                            <p className="text-2xl font-bold text-white">₹{Math.abs(totalBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                          ) : (
+                            <p className="text-2xl font-bold text-white">₹{Math.abs(totalBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {groupViewMode === 'table' ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600">
+                              <tr>
                                 {groupColumns.includes('name') && (
-                                  <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2" style={{ paddingLeft: `${group.level * 24}px` }}>
-                                      {hasChildren ? (
-                                        isExpanded ? (
-                                          <ChevronDown className="w-4 h-4 text-gray-400" />
-                                        ) : (
-                                          <ChevronRight className="w-4 h-4 text-gray-400" />
-                                        )
-                                      ) : (
-                                        <div className="w-4" />
-                                      )}
-                                      <span className="font-semibold text-gray-900 dark:text-white">{group.name}</span>
-                                    </div>
-                                  </td>
+                                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                                    Group Name
+                                  </th>
                                 )}
                                 {groupColumns.includes('description') && (
-                                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                                    {group.description || '-'}
-                                  </td>
+                                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                                    Description
+                                  </th>
                                 )}
                                 {groupColumns.includes('ledger_count') && (
-                                  <td className="px-6 py-4 text-center">
-                                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold">
-                                      {ledgerCount} Ledgers
-                                    </span>
-                                  </td>
+                                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                                    Ledgers
+                                  </th>
                                 )}
                                 {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
-                                  <td className="px-6 py-4 text-right font-bold">
-                                    {(() => {
-                                      const groupBalance = groupLedgers.reduce((sum, a) => sum + a.current_balance, 0);
-                                      return groupBalance >= 0
-                                        ? <span className="text-blue-600 dark:text-blue-400">₹{groupBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                        : <span className="text-red-600 dark:text-red-400">₹{Math.abs(groupBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                    })()}
-                                  </td>
+                                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                                    Closing Balance (₹)
+                                  </th>
                                 )}
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center justify-center gap-2">
+                                <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                                  Actions
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                              {typeGroups.map((group) => {
+                                const ledgerCount = accounts.filter((a) => a.account_group_id === group.id).length;
+                                const groupBalance = accounts
+                                  .filter((a) => a.account_group_id === group.id)
+                                  .reduce((sum, a) => sum + a.current_balance, 0);
+                                const isExpanded = expandedGroups.has(group.id);
+                                const groupLedgers = accounts.filter((a) => a.account_group_id === group.id);
+                                const subGroups = groups.filter((g) => g.parent_group_id === group.id);
+                                const hasChildren = subGroups.length > 0 || groupLedgers.length > 0;
+
+                                return (
+                                  <>
+                                    <tr
+                                      key={group.id}
+                                      className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                                      onClick={() => handleGroupClick(group)}
+                                    >
+                                      {groupColumns.includes('name') && (
+                                        <td className="px-6 py-4">
+                                          <div className="flex items-center gap-2" style={{ paddingLeft: `${group.level * 24}px` }}>
+                                            {hasChildren ? (
+                                              isExpanded ? (
+                                                <ChevronDown className="w-4 h-4 text-gray-400" />
+                                              ) : (
+                                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                                              )
+                                            ) : (
+                                              <div className="w-4" />
+                                            )}
+                                            <span className="font-semibold text-gray-900 dark:text-white">{group.name}</span>
+                                          </div>
+                                        </td>
+                                      )}
+                                      {groupColumns.includes('description') && (
+                                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                                          {group.description || '-'}
+                                        </td>
+                                      )}
+                                      {groupColumns.includes('ledger_count') && (
+                                        <td className="px-6 py-4 text-center">
+                                          <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold">
+                                            {ledgerCount} Ledgers
+                                          </span>
+                                        </td>
+                                      )}
+                                      {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
+                                        <td className="px-6 py-4 text-right font-bold">
+                                          {(() => {
+                                            const groupBalance = groupLedgers.reduce((sum, a) => sum + a.current_balance, 0);
+                                            return groupBalance >= 0
+                                              ? <span className="text-blue-600 dark:text-blue-400">₹{groupBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                              : <span className="text-red-600 dark:text-red-400">₹{Math.abs(groupBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                          })()}
+                                        </td>
+                                      )}
+                                      <td className="px-6 py-4">
+                                        <div className="flex items-center justify-center gap-2">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEditGroup(group);
+                                            }}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                            title="Edit Group"
+                                          >
+                                            <Edit2 className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteGroup(group.id);
+                                            }}
+                                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                            title="Delete Group"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                    {isExpanded && (
+                                      <tr>
+                                        <td colSpan={5} className="px-6 py-4 bg-gray-50 dark:bg-slate-900">
+                                          <div className="space-y-4" style={{ paddingLeft: `${(group.level + 1) * 24}px` }}>
+                                            <div className="flex gap-2">
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleAddChildGroup(group);
+                                                }}
+                                                className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
+                                              >
+                                                <FolderPlus className="w-3.5 h-3.5" />
+                                                Add Subgroup
+                                              </button>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleAddLedgerToGroup(group);
+                                                }}
+                                                className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
+                                              >
+                                                <Plus className="w-3.5 h-3.5" />
+                                                Add Ledger
+                                              </button>
+                                            </div>
+
+
+                                            {subGroups.length > 0 && (
+                                              <div>
+                                                <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
+                                                  Subgroups ({subGroups.length})
+                                                </h4>
+                                                <div className="space-y-1.5">
+                                                  {subGroups.map((subGroup) => renderNestedGroup(subGroup, 1))}
+                                                </div>
+                                              </div>
+                                            )}
+
+                                            {subGroups.length === 0 && groupLedgers.length === 0 && (
+                                              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                                No subgroups or ledgers yet. Add one using the buttons above.
+                                              </p>
+                                            )}
+
+                                            {groupLedgers.length > 0 && (
+                                              <div>
+                                                <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
+                                                  Ledgers ({groupLedgers.length})
+                                                </h4>
+                                                <div className="space-y-1.5">
+                                                  {groupLedgers.map((ledger) => (
+                                                    <div
+                                                      key={ledger.id}
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleAccountClick(ledger);
+                                                      }}
+                                                      className="bg-white dark:bg-slate-700 p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-600 transition-all cursor-pointer"
+                                                    >
+                                                      <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2.5">
+                                                          <BookOpen className="w-3.5 h-3.5 text-gray-400" />
+                                                          <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                                            {ledger.account_code}
+                                                          </span>
+                                                          <span className="font-medium text-gray-900 dark:text-white text-sm">
+                                                            {ledger.account_name}
+                                                          </span>
+                                                        </div>
+                                                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                          ₹{ledger.current_balance.toLocaleString('en-IN')}
+                                                        </span>
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 p-4">
+                          {typeGroups.map((group) => {
+                            const ledgerCount = accounts.filter((a) => a.account_group_id === group.id).length;
+                            const groupBalance = accounts
+                              .filter((a) => a.account_group_id === group.id)
+                              .reduce((sum, a) => sum + a.current_balance, 0);
+                            const isExpanded = expandedGroups.has(group.id);
+                            const groupLedgers = accounts.filter((a) => a.account_group_id === group.id);
+                            const subGroups = groups.filter((g) => g.parent_group_id === group.id);
+                            const hasChildren = subGroups.length > 0 || groupLedgers.length > 0;
+
+                            return (
+                              <div key={group.id} className="bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden" style={{ marginLeft: `${group.level * 24}px` }}>
+                                <div
+                                  onClick={() => handleGroupClick(group)}
+                                  className="p-4 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all cursor-pointer"
+                                >
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-center gap-2 flex-1">
+                                      {hasChildren ? (
+                                        isExpanded ? (
+                                          <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                        ) : (
+                                          <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                        )
+                                      ) : (
+                                        <div className="w-5" />
+                                      )}
+                                      <div className="flex-1">
+                                        <h3 className="font-bold text-gray-900 dark:text-white text-lg">{group.name}</h3>
+                                        {group.description && (
+                                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{group.description}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-slate-600">
+                                    {groupColumns.includes('ledger_count') && (
+                                      <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Ledgers</p>
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{ledgerCount}</p>
+                                      </div>
+                                    )}
+                                    {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
+                                      <div className="text-right">
+                                        {(() => {
+                                          const groupBalance = groupLedgers.reduce((sum, a) => sum + a.current_balance, 0);
+                                          return (
+                                            <div>
+                                              <p className="text-xs text-gray-500 dark:text-gray-400">Closing Balance</p>
+                                              {groupBalance >= 0 ? (
+                                                <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                                  ₹{groupBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                </p>
+                                              ) : (
+                                                <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                                                  ₹{Math.abs(groupBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                </p>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex gap-2 mt-3">
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleEditGroup(group);
                                       }}
-                                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                      title="Edit Group"
+                                      className="flex-1 py-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors font-medium"
                                     >
-                                      <Edit2 className="w-4 h-4" />
+                                      Edit
                                     </button>
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleDeleteGroup(group.id);
                                       }}
-                                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                      title="Delete Group"
+                                      className="flex-1 py-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors font-medium"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      Delete
                                     </button>
                                   </div>
-                                </td>
-                              </tr>
-                              {isExpanded && (
-                                <tr>
-                                  <td colSpan={5} className="px-6 py-4 bg-gray-50 dark:bg-slate-900">
-                                    <div className="space-y-4" style={{ paddingLeft: `${(group.level + 1) * 24}px` }}>
+                                </div>
+
+                                {isExpanded && (
+                                  <div className="px-4 py-3 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
+                                    <div className="space-y-3">
                                       <div className="flex gap-2">
                                         <button
                                           onClick={(e) => {
@@ -889,7 +1065,6 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                           Add Ledger
                                         </button>
                                       </div>
-
 
                                       {subGroups.length > 0 && (
                                         <div>
@@ -943,831 +1118,650 @@ export default function ChartOfAccounts({ onNavigate }: ChartOfAccountsProps = {
                                         </div>
                                       )}
                                     </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="space-y-4 p-4">
-                    {typeGroups.map((group) => {
-                      const ledgerCount = accounts.filter((a) => a.account_group_id === group.id).length;
-                      const groupBalance = accounts
-                        .filter((a) => a.account_group_id === group.id)
-                        .reduce((sum, a) => sum + a.current_balance, 0);
-                      const isExpanded = expandedGroups.has(group.id);
-                      const groupLedgers = accounts.filter((a) => a.account_group_id === group.id);
-                      const subGroups = groups.filter((g) => g.parent_group_id === group.id);
-                      const hasChildren = subGroups.length > 0 || groupLedgers.length > 0;
-
-                      return (
-                        <div key={group.id} className="bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden" style={{ marginLeft: `${group.level * 24}px` }}>
-                          <div
-                            onClick={() => handleGroupClick(group)}
-                            className="p-4 hover:bg-gray-50 dark:hover:bg-slate-600 transition-all cursor-pointer"
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-2 flex-1">
-                                {hasChildren ? (
-                                  isExpanded ? (
-                                    <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                                  ) : (
-                                    <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                                  )
-                                ) : (
-                                  <div className="w-5" />
+                                  </div>
                                 )}
-                                <div className="flex-1">
-                                  <h3 className="font-bold text-gray-900 dark:text-white text-lg">{group.name}</h3>
-                                  {group.description && (
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{group.description}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </>
+        )}
+
+        {activeTab === 'ledgers' && (
+          <>
+            {selectedGroup && (
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setSelectedGroup(null)}
+                  className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Back to All Groups
+                </button>
+                <div className="flex-1 bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">{selectedGroup.name}</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{selectedGroup.description}</p>
+                </div>
+              </div>
+            )}
+
+            {!selectedGroup && (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Search ledgers..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                  />
+                </div>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="px-6 py-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors focus:ring-2 focus:ring-blue-500 dark:text-white"
+                >
+                  <option value="all">All Types</option>
+                  <option value="asset">Assets</option>
+                  <option value="liability">Liabilities</option>
+                  <option value="income">Income</option>
+                  <option value="expense">Expenses</option>
+                  <option value="equity">Equity</option>
+                </select>
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-1">
+                  <button
+                    onClick={() => setLedgerViewMode('table')}
+                    className={`p-2 rounded-lg transition-colors ${ledgerViewMode === 'table'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                      }`}
+                    title="Table View"
+                  >
+                    <List className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setLedgerViewMode('cards')}
+                    className={`p-2 rounded-lg transition-colors ${ledgerViewMode === 'cards'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
+                      }`}
+                    title="Card View"
+                  >
+                    <Grid3x3 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {ledgerViewMode === 'table' ? (
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200 dark:border-slate-600">
+                      <tr>
+                        {ledgerColumns.includes('code') && (
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Code
+                          </th>
+                        )}
+                        {ledgerColumns.includes('name') && (
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Ledger Name
+                          </th>
+                        )}
+                        {ledgerColumns.includes('group') && (
+                          <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Group
+                          </th>
+                        )}
+                        {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
+                          <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                            Closing Balance (₹)
+                          </th>
+                        )}
+                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                      {filteredAccounts.map((account) => (
+                        <tr
+                          key={account.id}
+                          className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                          onClick={() => handleAccountClick(account)}
+                        >
+                          {ledgerColumns.includes('code') && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
+                                {account.account_code}
+                              </span>
+                            </td>
+                          )}
+                          {ledgerColumns.includes('name') && (
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <div>
+                                  <p className="font-semibold text-gray-900 dark:text-white">{account.account_name}</p>
+                                  {account.description && (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{account.description}</p>
                                   )}
                                 </div>
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
                               </div>
-                            </div>
-
-                            <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-slate-600">
-                              {groupColumns.includes('ledger_count') && (
-                                <div>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">Ledgers</p>
-                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{ledgerCount}</p>
-                                </div>
+                            </td>
+                          )}
+                          {ledgerColumns.includes('group') && (
+                            <td className="px-6 py-4">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {account.account_groups.name}
+                                </p>
+                                <span
+                                  className={`inline-block px-2 py-1 text-xs font-semibold rounded-full mt-1 ${accountTypeColors[
+                                    account.account_groups.account_type as keyof typeof accountTypeColors
+                                  ]
+                                    }`}
+                                >
+                                  {account.account_groups.account_type.toUpperCase()}
+                                </span>
+                              </div>
+                            </td>
+                          )}
+                          {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
+                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                              {account.current_balance >= 0 ? (
+                                <span className="font-bold text-blue-600 dark:text-blue-400">
+                                  ₹{account.current_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              ) : (
+                                <span className="font-bold text-red-600 dark:text-red-400">
+                                  ₹{Math.abs(account.current_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
                               )}
-                              {(groupColumns.includes('closing_debit') || groupColumns.includes('closing_credit')) && (
-                                <div className="text-right">
-                                  {(() => {
-                                    const groupBalance = groupLedgers.reduce((sum, a) => sum + a.current_balance, 0);
-                                    return (
-                                      <div>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">Closing Balance</p>
-                                        {groupBalance >= 0 ? (
-                                          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                                            ₹{groupBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                          </p>
-                                        ) : (
-                                          <p className="text-sm font-bold text-red-600 dark:text-red-400">
-                                            ₹{Math.abs(groupBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                          </p>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex gap-2 mt-3">
+                            </td>
+                          )}
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleEditGroup(group);
+                                  handleEdit(account);
                                 }}
-                                className="flex-1 py-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors font-medium"
+                                className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                                title="Edit Ledger"
                               >
-                                Edit
+                                <Edit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteGroup(group.id);
+                                  handleDelete(account.id);
                                 }}
-                                className="flex-1 py-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors font-medium"
+                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                title="Delete Ledger"
                               >
-                                Delete
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
-                          </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
 
-                          {isExpanded && (
-                            <div className="px-4 py-3 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
-                              <div className="space-y-3">
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAddChildGroup(group);
-                                    }}
-                                    className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-xs font-medium"
-                                  >
-                                    <FolderPlus className="w-3.5 h-3.5" />
-                                    Add Subgroup
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAddLedgerToGroup(group);
-                                    }}
-                                    className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
-                                  >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    Add Ledger
-                                  </button>
-                                </div>
+                  {filteredAccounts.length === 0 && (
+                    <div className="text-center py-12">
+                      <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No ledgers found</h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-4">
+                        {selectedGroup
+                          ? 'No ledgers in this group. Create your first ledger.'
+                          : 'Create your first ledger to get started'}
+                      </p>
+                      <button
+                        onClick={() => setShowModal(true)}
+                        className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Plus className="w-5 h-5" />
+                        <span>Add Ledger</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredAccounts.map((account) => (
+                  <div
+                    key={account.id}
+                    onClick={() => handleAccountClick(account)}
+                    className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 hover:shadow-lg transition-all cursor-pointer transform hover:scale-[1.02]"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400">
+                            {account.account_code}
+                          </span>
+                        </div>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-1">
+                          {account.account_name}
+                        </h3>
+                        {account.description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{account.description}</p>
+                        )}
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" />
+                    </div>
 
-                                {subGroups.length > 0 && (
-                                  <div>
-                                    <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                                      Subgroups ({subGroups.length})
-                                    </h4>
-                                    <div className="space-y-1.5">
-                                      {subGroups.map((subGroup) => renderNestedGroup(subGroup, 1))}
-                                    </div>
-                                  </div>
-                                )}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                        <span className="text-xs text-gray-600 dark:text-gray-400">Group</span>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs font-medium text-gray-900 dark:text-white">
+                            {account.account_groups.name}
+                          </span>
+                          <span
+                            className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full mt-1 ${accountTypeColors[
+                              account.account_groups.account_type as keyof typeof accountTypeColors
+                            ]
+                              }`}
+                          >
+                            {account.account_groups.account_type.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
 
-                                {subGroups.length === 0 && groupLedgers.length === 0 && (
-                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                                    No subgroups or ledgers yet. Add one using the buttons above.
-                                  </p>
-                                )}
-
-                                {groupLedgers.length > 0 && (
-                                  <div>
-                                    <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                                      Ledgers ({groupLedgers.length})
-                                    </h4>
-                                    <div className="space-y-1.5">
-                                      {groupLedgers.map((ledger) => (
-                                        <div
-                                          key={ledger.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleAccountClick(ledger);
-                                          }}
-                                          className="bg-white dark:bg-slate-700 p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-slate-600 transition-all cursor-pointer"
-                                        >
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2.5">
-                                              <BookOpen className="w-3.5 h-3.5 text-gray-400" />
-                                              <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
-                                                {ledger.account_code}
-                                              </span>
-                                              <span className="font-medium text-gray-900 dark:text-white text-sm">
-                                                {ledger.account_name}
-                                              </span>
-                                            </div>
-                                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                              ₹{ledger.current_balance.toLocaleString('en-IN')}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                      {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
+                        <div className="py-2 px-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <p className="text-xs text-blue-600 dark:text-blue-400">Closing Balance</p>
+                          {account.current_balance >= 0 ? (
+                            <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                              ₹{account.current_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </p>
+                          ) : (
+                            <p className="text-sm font-bold text-red-700 dark:text-red-300">
+                              ₹{Math.abs(account.current_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </p>
                           )}
                         </div>
-                      );
-                    })}
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(account);
+                        }}
+                        className="flex-1 py-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors font-medium flex items-center justify-center gap-1"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(account.id);
+                        }}
+                        className="flex-1 py-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors font-medium flex items-center justify-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {filteredAccounts.length === 0 && (
+                  <div className="col-span-full text-center py-12">
+                    <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No ledgers found</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      {selectedGroup
+                        ? 'No ledgers in this group. Create your first ledger.'
+                        : 'Create your first ledger to get started'}
+                    </p>
+                    <button
+                      onClick={() => setShowModal(true)}
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span>Add Ledger</span>
+                    </button>
                   </div>
                 )}
               </div>
-              );
-            })
-          )}
-        </div>
-        </>
-      )}
+            )}
+          </>
+        )}
 
-      {activeTab === 'ledgers' && (
-        <>
-          {selectedGroup && (
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSelectedGroup(null)}
-                className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                Back to All Groups
-              </button>
-              <div className="flex-1 bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">{selectedGroup.name}</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{selectedGroup.description}</p>
-              </div>
-            </div>
-          )}
-
-          {!selectedGroup && (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search ledgers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                />
-              </div>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-6 py-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors focus:ring-2 focus:ring-blue-500 dark:text-white"
-              >
-                <option value="all">All Types</option>
-                <option value="asset">Assets</option>
-                <option value="liability">Liabilities</option>
-                <option value="income">Income</option>
-                <option value="expense">Expenses</option>
-                <option value="equity">Equity</option>
-              </select>
-              <div className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-1">
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-blue-600 to-cyan-600">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <BookOpen size={28} />
+                  {editingAccount ? 'Edit Ledger' : 'Add New Ledger'}
+                </h2>
                 <button
-                  onClick={() => setLedgerViewMode('table')}
-                  className={`p-2 rounded-lg transition-colors ${
-                    ledgerViewMode === 'table'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
-                  }`}
-                  title="Table View"
-                >
-                  <List className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setLedgerViewMode('cards')}
-                  className={`p-2 rounded-lg transition-colors ${
-                    ledgerViewMode === 'cards'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-600'
-                  }`}
-                  title="Card View"
-                >
-                  <Grid3x3 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {ledgerViewMode === 'table' ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-700 dark:to-slate-600 border-b border-gray-200 dark:border-slate-600">
-                  <tr>
-                    {ledgerColumns.includes('code') && (
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                        Code
-                      </th>
-                    )}
-                    {ledgerColumns.includes('name') && (
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                        Ledger Name
-                      </th>
-                    )}
-                    {ledgerColumns.includes('group') && (
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                        Group
-                      </th>
-                    )}
-                    {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
-                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                        Closing Balance (₹)
-                      </th>
-                    )}
-                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                  {filteredAccounts.map((account) => (
-                    <tr
-                      key={account.id}
-                      className="hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                      onClick={() => handleAccountClick(account)}
-                    >
-                      {ledgerColumns.includes('code') && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
-                            {account.account_code}
-                          </span>
-                        </td>
-                      )}
-                      {ledgerColumns.includes('name') && (
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">{account.account_name}</p>
-                              {account.description && (
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{account.description}</p>
-                              )}
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-gray-400" />
-                          </div>
-                        </td>
-                      )}
-                      {ledgerColumns.includes('group') && (
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              {account.account_groups.name}
-                            </p>
-                            <span
-                              className={`inline-block px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
-                                accountTypeColors[
-                                  account.account_groups.account_type as keyof typeof accountTypeColors
-                                ]
-                              }`}
-                            >
-                              {account.account_groups.account_type.toUpperCase()}
-                            </span>
-                          </div>
-                        </td>
-                      )}
-                      {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
-                        <td className="px-6 py-4 text-right whitespace-nowrap">
-                          {account.current_balance >= 0 ? (
-                            <span className="font-bold text-blue-600 dark:text-blue-400">
-                              ₹{account.current_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
-                          ) : (
-                            <span className="font-bold text-red-600 dark:text-red-400">
-                              ₹{Math.abs(account.current_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
-                          )}
-                        </td>
-                      )}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(account);
-                            }}
-                            className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                            title="Edit Ledger"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(account.id);
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                            title="Delete Ledger"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {filteredAccounts.length === 0 && (
-                <div className="text-center py-12">
-                  <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No ledgers found</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    {selectedGroup
-                      ? 'No ledgers in this group. Create your first ledger.'
-                      : 'Create your first ledger to get started'}
-                  </p>
-                  <button
-                    onClick={() => setShowModal(true)}
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="w-5 h-5" />
-                    <span>Add Ledger</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredAccounts.map((account) => (
-                <div
-                  key={account.id}
-                  onClick={() => handleAccountClick(account)}
-                  className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-5 hover:shadow-lg transition-all cursor-pointer transform hover:scale-[1.02]"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400">
-                          {account.account_code}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-1">
-                        {account.account_name}
-                      </h3>
-                      {account.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{account.description}</p>
-                      )}
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                      <span className="text-xs text-gray-600 dark:text-gray-400">Group</span>
-                      <div className="flex flex-col items-end">
-                        <span className="text-xs font-medium text-gray-900 dark:text-white">
-                          {account.account_groups.name}
-                        </span>
-                        <span
-                          className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full mt-1 ${
-                            accountTypeColors[
-                              account.account_groups.account_type as keyof typeof accountTypeColors
-                            ]
-                          }`}
-                        >
-                          {account.account_groups.account_type.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-
-                    {(ledgerColumns.includes('closing_debit') || ledgerColumns.includes('closing_credit')) && (
-                      <div className="py-2 px-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <p className="text-xs text-blue-600 dark:text-blue-400">Closing Balance</p>
-                        {account.current_balance >= 0 ? (
-                          <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
-                            ₹{account.current_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </p>
-                        ) : (
-                          <p className="text-sm font-bold text-red-700 dark:text-red-300">
-                            ₹{Math.abs(account.current_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(account);
-                      }}
-                      className="flex-1 py-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors font-medium flex items-center justify-center gap-1"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(account.id);
-                      }}
-                      className="flex-1 py-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors font-medium flex items-center justify-center gap-1"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {filteredAccounts.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No ledgers found</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    {selectedGroup
-                      ? 'No ledgers in this group. Create your first ledger.'
-                      : 'Create your first ledger to get started'}
-                  </p>
-                  <button
-                    onClick={() => setShowModal(true)}
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="w-5 h-5" />
-                    <span>Add Ledger</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-blue-600 to-cyan-600">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                <BookOpen size={28} />
-                {editingAccount ? 'Edit Ledger' : 'Add New Ledger'}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Ledger Code *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={formData.account_code}
-                      onChange={(e) => setFormData({ ...formData, account_code: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white bg-gray-50 dark:bg-slate-600"
-                      placeholder="Auto-generated"
-                      readOnly={!editingAccount}
-                    />
-                    {!editingAccount && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Code is auto-generated
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Account Group *
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4 pointer-events-none z-10" />
-                    <input
-                      type="text"
-                      value={groupSearchTerm}
-                      onChange={(e) => setGroupSearchTerm(e.target.value)}
-                      placeholder="Search groups..."
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white mb-2"
-                    />
-                    <div className="border border-gray-300 dark:border-slate-600 rounded-lg max-h-48 overflow-y-auto dark:bg-slate-700">
-                      {groups
-                        .filter((group) =>
-                          groupSearchTerm === '' ||
-                          group.name.toLowerCase().includes(groupSearchTerm.toLowerCase()) ||
-                          group.account_type.toLowerCase().includes(groupSearchTerm.toLowerCase())
-                        )
-                        .map((group) => (
-                        <div
-                          key={group.id}
-                          onClick={() => setFormData({ ...formData, account_group_id: group.id })}
-                          className={`px-4 py-2.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-600 transition-colors ${
-                            formData.account_group_id === group.id ? 'bg-blue-100 dark:bg-blue-900/30' : ''
-                          }`}
-                        >
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{group.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{group.account_type}</p>
-                        </div>
-                      ))}
-                      {groups.filter((group) =>
-                        groupSearchTerm === '' ||
-                        group.name.toLowerCase().includes(groupSearchTerm.toLowerCase()) ||
-                        group.account_type.toLowerCase().includes(groupSearchTerm.toLowerCase())
-                      ).length === 0 && (
-                        <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
-                          No groups found
-                        </div>
-                      )}
-                    </div>
-                    {formData.account_group_id && (
-                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                        ✓ Group selected: {groups.find(g => g.id === formData.account_group_id)?.name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Ledger Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.account_name}
-                  onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                  placeholder="e.g., Cash in Hand"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Opening Balance
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.opening_balance}
-                  onChange={(e) => setFormData({ ...formData, opening_balance: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                  placeholder="Ledger description..."
-                />
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Active Ledger</label>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
-                <button
-                  type="button"
                   onClick={() => {
                     setShowModal(false);
                     resetForm();
                   }}
-                  className="px-6 py-2.5 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors font-medium"
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all font-medium shadow-lg"
-                >
-                  {editingAccount ? 'Update Ledger' : 'Create Ledger'}
+                  <X size={24} />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {showGroupModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-green-600 to-emerald-600">
-              <h2 className="text-2xl font-bold text-white">
-                {editingGroup ? 'Edit Account Group' : 'Add Account Group'}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowGroupModal(false);
-                  resetGroupForm();
-                }}
-                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-              >
-                <X size={24} />
-              </button>
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Ledger Code *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={formData.account_code}
+                        onChange={(e) => setFormData({ ...formData, account_code: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white bg-gray-50 dark:bg-slate-600"
+                        placeholder="Auto-generated"
+                        readOnly={!editingAccount}
+                      />
+                      {!editingAccount && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Code is auto-generated
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Account Group *
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4 pointer-events-none z-10" />
+                      <input
+                        type="text"
+                        value={groupSearchTerm}
+                        onChange={(e) => setGroupSearchTerm(e.target.value)}
+                        placeholder="Search groups..."
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white mb-2"
+                      />
+                      <div className="border border-gray-300 dark:border-slate-600 rounded-lg max-h-48 overflow-y-auto dark:bg-slate-700">
+                        {groups
+                          .filter((group) =>
+                            groupSearchTerm === '' ||
+                            group.name.toLowerCase().includes(groupSearchTerm.toLowerCase()) ||
+                            group.account_type.toLowerCase().includes(groupSearchTerm.toLowerCase())
+                          )
+                          .map((group) => (
+                            <div
+                              key={group.id}
+                              onClick={() => setFormData({ ...formData, account_group_id: group.id })}
+                              className={`px-4 py-2.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-600 transition-colors ${formData.account_group_id === group.id ? 'bg-blue-100 dark:bg-blue-900/30' : ''
+                                }`}
+                            >
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">{group.name}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{group.account_type}</p>
+                            </div>
+                          ))}
+                        {groups.filter((group) =>
+                          groupSearchTerm === '' ||
+                          group.name.toLowerCase().includes(groupSearchTerm.toLowerCase()) ||
+                          group.account_type.toLowerCase().includes(groupSearchTerm.toLowerCase())
+                        ).length === 0 && (
+                            <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+                              No groups found
+                            </div>
+                          )}
+                      </div>
+                      {formData.account_group_id && (
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          ✓ Group selected: {groups.find(g => g.id === formData.account_group_id)?.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Ledger Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.account_name}
+                    onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                    placeholder="e.g., Cash in Hand"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Opening Balance
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.opening_balance}
+                    onChange={(e) => setFormData({ ...formData, opening_balance: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                    placeholder="Ledger description..."
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Active Ledger</label>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModal(false);
+                      resetForm();
+                    }}
+                    className="px-6 py-2.5 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all font-medium shadow-lg"
+                  >
+                    {editingAccount ? 'Update Ledger' : 'Create Ledger'}
+                  </button>
+                </div>
+              </form>
             </div>
+          </div>
+        )}
 
-            <form onSubmit={handleGroupSubmit} className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Group Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={groupFormData.name}
-                  onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                  placeholder="e.g., Current Assets"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Account Type *
-                </label>
-                <select
-                  required
-                  value={groupFormData.account_type}
-                  onChange={(e) =>
-                    setGroupFormData({ ...groupFormData, account_type: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                >
-                  <option value="asset">Asset</option>
-                  <option value="liability">Liability</option>
-                  <option value="income">Income</option>
-                  <option value="expense">Expense</option>
-                  <option value="equity">Equity</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Parent Group (Optional)
-                </label>
-                <select
-                  value={groupFormData.parent_group_id}
-                  onChange={(e) =>
-                    setGroupFormData({ ...groupFormData, parent_group_id: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                >
-                  <option value="">None (Top Level)</option>
-                  {groups
-                    .filter((group) => {
-                      // Prevent selecting self or descendants as parent
-                      if (editingGroup && group.id === editingGroup.id) return false;
-                      // Check if group is a descendant of current editing group
-                      if (editingGroup) {
-                        let checkGroup = group;
-                        while (checkGroup.parent_group_id) {
-                          if (checkGroup.parent_group_id === editingGroup.id) return false;
-                          checkGroup = groups.find(g => g.id === checkGroup.parent_group_id)!;
-                          if (!checkGroup) break;
-                        }
-                      }
-                      // Only show groups of the same type
-                      return group.account_type === groupFormData.account_type;
-                    })
-                    .map((group) => {
-                      // Calculate indentation level for visual hierarchy
-                      let level = 0;
-                      let checkGroup = group;
-                      while (checkGroup.parent_group_id) {
-                        level++;
-                        checkGroup = groups.find(g => g.id === checkGroup.parent_group_id)!;
-                        if (!checkGroup) break;
-                      }
-                      const indent = '\u00A0\u00A0'.repeat(level);
-                      return (
-                        <option key={group.id} value={group.id}>
-                          {indent}{level > 0 ? '└─ ' : ''}{group.name}
-                        </option>
-                      );
-                    })}
-                </select>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Select a parent group to create a subgroup under it
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={groupFormData.description}
-                  onChange={(e) =>
-                    setGroupFormData({ ...groupFormData, description: e.target.value })
-                  }
-                  rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                  placeholder="Group description..."
-                />
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={groupFormData.is_active}
-                  onChange={(e) => setGroupFormData({ ...groupFormData, is_active: e.target.checked })}
-                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                />
-                <label className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Active Group</label>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
+        {showGroupModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-green-600 to-emerald-600">
+                <h2 className="text-2xl font-bold text-white">
+                  {editingGroup ? 'Edit Account Group' : 'Add Account Group'}
+                </h2>
                 <button
-                  type="button"
                   onClick={() => {
                     setShowGroupModal(false);
                     resetGroupForm();
                   }}
-                  className="px-6 py-2.5 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors font-medium"
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all font-medium shadow-lg"
-                >
-                  {editingGroup ? 'Update Group' : 'Create Group'}
+                  <X size={24} />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
 
+              <form onSubmit={handleGroupSubmit} className="p-6 space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Group Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={groupFormData.name}
+                    onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                    placeholder="e.g., Current Assets"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Account Type *
+                  </label>
+                  <select
+                    required
+                    value={groupFormData.account_type}
+                    onChange={(e) =>
+                      setGroupFormData({ ...groupFormData, account_type: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                  >
+                    <option value="asset">Asset</option>
+                    <option value="liability">Liability</option>
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                    <option value="equity">Equity</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Parent Group (Optional)
+                  </label>
+                  <select
+                    value={groupFormData.parent_group_id}
+                    onChange={(e) =>
+                      setGroupFormData({ ...groupFormData, parent_group_id: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                  >
+                    <option value="">None (Top Level)</option>
+                    {groups
+                      .filter((group) => {
+                        // Prevent selecting self or descendants as parent
+                        if (editingGroup && group.id === editingGroup.id) return false;
+                        // Check if group is a descendant of current editing group
+                        if (editingGroup) {
+                          let checkGroup = group;
+                          while (checkGroup.parent_group_id) {
+                            if (checkGroup.parent_group_id === editingGroup.id) return false;
+                            checkGroup = groups.find(g => g.id === checkGroup.parent_group_id)!;
+                            if (!checkGroup) break;
+                          }
+                        }
+                        // Only show groups of the same type
+                        return group.account_type === groupFormData.account_type;
+                      })
+                      .map((group) => {
+                        // Calculate indentation level for visual hierarchy
+                        let level = 0;
+                        let checkGroup = group;
+                        while (checkGroup.parent_group_id) {
+                          level++;
+                          checkGroup = groups.find(g => g.id === checkGroup.parent_group_id)!;
+                          if (!checkGroup) break;
+                        }
+                        const indent = '\u00A0\u00A0'.repeat(level);
+                        return (
+                          <option key={group.id} value={group.id}>
+                            {indent}{level > 0 ? '└─ ' : ''}{group.name}
+                          </option>
+                        );
+                      })}
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Select a parent group to create a subgroup under it
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={groupFormData.description}
+                    onChange={(e) =>
+                      setGroupFormData({ ...groupFormData, description: e.target.value })
+                    }
+                    rows={3}
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                    placeholder="Group description..."
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={groupFormData.is_active}
+                    onChange={(e) => setGroupFormData({ ...groupFormData, is_active: e.target.checked })}
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                  <label className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Active Group</label>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowGroupModal(false);
+                      resetGroupForm();
+                    }}
+                    className="px-6 py-2.5 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all font-medium shadow-lg"
+                  >
+                    {editingGroup ? 'Update Group' : 'Create Group'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }

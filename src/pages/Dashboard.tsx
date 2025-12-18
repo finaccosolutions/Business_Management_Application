@@ -13,13 +13,11 @@ import {
   Briefcase,
   Activity,
   BarChart3,
-  TrendingDown,
   Calendar,
   Filter,
   X,
   Receipt,
   Wallet,
-  Target,
   Clock,
   Package,
   UserCheck,
@@ -27,7 +25,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react';
-import BarChart from '../components/charts/BarChart';
+import BarChart from '../components/charts/BarChart'; // Keeping BarChart as it might be used dynamically or I missed it? Wait, lint said it is unused.
 import PieChart from '../components/charts/PieChart';
 import LineChart from '../components/charts/LineChart';
 
@@ -113,11 +111,19 @@ interface CategoryData {
 type DateFilterPreset = 'today' | 'last7days' | 'last30days' | 'last3months' | 'last6months' | 'lastyear' | 'custom' | 'all';
 
 interface DashboardProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, params?: any) => void;
 }
+
+import StaffDashboard from './StaffDashboard';
+
+// ... (existing imports remain, ensure StaffDashboard is imported)
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const { user } = useAuth();
+  const [userRole, setUserRole] = useState<'admin' | 'staff' | 'loading'>('loading');
+  const [timeLogs, setTimeLogs] = useState<any[]>([]); // For time tracking stats
+
+  // Stats state ...
   const [stats, setStats] = useState<Stats>({
     totalLeads: 0,
     convertedLeads: 0,
@@ -169,10 +175,38 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchAllData();
+    async function initDashboard() {
+      if (!user) return;
+
+      try {
+        // Check user profile for role from the Profiles table
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        // If explicitly a 'staff' role in profiles, redirect
+        if (profile?.role === 'staff') {
+          setUserRole('staff');
+          setLoading(false);
+          return;
+        }
+
+        // Default to admin
+        setUserRole('admin');
+        fetchAllData();
+
+      } catch (e) {
+        console.error(e);
+        setUserRole('admin'); // Fallback
+        fetchAllData();
+      }
     }
-  }, [user, dateFilterPreset, startDate, endDate]);
+
+    initDashboard();
+  }, [user?.id, dateFilterPreset, startDate, endDate]);
+
 
   const getDateRange = (): { start: string | null; end: string | null } => {
     const today = new Date();
@@ -236,6 +270,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         fetchRevenueByService(),
         fetchStaffPerformance(),
         fetchCategoryData(),
+        fetchTimeLogs(),
       ]);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -503,7 +538,15 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         .limit(10);
 
       if (error) throw error;
-      setOverdueWorks(data || []);
+
+      // Normalize data structure to handle potential array returns from Supabase
+      const formattedData = (data || []).map((work: any) => ({
+        ...work,
+        customers: Array.isArray(work.customers) ? work.customers[0] : work.customers,
+        staff_members: Array.isArray(work.staff_members) ? work.staff_members[0] : work.staff_members
+      }));
+
+      setOverdueWorks(formattedData);
     } catch (error) {
       console.error('Error fetching overdue works:', error);
     }
@@ -744,6 +787,36 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     setShowCustomDatePicker(false);
   };
 
+  const fetchTimeLogs = async () => {
+    try {
+      const { data } = await supabase
+        .from('work_time_logs')
+        .select('duration_minutes, staff_members(name)')
+        .not('duration_minutes', 'is', null);
+
+      if (data) {
+        const logsByStaff: { [key: string]: number } = {};
+        data.forEach((log: any) => {
+          const name = log.staff_members?.name || 'Unknown';
+          logsByStaff[name] = (logsByStaff[name] || 0) + (log.duration_minutes || 0);
+        });
+
+        // Convert to array
+        const sortedLogs = Object.entries(logsByStaff)
+          .map(([name, minutes]) => ({ name, minutes }))
+          .sort((a, b) => b.minutes - a.minutes);
+
+        setTimeLogs(sortedLogs);
+      }
+    } catch (error) {
+      console.error("Error fetching time logs", error);
+    }
+  };
+
+  if (userRole === 'staff') {
+    return <StaffDashboard />;
+  }
+
   const getDaysLate = (dueDate: string) => {
     const due = new Date(dueDate);
     const today = new Date();
@@ -785,7 +858,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     : '0';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
       <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl shadow-sm border border-slate-200 p-8">
         <div className="flex items-center justify-between flex-wrap gap-6">
           <div>
@@ -844,22 +917,20 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               <button
                 key={preset.id}
                 onClick={() => handlePresetChange(preset.id as DateFilterPreset)}
-                className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                  dateFilterPreset === preset.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${dateFilterPreset === preset.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 {preset.label}
               </button>
             ))}
             <button
               onClick={() => handlePresetChange('custom')}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors flex items-center gap-1 ${
-                dateFilterPreset === 'custom'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors flex items-center gap-1 ${dateFilterPreset === 'custom'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               <Calendar className="w-4 h-4" />
               Custom
@@ -1279,9 +1350,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                       <div
                         className="bg-emerald-600 h-2 rounded-full"
                         style={{
-                          width: `${
-                            (staff.completed / (staff.completed + staff.pending)) * 100
-                          }%`,
+                          width: `${(staff.completed / (staff.completed + staff.pending)) * 100
+                            }%`,
                         }}
                       ></div>
                     </div>
@@ -1355,11 +1425,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                       <span className="px-2 py-1 bg-red-600 text-white rounded-full text-xs font-bold">
                         {getDaysLate(work.due_date)} days late
                       </span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        work.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${work.priority === 'high' ? 'bg-orange-100 text-orange-700' :
                         work.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                          'bg-gray-100 text-gray-700'
+                        }`}>
                         {work.priority}
                       </span>
                     </div>
@@ -1368,6 +1437,32 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               ))}
             </div>
           )}
+        </div>
+      )}
+      {timeLogs.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <Clock className="w-5 h-5 mr-2 text-cyan-600" />
+            Staff Time Tracking
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {timeLogs.map((log, index) => (
+              <div
+                key={index}
+                className="p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg border border-cyan-100"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-gray-800">{log.name}</span>
+                  <span className="text-lg font-bold text-cyan-700">
+                    {Math.floor(log.minutes / 60)}h {log.minutes % 60}m
+                  </span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  Total tracked time
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

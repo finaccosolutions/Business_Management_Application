@@ -4,8 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Plus, FileText, Calendar, Users, Trash2, Search, Filter, Eye, Edit2, Printer, Download, TrendingUp, Clock, CheckCircle, AlertCircle, ChevronDown, ArrowLeft } from 'lucide-react';
 import { generateEnhancedInvoiceHTML, previewEnhancedInvoice, printEnhancedInvoice, downloadEnhancedPDF } from '../lib/enhancedInvoicePDF';
 import { useToast } from '../contexts/ToastContext';
-import EditInvoiceModal from '../components/EditInvoiceModal';
-import InvoiceFormModal from '../components/InvoiceFormModal';
+
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { formatDateDisplay } from '../lib/dateUtils';
 
@@ -25,14 +24,7 @@ interface Invoice {
   customers: { name: string; email?: string; phone?: string; address?: string; gstin?: string; city?: string; state?: string; state_code?: string; postal_code?: string };
 }
 
-interface InvoiceItem {
-  id: string;
-  invoice_id: string;
-  description: string;
-  quantity: number;
-  unit_price: number;
-  amount: number;
-}
+
 
 interface InvoiceStats {
   totalAmount: number;
@@ -56,21 +48,22 @@ const statusColors = {
 
 interface InvoicesListProps {
   onBack?: () => void;
+  onNavigate?: (page: string, params?: any) => void;
 }
 
-export default function InvoicesList({ onBack }: InvoicesListProps) {
+export default function InvoicesList({ onBack, onNavigate }: InvoicesListProps) {
   const { user } = useAuth();
   const toast = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+
   const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'customer'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [editingInvoice, setEditingInvoice] = useState<{ invoice: Invoice; items: InvoiceItem[] } | null>(null);
+
   const { showConfirmation } = useConfirmation();
   const [stats, setStats] = useState<InvoiceStats>({
     totalAmount: 0,
@@ -237,19 +230,9 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
     }
   };
 
-  const handleEditInvoice = async (invoice: Invoice) => {
-    try {
-      const { data: items } = await supabase
-        .from('invoice_items')
-        .select('*')
-        .eq('invoice_id', invoice.id);
-
-      if (items) {
-        setEditingInvoice({ invoice, items });
-      }
-    } catch (error) {
-      console.error('Error loading invoice items:', error);
-      toast.error('Failed to load invoice details');
+  const handleEditInvoice = (invoice: Invoice) => {
+    if (onNavigate) {
+      onNavigate('create-invoice', { id: invoice.id });
     }
   };
 
@@ -336,7 +319,7 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           {onBack && (
@@ -352,7 +335,7 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your invoices and billing</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => onNavigate?.('create-invoice')}
           className="flex items-center space-x-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-3 rounded-lg hover:from-amber-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-[1.02] shadow-md"
         >
           <Plus className="w-5 h-5" />
@@ -462,9 +445,8 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
 
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${
-                showFilters ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors ${showFilters ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
+                }`}
             >
               <Filter className="w-5 h-5" />
               <span className="hidden sm:inline">Filters</span>
@@ -481,18 +463,16 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                    filterStatus === status
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${filterStatus === status
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                    }`}
                 >
                   <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    filterStatus === status
-                      ? 'bg-white/30 text-white'
-                      : 'bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-gray-300'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${filterStatus === status
+                    ? 'bg-white/30 text-white'
+                    : 'bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-gray-300'
+                    }`}>
                     {count}
                   </span>
                 </button>
@@ -521,9 +501,8 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">{invoice.invoice_number}</h3>
                       <span
-                        className={`px-3 py-1 text-xs font-semibold rounded-full border ${
-                          statusColors[invoice.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700 border-gray-300'
-                        }`}
+                        className={`px-3 py-1 text-xs font-semibold rounded-full border ${statusColors[invoice.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700 border-gray-300'
+                          }`}
                       >
                         {invoice.status.toUpperCase()}
                       </span>
@@ -644,7 +623,7 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
             </p>
             {filterStatus === 'all' && searchQuery === '' && (
               <button
-                onClick={() => setShowModal(true)}
+                onClick={() => onNavigate?.('create-invoice')}
                 className="inline-flex items-center space-x-2 bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition-colors"
               >
                 <Plus className="w-5 h-5" />
@@ -655,27 +634,10 @@ export default function InvoicesList({ onBack }: InvoicesListProps) {
         )}
       </div>
 
-      {showModal && (
-        <InvoiceFormModal
-          onClose={() => setShowModal(false)}
-          onSuccess={() => {
-            fetchInvoices();
-            setShowModal(false);
-          }}
-        />
-      )}
 
-      {editingInvoice && (
-        <EditInvoiceModal
-          invoice={editingInvoice.invoice}
-          items={editingInvoice.items}
-          onClose={() => setEditingInvoice(null)}
-          onSave={() => {
-            fetchInvoices();
-            setEditingInvoice(null);
-          }}
-        />
-      )}
+
+      {/* EditInvoiceModal removed as we use unified page now */}
     </div>
   );
 }
+

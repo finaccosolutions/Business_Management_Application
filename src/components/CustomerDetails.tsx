@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { X, User, Briefcase, FileText, DollarSign, Mail, Phone, MapPin, Building2, CreditCard, Clock, CheckCircle, AlertCircle, Plus, Edit2, TrendingUp, Calendar, MessageSquare, Download, ExternalLink, Trash2, StickyNote, Pin, History } from 'lucide-react';
+import { X, User, Briefcase, FileText, DollarSign, Mail, Phone, MapPin, Building2, CreditCard, Clock, CheckCircle, AlertCircle, Plus, Edit2, TrendingUp, Calendar, MessageSquare, Download, ExternalLink, Trash2, StickyNote, Pin, History, ArrowLeft } from 'lucide-react';
 import CustomerFormModal from './CustomerFormModal';
+
 import CommunicationModal from './CommunicationModal';
 import DocumentUploadModal from './DocumentUploadModal';
 import NoteModal from './NoteModal';
@@ -41,7 +42,7 @@ interface EditInvoiceData {
 
 interface CustomerDetailsProps {
   customerId: string;
-  onClose: () => void;
+  onBack: () => void;
   onUpdate: () => void;
   onNavigateToService?: (serviceId: string) => void;
   onNavigateToWork?: (workId: string) => void;
@@ -151,7 +152,7 @@ type TabType = 'overview' | 'services' | 'works' | 'invoices' | 'communications'
 
 export default function CustomerDetails({
   customerId,
-  onClose,
+  onBack,
   onUpdate,
   onNavigateToService,
   onNavigateToWork,
@@ -176,6 +177,7 @@ export default function CustomerDetails({
   const [showCommunicationModal, setShowCommunicationModal] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
+
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [statistics, setStatistics] = useState({
@@ -341,163 +343,147 @@ export default function CustomerDetails({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-      <div className="fixed top-16 left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-green-600 to-green-700">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center overflow-hidden">
-              {customer.image_url ? (
-                <img
-                  src={customer.image_url}
-                  alt={customer.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <User size={32} className="text-green-600" />
-              )}
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">{customer.name}</h2>
-              {customer.company_name && (
-                <p className="text-green-100 flex items-center gap-1">
-                  <Building2 size={14} />
-                  {customer.company_name}
-                </p>
-              )}
-            </div>
+    <div className="flex flex-col h-[calc(100vh-6rem)] bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-green-600 to-green-700 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-white/20 rounded-full transition-colors text-white mr-2"
+            title="Back"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-white/50">
+            {customer.image_url ? (
+              <img
+                src={customer.image_url}
+                alt={customer.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <User size={32} className="text-green-600" />
+            )}
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors"
-            >
-              <Edit2 size={18} />
-              Edit
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
-            >
-              <X size={24} />
-            </button>
+          <div>
+            <h2 className="text-2xl font-bold text-white">{customer.name}</h2>
+            {customer.company_name && (
+              <p className="text-green-100 flex items-center gap-1">
+                <Building2 size={14} />
+                {customer.company_name}
+              </p>
+            )}
           </div>
         </div>
-
-
-        <div className="flex border-b border-gray-200 bg-gray-50 px-6 overflow-x-auto">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'border-green-600 text-green-600 bg-white'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Icon size={18} />
-                {tab.label}
-                {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-semibold">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'overview' && (
-            <OverviewTab customer={customer} statistics={statistics} />
-          )}
-
-          {activeTab === 'services' && (
-            <ServicesTab
-              services={services}
-              customerId={customerId}
-              onUpdate={fetchCustomerDetails}
-              onNavigateToService={(serviceId) => {
-                onNavigateToService?.(serviceId);
-                onClose();
-              }}
-              onAdd={() => {
-                onNavigateToCreateService?.(customerId);
-                onClose();
-              }}
-            />
-          )}
-
-          {activeTab === 'works' && (
-            <WorksTab
-              works={works}
-              customerId={customerId}
-              onUpdate={fetchCustomerDetails}
-              onNavigateToWork={(workId) => {
-                onNavigateToWork?.(workId);
-                onClose();
-              }}
-              onAdd={() => {
-                onNavigateToCreateWork?.(customerId);
-                onClose();
-              }}
-            />
-          )}
-
-          {activeTab === 'invoices' && (
-            <InvoicesTab
-              invoices={invoices}
-              statistics={statistics}
-              customerId={customerId}
-              onEdit={handleInvoiceEdit}
-              onAdd={() => {
-                onNavigateToCreateInvoice?.(customerId);
-                onClose();
-              }}
-            />
-          )}
-
-          {activeTab === 'communications' && (
-            <CommunicationsTab
-              communications={communications}
-              customerId={customerId}
-              onAdd={() => setShowCommunicationModal(true)}
-              onRefresh={fetchCustomerDetails}
-            />
-          )}
-
-          {activeTab === 'documents' && (
-            <DocumentsTab
-              documents={documents}
-              customerId={customerId}
-              onAdd={() => setShowDocumentModal(true)}
-              onRefresh={fetchCustomerDetails}
-            />
-          )}
-
-          {activeTab === 'notes' && (
-            <NotesTab
-              notes={notes}
-              customerId={customerId}
-              onAdd={() => {
-                setEditingNote(null);
-                setShowNoteModal(true);
-              }}
-              onEdit={(note) => {
-                setEditingNote(note);
-                setShowNoteModal(true);
-              }}
-              onRefresh={fetchCustomerDetails}
-            />
-          )}
-
-          {activeTab === 'activity' && (
-            <ActivityTab activities={activities} />
-          )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors"
+          >
+            <Edit2 size={18} />
+            Edit
+          </button>
         </div>
       </div>
+
+
+      <div className="flex border-b border-gray-200 bg-gray-50 px-6 overflow-x-auto flex-shrink-0">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id
+                ? 'border-green-600 text-green-600 bg-white'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+            >
+              <Icon size={18} />
+              {tab.label}
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-semibold">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        {activeTab === 'overview' && (
+          <OverviewTab customer={customer} statistics={statistics} />
+        )}
+
+        {activeTab === 'services' && (
+          <ServicesTab
+            services={services}
+            customerId={customerId}
+            onUpdate={fetchCustomerDetails}
+            onNavigateToService={onNavigateToService}
+            onAdd={() => onNavigateToCreateService?.(customerId)}
+          />
+        )}
+
+        {activeTab === 'works' && (
+          <WorksTab
+            works={works}
+            customerId={customerId}
+            onUpdate={fetchCustomerDetails}
+            onNavigateToWork={onNavigateToWork}
+            onAdd={() => onNavigateToCreateWork?.(customerId)}
+          />
+        )}
+
+        {activeTab === 'invoices' && (
+          <InvoicesTab
+            invoices={invoices}
+            statistics={statistics}
+            customerId={customerId}
+            onEdit={handleInvoiceEdit}
+            onAdd={() => onNavigateToCreateInvoice?.(customerId)}
+          />
+        )}
+
+        {activeTab === 'communications' && (
+          <CommunicationsTab
+            communications={communications}
+            customerId={customerId}
+            onAdd={() => setShowCommunicationModal(true)}
+            onRefresh={fetchCustomerDetails}
+          />
+        )}
+
+        {activeTab === 'documents' && (
+          <DocumentsTab
+            documents={documents}
+            customerId={customerId}
+            onAdd={() => setShowDocumentModal(true)}
+            onRefresh={fetchCustomerDetails}
+          />
+        )}
+
+        {activeTab === 'notes' && (
+          <NotesTab
+            notes={notes}
+            customerId={customerId}
+            onAdd={() => {
+              setEditingNote(null);
+              setShowNoteModal(true);
+            }}
+            onEdit={(note) => {
+              setEditingNote(note);
+              setShowNoteModal(true);
+            }}
+            onRefresh={fetchCustomerDetails}
+          />
+        )}
+
+        {activeTab === 'activity' && (
+          <ActivityTab activities={activities} />
+        )}
+      </div>
+
 
       {showEditModal && (
         <CustomerFormModal
@@ -553,6 +539,8 @@ export default function CustomerDetails({
           }}
         />
       )}
+
+
     </div>
   );
 }
@@ -858,9 +846,8 @@ function ServicesTab({
                   )}
                 </div>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    statusColors[service.status] || statusColors.inactive
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[service.status] || statusColors.inactive
+                    }`}
                 >
                   {service.status}
                 </span>
@@ -997,9 +984,8 @@ function WorksTab({
                   <p className="text-sm text-gray-600">{work.services.name}</p>
                 </div>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${
-                    statusColors[work.status] || statusColors.pending
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${statusColors[work.status] || statusColors.pending
+                    }`}
                 >
                   {work.status.replace('_', ' ')}
                 </span>
@@ -1011,9 +997,8 @@ function WorksTab({
 
               <div className="flex items-center justify-between text-sm">
                 <span
-                  className={`px-2 py-1 rounded text-xs font-medium ${
-                    priorityColors[work.priority] || priorityColors.medium
-                  }`}
+                  className={`px-2 py-1 rounded text-xs font-medium ${priorityColors[work.priority] || priorityColors.medium
+                    }`}
                 >
                   {work.priority}
                 </span>
@@ -1160,9 +1145,8 @@ function InvoicesTab({
                   </p>
                 </div>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    statusColors[invoice.status] || statusColors.draft
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[invoice.status] || statusColors.draft
+                    }`}
                 >
                   {invoice.status}
                 </span>
@@ -1336,9 +1320,8 @@ function CommunicationsTab({
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        typeColors[comm.type] || typeColors.note
-                      }`}
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${typeColors[comm.type] || typeColors.note
+                        }`}
                     >
                       {comm.type}
                     </span>
@@ -1488,9 +1471,8 @@ function DocumentsTab({
 
               <div className="flex items-center justify-between mb-4">
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    categoryColors[doc.category] || categoryColors.general
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${categoryColors[doc.category] || categoryColors.general
+                    }`}
                 >
                   {doc.category}
                 </span>
@@ -1612,11 +1594,10 @@ function NotesTab({
           {notes.map((note) => (
             <div
               key={note.id}
-              className={`bg-white rounded-xl border-2 p-6 hover:shadow-lg transition-shadow ${
-                note.is_pinned
-                  ? 'border-yellow-300 bg-yellow-50'
-                  : 'border-gray-200'
-              }`}
+              className={`bg-white rounded-xl border-2 p-6 hover:shadow-lg transition-shadow ${note.is_pinned
+                ? 'border-yellow-300 bg-yellow-50'
+                : 'border-gray-200'
+                }`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -1626,11 +1607,10 @@ function NotesTab({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleTogglePin(note)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      note.is_pinned
-                        ? 'text-yellow-600 hover:bg-yellow-100'
-                        : 'text-gray-400 hover:bg-gray-100'
-                    }`}
+                    className={`p-2 rounded-lg transition-colors ${note.is_pinned
+                      ? 'text-yellow-600 hover:bg-yellow-100'
+                      : 'text-gray-400 hover:bg-gray-100'
+                      }`}
                     title={note.is_pinned ? 'Unpin note' : 'Pin note'}
                   >
                     <Pin size={18} />
@@ -1806,10 +1786,9 @@ function ActivityTab({ activities }: { activities: Activity[] }) {
               return (
                 <div key={activity.id} className="relative flex gap-4">
                   <div
-                    className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center z-10 ${
-                      activityTypeColors[activity.activity_type] ||
+                    className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center z-10 ${activityTypeColors[activity.activity_type] ||
                       activityTypeColors.customer
-                    }`}
+                      }`}
                   >
                     <Icon size={20} />
                   </div>
@@ -1840,10 +1819,9 @@ function ActivityTab({ activities }: { activities: Activity[] }) {
                         )}
                       </div>
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${
-                          activityTypeColors[activity.activity_type] ||
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${activityTypeColors[activity.activity_type] ||
                           activityTypeColors.customer
-                        }`}
+                          }`}
                       >
                         {activity.activity_type.replace('_', ' ')}
                       </span>

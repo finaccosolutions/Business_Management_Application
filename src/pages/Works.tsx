@@ -1,31 +1,30 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { copyServiceTasksToWork } from '../lib/serviceTaskUtils';
 import {
   Plus,
-  X,
-  Trash2,
-  ClipboardList,
-  Calendar,
-  AlertCircle,
-  CheckCircle,
   Clock,
-  Eye,
-  Repeat,
   Briefcase,
   Filter,
-  DollarSign,
+  ClipboardList,
+  CheckCircle,
+  AlertCircle,
+  Activity as ActivityIcon,
+  Calendar as CalendarIcon,
+  LayoutGrid
 } from 'lucide-react';
+
 import WorkDetails from '../components/works/WorkDetailsMain';
 import WorkTile from '../components/works/WorkTile';
 import CustomerDetails from '../components/CustomerDetails';
 import ServiceDetails from '../components/ServiceDetails';
-import SearchableSelect from '../components/SearchableSelect';
 import WorkFilters from '../components/WorkFilters';
 import { useConfirmation } from '../contexts/ConfirmationContext';
 import { useToast } from '../contexts/ToastContext';
-
+import { AssignStaffModal, ReassignReasonModal } from '../components/works/WorkDetailsModals';
+import AdminWorkMonitoring from './AdminWorkMonitoring';
+import AdminWorkBoard from '../components/works/AdminWorkBoard';
+import WorkCalendar from './WorkCalendar';
 
 interface Work {
   id: string;
@@ -76,169 +75,94 @@ interface StaffMember {
   role: string;
 }
 
-const statusConfig = {
-  pending: { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: Clock },
-  in_progress: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Clock },
-  completed: { color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle },
-  overdue: { color: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle },
-};
+type ViewType = 'all' | 'pending' | 'in_progress' | 'completed' | 'overdue' | 'monitoring';
+type ModuleTab = 'list' | 'monitor' | 'board' | 'schedule';
 
-const priorityColors = {
-  low: 'bg-gray-100 text-gray-700',
-  medium: 'bg-blue-100 text-blue-700',
-  high: 'bg-orange-100 text-orange-700',
-  urgent: 'bg-red-100 text-red-700',
-};
- 
-const billingStatusColors = {
-  not_billed: 'bg-gray-100 text-gray-700',
-  billed: 'bg-green-100 text-green-700',
-  paid: 'bg-emerald-100 text-emerald-700',
-  overdue: 'bg-red-100 text-red-700',
-};
+interface WorksProps {
+  isDetailsView?: boolean;
+  workId?: string;
+  onNavigate?: (page: string, params?: any) => void;
+}
 
-type ViewType = 'all' | 'pending' | 'in_progress' | 'completed' | 'overdue';
+export default function Works({ isDetailsView, workId, onNavigate }: WorksProps = {}) {
+  const { user, permissions, role } = useAuth();
 
-export default function Works() {
-  const { user } = useAuth();
+  // -- State Definitions --
   const [works, setWorks] = useState<Work[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingWork, setEditingWork] = useState<Work | null>(null);
   const [selectedWork, setSelectedWork] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Filter States
   const [filterCustomer, setFilterCustomer] = useState('');
   const [filterService, setFilterService] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterSubcategory, setFilterSubcategory] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterBillingStatus, setFilterBillingStatus] = useState('');
+
   const [categories, setCategories] = useState<any[]>([]);
   const [subcategories, setSubcategories] = useState<any[]>([]);
+
   const { showConfirmation } = useConfirmation();
   const toast = useToast();
 
+  // Assignment Modal States
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showReassignReason, setShowReassignReason] = useState(false);
+  const [selectedWorkForAssignment, setSelectedWorkForAssignment] = useState<Work | null>(null);
+  const [reassignReason, setReassignReason] = useState('');
+  const [selectedStaffForReassign, setSelectedStaffForReassign] = useState('');
 
-const [formData, setFormData] = useState({
-  work_number: '',
-  customer_id: '',
-  service_id: '',
-  assigned_to: '',
-  title: '',
-  description: '',
-  status: 'pending',
-  priority: 'medium',
-  due_date: '',
-  billing_status: 'not_billed',
-  billing_amount: '',
-  estimated_hours: '',
-  estimated_duration_value: 0,
-  estimated_duration_unit: 'days',
-  is_recurring: false,
-  recurrence_pattern: '',
-  recurrence_day: '',
-  auto_bill: true,
-  start_date: '',
-  completion_deadline: '',
-  department: '',
-  work_location: '',
-  requirements: '',
-  deliverables: '',
-  period_type: 'previous_period',
-  financial_year_start_month: 4,
-  weekly_start_day: 'monday',
-  monthly_start_day: '1',
-  quarterly_start_day: '1',
-  half_yearly_start_day: '4',
-  yearly_start_day: '4',
-});
+  // Module Level Tabs
+  const [moduleTab, setModuleTab] = useState<ModuleTab>('list');
 
+  // Permissions Checks
+  const canViewMonitor = role === 'admin' || permissions?.works?.view_monitor;
+  const canViewBoard = role === 'admin' || permissions?.works?.view_board;
+  const canViewSchedule = role === 'admin' || permissions?.works?.view_schedule;
 
-useEffect(() => {
-  const navigationState = sessionStorage.getItem('searchNavigationState');
-  if (navigationState) {
-    try {
-      const state = JSON.parse(navigationState);
-      if (state.itemType === 'work' && state.shouldShowDetails) {
-        setSelectedWork(state.selectedId);
-        sessionStorage.removeItem('searchNavigationState');
-      }
-    } catch (error) {
-      console.error('Error reading navigation state:', error);
+  // -- Effects --
+
+  useEffect(() => {
+    // Handle props-based initialization
+    if (isDetailsView && workId) {
+      setSelectedWork(workId);
     }
-  }
 
-  const filterStatus = sessionStorage.getItem('workFilterStatus');
-  if (filterStatus) {
-    setActiveView(filterStatus as ViewType);
-    sessionStorage.removeItem('workFilterStatus');
-  }
-}, []);
+    const navigationState = sessionStorage.getItem('searchNavigationState');
+    if (navigationState) {
+      try {
+        const state = JSON.parse(navigationState);
+        if (state.itemType === 'work' && state.shouldShowDetails) {
+          setSelectedWork(state.selectedId);
+          sessionStorage.removeItem('searchNavigationState');
+        }
+      } catch (error) {
+        console.error('Error reading navigation state:', error);
+      }
+    }
+
+    const filterStatus = sessionStorage.getItem('workFilterStatus');
+    if (filterStatus) {
+      setActiveView(filterStatus as ViewType);
+      sessionStorage.removeItem('workFilterStatus');
+    }
+  }, [isDetailsView, workId]);
 
 
-  
   useEffect(() => {
     if (user) {
       fetchData();
     }
-
-    const prefilledCustomerId = sessionStorage.getItem('prefilledCustomerId');
-    if (prefilledCustomerId) {
-      setFormData(prev => ({ ...prev, customer_id: prefilledCustomerId }));
-      setShowModal(true);
-      sessionStorage.removeItem('prefilledCustomerId');
-    }
   }, [user]);
-
-  useEffect(() => {
-    const autoGenerateWorkNumber = async () => {
-      if (!editingWork && showModal && !formData.work_number && user) {
-        const workNum = await generateWorkNumber();
-        if (workNum) {
-          setFormData(prev => ({ ...prev, work_number: workNum }));
-        }
-      }
-    };
-
-    autoGenerateWorkNumber();
-  }, [showModal, editingWork, user]);
-
-  const generateWorkNumber = async () => {
-    try {
-      const { data, error } = await supabase.rpc('generate_next_id', {
-        p_user_id: user!.id,
-        p_id_type: 'work_id'
-      });
-
-      if (error) {
-        console.error('Error generating work number:', error);
-        return '';
-      }
-
-      return data || '';
-    } catch (error) {
-      console.error('Error in generateWorkNumber:', error);
-      return '';
-    }
-  };
-
-  useEffect(() => {
-    if (showModal && !editingWork && !formData.work_number) {
-      generateWorkNumber().then(workNumber => {
-        if (workNumber) {
-          setFormData(prev => ({ ...prev, work_number: workNumber }));
-        }
-      });
-    }
-  }, [showModal, editingWork]);
 
   useEffect(() => {
     if (filterCategory) {
@@ -330,187 +254,14 @@ useEffect(() => {
     }
   };
 
-  const handleServiceChange = async (serviceId: string) => {
-    const selectedService = services.find(s => s.id === serviceId);
-
-    if (selectedService && !editingWork) {
-      const updates: any = {
-        service_id: serviceId,
-        is_recurring: selectedService.is_recurring || false,
-      };
-
-      if (selectedService.default_price && !formData.billing_amount) {
-        updates.billing_amount = selectedService.default_price.toString();
-      }
-
-      // Auto-fill estimated duration from service
-      if (selectedService.estimated_duration_value) {
-        updates.estimated_duration_value = selectedService.estimated_duration_value;
-      }
-      if (selectedService.estimated_duration_unit) {
-        updates.estimated_duration_unit = selectedService.estimated_duration_unit;
-      }
-
-      // Auto-fill start date from service recurrence_start_date
-      if (selectedService.recurrence_start_date && !formData.start_date) {
-        updates.start_date = selectedService.recurrence_start_date;
-      }
-
-      if (selectedService.is_recurring) {
-        updates.recurrence_pattern = selectedService.recurrence_type || 'monthly';
-        updates.recurrence_day = selectedService.recurrence_day?.toString() || '10';
-        updates.due_date = '';
-
-        // Auto-fill period configuration from service custom fields
-        if (selectedService.custom_fields) {
-          updates.period_calculation_type = selectedService.custom_fields.period_calculation_type || 'previous_period';
-          updates.period_offset_value = selectedService.custom_fields.period_offset_value || 1;
-          updates.period_offset_unit = selectedService.custom_fields.period_offset_unit || 'month';
-          updates.due_day_of_period = selectedService.custom_fields.due_day_of_period || 'end';
-          updates.custom_due_offset = selectedService.custom_fields.custom_due_offset || 10;
-        }
-      } else {
-        updates.recurrence_pattern = '';
-        updates.recurrence_day = '';
-        updates.start_date = '';
-      }
-
-      setFormData({ ...formData, ...updates });
-
-      handleCustomerOrServiceChange(formData.customer_id, serviceId);
-    } else {
-      setFormData({ ...formData, service_id: serviceId });
-    }
-  };
-
-
-  const handleCustomerOrServiceChange = (customerId?: string, serviceId?: string) => {
-    const cId = customerId || formData.customer_id;
-    const sId = serviceId || formData.service_id;
-    
-    if (cId && sId) {
-      const customer = customers.find(c => c.id === cId);
-      const service = services.find(s => s.id === sId);
-      
-      if (customer && service && !editingWork) {
-        setFormData(prev => ({
-          ...prev,
-          title: `${service.name} - ${customer.name}`,
-          customer_id: cId,
-          service_id: sId
-        }));
-      }
-    }
-  };
-
-
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  try {
-    const workData: any = {
-      customer_id: formData.customer_id,
-      service_id: formData.service_id,
-      assigned_to: formData.assigned_to || null,
-      title: formData.title,
-      description: formData.description || null,
-      status: formData.status,
-      priority: formData.priority,
-      due_date: formData.is_recurring ? null : (formData.due_date || null),
-      start_date: formData.start_date || null,
-      billing_status: formData.billing_status,
-      billing_amount: formData.billing_amount ? parseFloat(formData.billing_amount) : null,
-      estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
-      is_recurring: formData.is_recurring,
-      recurrence_pattern: formData.is_recurring ? formData.recurrence_pattern : null,
-      recurrence_day: formData.is_recurring && formData.recurrence_day ? parseInt(formData.recurrence_day) : null,
-      period_type: formData.is_recurring ? formData.period_type : null,
-      period_calculation_type: formData.is_recurring ? formData.period_type : null,
-      work_location: formData.work_location || null,
-      department: formData.department || null,
-      requirements: formData.requirements || null,
-      deliverables: formData.deliverables || null,
-      auto_bill: formData.auto_bill,
-      financial_year_start_month: formData.is_recurring ? parseInt(formData.financial_year_start_month.toString()) : null,
-      weekly_start_day: formData.is_recurring && formData.recurrence_pattern === 'weekly' ? formData.weekly_start_day : null,
-      monthly_start_day: formData.is_recurring && formData.recurrence_pattern === 'monthly' ? parseInt(formData.monthly_start_day) : null,
-      quarterly_start_day: formData.is_recurring && formData.recurrence_pattern === 'quarterly' ? parseInt(formData.quarterly_start_day) : null,
-      half_yearly_start_day: formData.is_recurring && formData.recurrence_pattern === 'half_yearly' ? parseInt(formData.half_yearly_start_day) : null,
-      yearly_start_day: formData.is_recurring && formData.recurrence_pattern === 'yearly' ? parseInt(formData.yearly_start_day) : null,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (!editingWork) {
-      workData.user_id = user!.id;
-      const workNumber = formData.work_number || await generateWorkNumber();
-      if (workNumber) {
-        workData.work_number = workNumber;
-      }
-    }
-
-    if (formData.assigned_to && !editingWork) {
-      workData.assigned_date = new Date().toISOString();
-    }
-
-    if (formData.status === 'completed' && !editingWork) {
-      workData.completion_date = new Date().toISOString();
-    }
-
-    if (editingWork) {
-      if (formData.status === 'completed' && editingWork.status !== 'completed') {
-        workData.completion_date = new Date().toISOString();
-      }
-
-      if (formData.assigned_to && formData.assigned_to !== editingWork.assigned_to) {
-        workData.assigned_date = new Date().toISOString();
-      }
-
-      const { error } = await supabase.from('works').update(workData).eq('id', editingWork.id);
-      if (error) throw error;
-    } else {
-      const { data: newWork, error } = await supabase
-        .from('works')
-        .insert(workData)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating work:', error);
-        throw error;
-      }
-
-      if (newWork) {
-        console.log('Work created successfully, ID:', newWork.id);
-
-        if (formData.is_recurring) {
-          try {
-            await supabase.rpc('auto_generate_periods_and_tasks', { p_work_id: newWork.id });
-            console.log('Periods and tasks auto-generated for work:', newWork.id);
-          } catch (error) {
-            console.error('Error auto-generating periods and tasks:', error);
-            toast.error('Work created but failed to generate periods and tasks. You can add them manually.');
-          }
-        }
-
-        toast.success('Work created successfully');
-      }
-    }
-
-    setShowModal(false);
-    setEditingWork(null);
-    resetForm();
-    fetchData();
-  } catch (error) {
-    console.error('Error saving work:', error);
-    toast.error('Failed to save work. Please try again.');
-  }
-};
-
-
-
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
+    if (!permissions?.works?.delete) {
+      toast.error("You don't have permission to delete works");
+      return;
+    }
+
     showConfirmation({
       title: 'Delete Work',
       message: 'Are you sure you want to delete this work? This action cannot be undone.',
@@ -531,98 +282,97 @@ const handleSubmit = async (e: React.FormEvent) => {
     });
   };
 
-const handleEdit = (work: Work) => {
-  setEditingWork(work);
+  const handleEdit = (work: Work) => {
+    if (onNavigate) {
+      onNavigate('create-work', { id: work.id });
+    }
+  };
 
-  supabase
-    .from('works')
-    .select('*')
-    .eq('id', work.id)
-    .single()
-    .then(({ data }) => {
-      if (data) {
-        setFormData({
-          work_number: data.work_number || '',
-          customer_id: data.customer_id,
-          service_id: data.service_id,
-          assigned_to: data.assigned_to || '',
-          title: data.title,
-          description: data.description || '',
-          status: data.status,
-          priority: data.priority,
-          due_date: data.due_date || '',
-          billing_status: data.billing_status,
-          billing_amount: data.billing_amount?.toString() || '',
-          estimated_hours: data.estimated_hours?.toString() || '',
-          estimated_duration_value: data.estimated_duration_value || 0,
-          estimated_duration_unit: data.estimated_duration_unit || 'days',
-          is_recurring: data.is_recurring || false,
-          recurrence_pattern: data.recurrence_pattern || '',
-          recurrence_day: data.recurrence_day?.toString() || '',
-          auto_bill: data.auto_bill !== undefined ? data.auto_bill : true,
-          start_date: data.start_date || '',
-          completion_deadline: '',
-          department: data.department || '',
-          work_location: data.work_location || '',
-          requirements: data.requirements || '',
-          deliverables: data.deliverables || '',
-          period_type: data.period_type || 'previous_period',
-          period_calculation_type: data.period_calculation_type || 'previous_period',
-          financial_year_start_month: data.financial_year_start_month || 4,
-          weekly_start_day: data.weekly_start_day || 'monday',
-          monthly_start_day: data.monthly_start_day?.toString() || '1',
-          quarterly_start_day: data.quarterly_start_day?.toString() || '1',
-          half_yearly_start_day: data.half_yearly_start_day?.toString() || '4',
-          yearly_start_day: data.yearly_start_day?.toString() || '4',
-        });
-      }
-    });
+  const handleAssignClick = (work: Work) => {
+    setSelectedWorkForAssignment(work);
+    setShowAssignModal(true);
+  };
 
-  setShowModal(true);
-};
+  const handleAssignStaff = async (staffId: string) => {
+    if (!selectedWorkForAssignment) return;
+    try {
+      await supabase
+        .from('work_assignments')
+        .update({ is_current: false })
+        .eq('work_id', selectedWorkForAssignment.id)
+        .eq('is_current', true);
 
+      const { error } = await supabase.from('work_assignments').insert({
+        work_id: selectedWorkForAssignment.id,
+        staff_member_id: staffId,
+        assigned_by: user!.id,
+        status: 'assigned',
+        is_current: true,
+      });
 
-const resetForm = () => {
-  setFormData({
-    work_number: '',
-    customer_id: '',
-    service_id: '',
-    assigned_to: '',
-    title: '',
-    description: '',
-    status: 'pending',
-    priority: 'medium',
-    due_date: '',
-    billing_status: 'not_billed',
-    billing_amount: '',
-    estimated_hours: '',
-    estimated_duration_value: 0,
-    estimated_duration_unit: 'days',
-    is_recurring: false,
-    recurrence_pattern: '',
-    recurrence_day: '',
-    auto_bill: true,
-    start_date: '',
-    completion_deadline: '',
-    department: '',
-    work_location: '',
-    requirements: '',
-    deliverables: '',
-    period_type: 'previous_period',
-    financial_year_start_month: 4,
-    weekly_start_day: 'monday',
-    monthly_start_day: '1',
-    quarterly_start_day: '1',
-    half_yearly_start_day: '4',
-    yearly_start_day: '4',
-  });
-};
+      if (error) throw error;
 
+      await supabase
+        .from('works')
+        .update({
+          assigned_to: staffId,
+          assigned_date: new Date().toISOString(),
+        })
+        .eq('id', selectedWorkForAssignment.id);
 
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingWork(null);
-    resetForm();
+      setShowAssignModal(false);
+      setSelectedWorkForAssignment(null);
+      fetchData();
+      toast.success('Work assigned successfully!');
+    } catch (error) {
+      console.error('Error assigning staff:', error);
+      toast.error('Failed to assign staff');
+    }
+  };
+
+  const handleReassignWithReason = async () => {
+    if (!selectedStaffForReassign || !selectedWorkForAssignment) return;
+
+    try {
+      const currentStaffId = selectedWorkForAssignment.assigned_to;
+
+      await supabase
+        .from('work_assignments')
+        .update({ is_current: false })
+        .eq('work_id', selectedWorkForAssignment.id)
+        .eq('is_current', true);
+
+      const { error } = await supabase.from('work_assignments').insert({
+        work_id: selectedWorkForAssignment.id,
+        staff_member_id: selectedStaffForReassign,
+        assigned_by: user!.id,
+        reassigned_from: currentStaffId,
+        reassignment_reason: reassignReason || null,
+        status: 'assigned',
+        is_current: true,
+      });
+
+      if (error) throw error;
+
+      await supabase
+        .from('works')
+        .update({
+          assigned_to: selectedStaffForReassign,
+          assigned_date: new Date().toISOString(),
+        })
+        .eq('id', selectedWorkForAssignment.id);
+
+      setShowReassignReason(false);
+      setShowAssignModal(false);
+      setReassignReason('');
+      setSelectedStaffForReassign('');
+      setSelectedWorkForAssignment(null);
+      fetchData();
+      toast.success('Work reassigned successfully!');
+    } catch (error) {
+      console.error('Error reassigning staff:', error);
+      toast.error('Failed to reassign staff');
+    }
   };
 
   // Calculate statistics
@@ -639,56 +389,56 @@ const resetForm = () => {
     notBilled: works.filter((w) => w.billing_status === 'not_billed').length,
   };
 
-  // Filter works based on active view
-const filteredWorks = works.filter((work) => {
-  // Search filter
-  if (searchQuery) {
-    const query = searchQuery.toLowerCase();
-    const matchesSearch =
-      work.title.toLowerCase().includes(query) ||
-      work.customers.name.toLowerCase().includes(query) ||
-      work.services.name.toLowerCase().includes(query) ||
-      (work.description && work.description.toLowerCase().includes(query));
-    if (!matchesSearch) return false;
-  }
+  // Filter works based on active view and search
+  const filteredWorks = works.filter((work) => {
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch =
+        work.title.toLowerCase().includes(query) ||
+        work.customers.name.toLowerCase().includes(query) ||
+        work.services.name.toLowerCase().includes(query) ||
+        (work.description && work.description.toLowerCase().includes(query));
+      if (!matchesSearch) return false;
+    }
 
-  // Status filter
-  if (activeView !== 'all') {
-    if (activeView === 'overdue') {
-      if (work.status === 'completed' || !work.due_date || new Date(work.due_date) >= new Date()) {
+    // Status filter
+    if (activeView !== 'all' && activeView !== 'monitoring') {
+      if (activeView === 'overdue') {
+        if (work.status === 'completed' || !work.due_date || new Date(work.due_date) >= new Date()) {
+          return false;
+        }
+      } else if (work.status !== activeView) {
         return false;
       }
-    } else if (work.status !== activeView) {
-      return false;
     }
-  }
 
-  // Customer filter
-  if (filterCustomer && work.customer_id !== filterCustomer) return false;
+    // Customer filter
+    if (filterCustomer && work.customer_id !== filterCustomer) return false;
 
-  // Service filter
-  if (filterService && work.service_id !== filterService) return false;
+    // Service filter
+    if (filterService && work.service_id !== filterService) return false;
 
-  // Category filter
-  if (filterCategory) {
-    const service = services.find(s => s.id === work.service_id);
-    if (!service || service.category_id !== filterCategory) return false;
-  }
+    // Category filter
+    if (filterCategory) {
+      const service = services.find(s => s.id === work.service_id);
+      if (!service || service.category_id !== filterCategory) return false;
+    }
 
-  // Subcategory filter
-  if (filterSubcategory) {
-    const service = services.find(s => s.id === work.service_id);
-    if (!service || service.subcategory_id !== filterSubcategory) return false;
-  }
+    // Subcategory filter
+    if (filterSubcategory) {
+      const service = services.find(s => s.id === work.service_id);
+      if (!service || service.subcategory_id !== filterSubcategory) return false;
+    }
 
-  // Priority filter
-  if (filterPriority && work.priority !== filterPriority) return false;
+    // Priority filter
+    if (filterPriority && work.priority !== filterPriority) return false;
 
-  // Billing status filter
-  if (filterBillingStatus && work.billing_status !== filterBillingStatus) return false;
+    // Billing status filter
+    if (filterBillingStatus && work.billing_status !== filterBillingStatus) return false;
 
-  return true;
-});
+    return true;
+  });
 
   if (loading) {
     return (
@@ -698,915 +448,334 @@ const filteredWorks = works.filter((work) => {
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Header - Compact with Search and Filter */}
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Works</h1>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:block relative">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent w-48"
-            />
-            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            title="Filters"
-          >
-            <Filter className="w-4 h-4" />
-            {(filterCustomer || filterService || filterCategory || filterPriority || filterBillingStatus) && (
-              <span className="bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">
-                {[filterCustomer, filterService, filterCategory, filterPriority, filterBillingStatus].filter(Boolean).length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center justify-center p-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all"
-            title="Add Work"
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Search */}
-      <div className="sm:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          />
-          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-      </div>
-
-      {/* Status Tabs and Filter Bar */}
-<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-  <div className="flex flex-col gap-3">
-    {/* Status Tabs - Compact */}
-    <div className="flex flex-wrap gap-2">
-      <button
-        onClick={() => setActiveView('all')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-          activeView === 'all'
-            ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
-            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-        }`}
-      >
-        <Briefcase size={16} />
-        <span className="hidden sm:inline">All</span>
-        <span className="sm:hidden">({stats.total})</span>
-        <span className="hidden sm:inline">({stats.total})</span>
-      </button>
-      <button
-        onClick={() => setActiveView('pending')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-          activeView === 'pending'
-            ? 'bg-yellow-50 text-yellow-600 border-2 border-yellow-200'
-            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-        }`}
-      >
-        <Clock size={16} />
-        <span>Pending</span>
-        <span className="hidden sm:inline">({stats.pending})</span>
-      </button>
-      <button
-        onClick={() => setActiveView('in_progress')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-          activeView === 'in_progress'
-            ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
-            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-        }`}
-      >
-        <Clock size={16} />
-        <span>In Progress</span>
-        <span className="hidden sm:inline">({stats.inProgress})</span>
-      </button>
-      <button
-        onClick={() => setActiveView('completed')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-          activeView === 'completed'
-            ? 'bg-green-50 text-green-600 border-2 border-green-200'
-            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-        }`}
-      >
-        <CheckCircle size={16} />
-        <span>Completed</span>
-        <span className="hidden sm:inline">({stats.completed})</span>
-      </button>
-      <button
-        onClick={() => setActiveView('overdue')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-          activeView === 'overdue'
-            ? 'bg-red-50 text-red-600 border-2 border-red-200'
-            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-        }`}
-      >
-        <AlertCircle size={16} />
-        <span>Overdue</span>
-        <span className="hidden sm:inline">({stats.overdue})</span>
-      </button>
-    </div>
-
-    {/* Collapsible Additional Filters */}
-    {showFilters && (
-      <WorkFilters
-        filterCustomer={filterCustomer}
-        setFilterCustomer={setFilterCustomer}
-        filterCategory={filterCategory}
-        setFilterCategory={setFilterCategory}
-        filterService={filterService}
-        setFilterService={setFilterService}
-        filterPriority={filterPriority}
-        setFilterPriority={setFilterPriority}
-        filterBillingStatus={filterBillingStatus}
-        setFilterBillingStatus={setFilterBillingStatus}
-        customers={customers}
-        categories={categories}
-        allServices={services}
+  // Detail Views
+  if (selectedWork) {
+    return (
+      <WorkDetails
+        workId={selectedWork}
+        onBack={() => setSelectedWork(null)}
+        onUpdate={fetchData}
+        onEdit={() => {
+          const work = works.find(w => w.id === selectedWork);
+          if (work) {
+            setSelectedWork(null);
+            handleEdit(work);
+          }
+        }}
+        onNavigateToCustomer={(customerId) => {
+          setSelectedWork(null);
+          setSelectedCustomerId(customerId);
+        }}
+        onNavigateToService={(serviceId) => {
+          setSelectedWork(null);
+          setSelectedServiceId(serviceId);
+        }}
       />
-    )}
-  </div>
-</div>
+    );
+  }
 
+  if (selectedCustomerId) {
+    return (
+      <CustomerDetails
+        customerId={selectedCustomerId}
+        onBack={() => setSelectedCustomerId(null)}
+        onUpdate={fetchData}
+        onNavigateToService={(serviceId) => {
+          setSelectedCustomerId(null);
+          setSelectedServiceId(serviceId);
+        }}
+        onNavigateToWork={(workId) => {
+          setSelectedCustomerId(null);
+          setSelectedWork(workId);
+        }}
+      />
+    );
+  }
 
-      {/* Works List - Full Width Rows */}
-      {filteredWorks.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No works found</h3>
-          <p className="text-gray-600 mb-6">
-            {activeView === 'all' ? 'Get started by adding your first work' : 'No works match this filter'}
-          </p>
-          {activeView === 'all' && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-            >
-              <Plus size={20} />
-              Add Your First Work
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredWorks.map((work) => (
-            <WorkTile
-              key={work.id}
-              work={work}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onClick={() => setSelectedWork(work.id)}
-            />
-          ))}
-        </div>
-      )}
+  if (selectedServiceId) {
+    return (
+      <ServiceDetails
+        serviceId={selectedServiceId}
+        onBack={() => setSelectedServiceId(null)}
+        onNavigateToCustomer={(customerId) => {
+          setSelectedServiceId(null);
+          setSelectedCustomerId(customerId);
+        }}
+        onNavigateToWork={(workId) => {
+          setSelectedServiceId(null);
+          setSelectedWork(workId);
+        }}
+      />
+    );
+  }
 
-      {/* Add/Edit Work Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Header with Gradient */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-600 to-amber-600">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                <ClipboardList size={28} />
-                {editingWork ? 'Edit Work' : 'Add New Work'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
+  return (
+    <div className="space-y-4 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
+      {/* Works Header & Navigation */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Works</h1>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Service Type Indicator */}
-              {!editingWork && formData.service_id && (
-                <div className={`flex items-center gap-3 p-4 rounded-lg border ${
-                  formData.is_recurring
-                    ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200'
-                    : 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {formData.is_recurring ? (
-                      <Repeat className="w-5 h-5 text-orange-600" />
-                    ) : (
-                      <Briefcase className="w-5 h-5 text-blue-600" />
-                    )}
-                    <span className={`text-sm font-semibold ${
-                      formData.is_recurring ? 'text-orange-900' : 'text-blue-900'
-                    }`}>
-                      {formData.is_recurring
-                        ? 'Recurring Work (e.g., monthly GST filing, quarterly returns)'
-                        : 'One-time Work'}
-                    </span>
-                  </div>
-                </div>
-              )}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-wrap">
 
-              {/* Basic Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
-                  Basic Information
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {!editingWork && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Work ID
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.work_number}
-                        readOnly
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-                        placeholder="Auto-generated"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Auto-generated based on settings</p>
-                    </div>
-                  )}
-
-                  <div>
-                    <SearchableSelect
-                      label="Customer"
-                      options={customers}
-                      value={formData.customer_id}
-                      onChange={(value) => setFormData({ ...formData, customer_id: value })}
-                      placeholder="Select Customer"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <SearchableSelect
-                    label="Service"
-                    options={services.map(service => ({
-                      ...service,
-                      name: `${service.name}${service.is_recurring ? ' (Recurring)' : ''}`
-                    }))}
-                    value={formData.service_id}
-                    onChange={(value) => handleServiceChange(value)}
-                    placeholder="Select Service"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+            {/* Search & Filter - Only for List Module */}
+            {moduleTab === 'list' && (
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-none">
                   <input
                     type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Work title"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent w-full sm:w-48"
                   />
+                  <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Work description"
-                  />
-                </div>
-
-                {!formData.is_recurring && formData.service_id && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      <strong>Note:</strong> Tasks, staff assignments, and due dates will be managed in the Work Details page after creation.
-                    </p>
-                  </div>
-                )}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  title="Filters"
+                >
+                  <Filter className="w-4 h-4" />
+                  {(filterCustomer || filterService || filterCategory || filterPriority || filterBillingStatus) && (
+                    <span className="bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">
+                      {[filterCustomer, filterService, filterCategory, filterPriority, filterBillingStatus].filter(Boolean).length}
+                    </span>
+                  )}
+                </button>
               </div>
+            )}
 
-              {/* Work Details Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
-                  Work Details
-                </h3>
+            {/* Actions: Add Work */}
+            {permissions?.works?.create !== false && (
+              <button
+                onClick={() => onNavigate?.('create-work')}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all font-medium text-sm w-full sm:w-auto justify-center"
+              >
+                <Plus size={18} />
+              </button>
+            )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                    <select
-                      value={formData.priority}
-                      onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
-                  </div>
-                </div>
+            {/* Module Tabs - Placed last as requested */}
+            <div className="flex bg-gray-100 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
+              <button
+                onClick={() => setModuleTab('list')}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                    ${moduleTab === 'list'
+                    ? 'bg-white shadow text-orange-700'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+              >
+                <Briefcase size={16} />
+                List
+              </button>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Work Location
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.work_location}
-                      onChange={(e) => setFormData({ ...formData, work_location: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      placeholder="Office, Remote, Client site, etc."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Department
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      placeholder="Accounts, Tax, Legal, etc."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Date & Schedule Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
-                  Schedule
-                </h3>
-
-                {formData.is_recurring && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Start Date *
-                      <span className="text-xs text-orange-600 ml-2">(Required for recurring work)</span>
-                    </label>
-                    <input
-                      type="date"
-                      required={formData.is_recurring}
-                      value={formData.start_date}
-                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Tasks and their due dates will be managed in the work details page</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Billing Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
-                  Billing Information
-                </h3>
-
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Billing Amount
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.billing_amount}
-                      onChange={(e) => setFormData({ ...formData, billing_amount: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Details Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide border-b pb-2">
-                  Additional Details
-                </h3>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Requirements & Instructions
-                  </label>
-                  <textarea
-                    value={formData.requirements}
-                    onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-                    rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Specific requirements, documents needed, steps to follow..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Expected Deliverables
-                  </label>
-                  <textarea
-                    value={formData.deliverables}
-                    onChange={(e) => setFormData({ ...formData, deliverables: e.target.value })}
-                    rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="What should be delivered upon completion..."
-                  />
-                </div>
-              </div>
-
-              {/* Auto-billing Settings */}
-              <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <DollarSign className="w-4 h-4 text-teal-600" />
-                    Automatic Billing
-                  </label>
-                  <input
-                    type="checkbox"
-                    checked={formData.auto_bill}
-                    onChange={(e) => setFormData({ ...formData, auto_bill: e.target.checked })}
-                    className="w-5 h-5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
-                  />
-                </div>
-                <p className="text-xs text-gray-600">
-                  Enable automatic billing for this work. Invoices must still be created manually from the Invoices page.
-                </p>
-              </div>
-
-              {/* Recurring Work Section */}
-              {formData.is_recurring && (
-                <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-slate-800 dark:to-slate-700 rounded-xl p-6 border border-orange-200 dark:border-slate-600">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <Repeat className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                    <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-300">Recurring Work Settings</h3>
-                  </div>
-                  <p className="text-sm text-gray-700 dark:text-slate-400 mb-4 ml-8">
-                    Configure how this work repeats. Periods and tasks will be auto-generated based on these settings. Tasks can be customized in the Work Details page after creation.
-                  </p>
-
-                  <div className="space-y-5 mt-6">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                        Schedule Configuration
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                            How Often? *
-                          </label>
-                          <select
-                            required={formData.is_recurring}
-                            value={formData.recurrence_pattern}
-                            onChange={(e) => setFormData({ ...formData, recurrence_pattern: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                          >
-                            <option value="">Select frequency</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                            <option value="quarterly">Quarterly</option>
-                            <option value="half_yearly">Half Yearly</option>
-                            <option value="yearly">Yearly</option>
-                          </select>
-                        </div>
-
-                        {formData.recurrence_pattern === 'daily' && (
-                          <div className="md:col-span-2 space-y-4">
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
-                              <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Period Type *
-                                </label>
-                                <select
-                                  required
-                                  value={formData.period_type}
-                                  onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="previous_period">Previous Day</option>
-                                  <option value="current_period">Current Day</option>
-                                  <option value="next_period">Next Day</option>
-                                </select>
-                              </div>
-
-                              <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                                <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
-                                <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
-                                  <li>• Work is generated every day</li>
-                                  <li>• Each period represents a single day</li>
-                                  <li>• All periods between start date and today will be generated automatically</li>
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {formData.recurrence_pattern === 'weekly' && (
-                          <div className="md:col-span-2 space-y-4">
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
-                              <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                              Period Start Day *
-                            </label>
-                          
-                            <div className="grid grid-cols-7 gap-2">
-                              {["monday","tuesday","wednesday","thursday","friday","saturday","sunday"].map((day) => (
-                                <button
-                                  key={day}
-                                  type="button"
-                                  onClick={() => setFormData({ ...formData, weekly_start_day: day })}
-                                  className={`px-3 py-2 rounded-lg text-sm capitalize border 
-                                    ${
-                                      formData.weekly_start_day === day
-                                        ? "bg-orange-500 text-white border-orange-600"
-                                        : "bg-white dark:bg-slate-700 text-gray-700 dark:text-white border-gray-300 dark:border-slate-600"
-                                    }
-                                  `}
-                                >
-                                  {day}
-                                </button>
-                              ))}
-                            </div>
-                          
-                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                              Week will run from selected day to the day before it
-                            </p>
-                          </div>
-
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Period Type *
-                                </label>
-                                <select
-                                  required
-                                  value={formData.period_type}
-                                  onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="previous_period">Previous Week</option>
-                                  <option value="current_period">Current Week</option>
-                                  <option value="next_period">Next Week</option>
-                                </select>
-                              </div>
-
-                              <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                                <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
-                                <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
-                                  <li>• Work is generated every week starting on your selected day</li>
-                                  <li>• Each period represents a full week from the start day to the day before it</li>
-                                  <li>• All periods between start date and today will be generated automatically</li>
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {formData.recurrence_pattern === 'monthly' && (
-                          <div className="md:col-span-2 space-y-4">
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
-                              <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Period Start Day (1-31) *
-                                </label>
-                                <input
-                                  type="number"
-                                  required
-                                  min="1"
-                                  max="31"
-                                  value={formData.monthly_start_day}
-                                  onChange={(e) => setFormData({ ...formData, monthly_start_day: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                />
-                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Month will start from this day (e.g., 1 for 1st, 15 for 15th)</p>
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Period Type *
-                                </label>
-                                <select
-                                  required
-                                  value={formData.period_type}
-                                  onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="previous_period">Previous Period (e.g., last month)</option>
-                                  <option value="current_period">Current Period (e.g., current month)</option>
-                                  <option value="next_period">Next Period (e.g., next month)</option>
-                                </select>
-                              </div>
-
-                              <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                                <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
-                                <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
-                                  <li>• <strong>Previous Period:</strong> If start date is 5-Aug-2025, first period is July 2025</li>
-                                  <li>• <strong>Current Period:</strong> If start date is 5-Aug-2025, first period is August 2025</li>
-                                  <li>• <strong>Next Period:</strong> If start date is 5-Aug-2025, first period is September 2025</li>
-                                  <li className="mt-2 text-blue-900 dark:text-blue-300">• All periods between start date and today will be generated automatically</li>
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {formData.recurrence_pattern === 'quarterly' && (
-                        <div className="md:col-span-2 space-y-4">
-                          <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
-                            <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
-                      
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Financial Year Start Month (1-12) *
-                              </label>
-                              <select
-                                required
-                                value={formData.financial_year_start_month}
-                                onChange={(e) => setFormData({ ...formData, financial_year_start_month: parseInt(e.target.value) })}
-                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                              >
-                                <option value="1">1 - January (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)</option>
-                                <option value="4">4 - April (Q1: Apr-Jun, Q2: Jul-Sep, Q3: Oct-Dec, Q4: Jan-Mar)</option>
-                                <option value="7">7 - July (Q1: Jul-Sep, Q2: Oct-Dec, Q3: Jan-Mar, Q4: Apr-Jun)</option>
-                                <option value="10">10 - October (Q1: Oct-Dec, Q2: Jan-Mar, Q3: Apr-Jun, Q4: Jul-Sep)</option>
-                              </select>
-                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Used for quarterly period naming (e.g., Q1 FY2025)</p>
-                            </div>
-                      
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Quarter Start Month (1-12) *
-                              </label>
-                              <select
-                                required
-                                value={formData.quarterly_start_day}
-                                onChange={(e) => setFormData({ ...formData, quarterly_start_day: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                              >
-                                <option value="1">1 - January (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)</option>
-                                <option value="4">4 - April (Q1: Apr-Jun, Q2: Jul-Sep, Q3: Oct-Dec, Q4: Jan-Mar)</option>
-                                <option value="7">7 - July (Q1: Jul-Sep, Q2: Oct-Dec, Q3: Jan-Mar, Q4: Apr-Jun)</option>
-                                <option value="10">10 - October (Q1: Oct-Dec, Q2: Jan-Mar, Q3: Apr-Jun, Q4: Jul-Sep)</option>
-                              </select>
-                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for quarterly periods</p>
-                            </div>
-                      
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Period Type *
-                              </label>
-                              <select
-                                required
-                                value={formData.period_type}
-                                onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                              >
-                                <option value="previous_period">Previous Quarter (e.g., Q4 2024)</option>
-                                <option value="current_period">Current Quarter (e.g., Q1 2025)</option>
-                                <option value="next_period">Next Quarter (e.g., Q2 2025)</option>
-                              </select>
-                            </div>
-
-                              <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                                <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
-                                <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
-                                  <li>• Each period represents a quarter (3 months)</li>
-                                  <li>• Quarters: Q1 (Jan-Mar), Q2 (Apr-Jun), Q3 (Jul-Sep), Q4 (Oct-Dec)</li>
-                                  <li>• All periods between start date and today will be generated automatically</li>
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {formData.recurrence_pattern === 'half_yearly' && (
-                          <div className="md:col-span-2 space-y-4">
-                            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
-                              <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Half-Year Start Month (1-12) *
-                                </label>
-                                <select
-                                  required
-                                  value={formData.half_yearly_start_day}
-                                  onChange={(e) => setFormData({ ...formData, half_yearly_start_day: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="1">1 - January (H1: Jan-Jun, H2: Jul-Dec)</option>
-                                  <option value="4">4 - April (H1: Apr-Sep, H2: Oct-Mar)</option>
-                                  <option value="7">7 - July (H1: Jul-Dec, H2: Jan-Jun)</option>
-                                </select>
-                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for half-yearly periods</p>
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                  Period Type *
-                                </label>
-                                <select
-                                  required
-                                  value={formData.period_type}
-                                  onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
-                                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="previous_period">Previous Half-Year (6 months)</option>
-                                  <option value="current_period">Current Half-Year (6 months)</option>
-                                  <option value="next_period">Next Half-Year (6 months)</option>
-                                </select>
-                              </div>
-
-                              <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                                <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
-                                <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
-                                  <li>• Each period represents 6 months</li>
-                                  <li>• Half 1: Jan-Jun, Half 2: Jul-Dec</li>
-                                  <li>• All periods between start date and today will be generated automatically</li>
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {formData.recurrence_pattern === 'yearly' && (
-                        <div className="md:col-span-2 space-y-4">
-                          <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600 space-y-4">
-                            <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Period Configuration</h5>
-                      
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Financial Year Start Month (1-12) *
-                              </label>
-                              <select
-                                required
-                                value={formData.financial_year_start_month}
-                                onChange={(e) => setFormData({ ...formData, financial_year_start_month: parseInt(e.target.value) })}
-                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                              >
-                                <option value="1">1 - January (Jan-Dec)</option>
-                                <option value="4">4 - April (Apr-Mar) - India Standard</option>
-                                <option value="7">7 - July (Jul-Jun)</option>
-                                <option value="10">10 - October (Oct-Sep)</option>
-                              </select>
-                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Used for financial year naming (e.g., FY 2024-25)</p>
-                            </div>
-                      
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Year Start Month (1-12) *
-                              </label>
-                              <select
-                                required
-                                value={formData.yearly_start_day}
-                                onChange={(e) => setFormData({ ...formData, yearly_start_day: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                              >
-                                <option value="1">1 - January (Jan-Dec)</option>
-                                <option value="4">4 - April (Apr-Mar) - India Standard</option>
-                                <option value="7">7 - July (Jul-Jun)</option>
-                                <option value="10">10 - October (Oct-Sep)</option>
-                              </select>
-                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select the starting month for the financial year</p>
-                            </div>
-                      
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                                Period Type *
-                              </label>
-                              <select
-                                required
-                                value={formData.period_type}
-                                onChange={(e) => setFormData({ ...formData, period_type: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                              >
-                                <option value="previous_period">Previous Financial Year (FY)</option>
-                                <option value="current_period">Current Financial Year (FY)</option>
-                                <option value="next_period">Next Financial Year (FY)</option>
-                              </select>
-                            </div>
-                      
-                            <div className="bg-blue-50 dark:bg-slate-700/50 p-3 rounded-lg border border-blue-200 dark:border-slate-600">
-                              <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">How it works:</p>
-                              <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
-                                <li>• Each period represents a full year</li>
-                                <li>• Based on Financial Year (Apr-Mar in India)</li>
-                                <li>• All periods between start date and today will be generated automatically</li>
-                              </ul>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
+              {canViewMonitor && (
+                <button
+                  onClick={() => setModuleTab('monitor')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                        ${moduleTab === 'monitor'
+                      ? 'bg-white shadow text-purple-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                >
+                  <ActivityIcon size={16} />
+                  Monitor
+                </button>
               )}
-            </form>
-
-            {/* Footer */}
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
-              <button
-                type="button"
-                onClick={closeModal}
-                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                className="px-6 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-lg hover:from-orange-700 hover:to-amber-700 transition-all font-medium shadow-lg"
-              >
-                {editingWork ? 'Update Work' : 'Create Work'}
-              </button>
+              {canViewBoard && (
+                <button
+                  onClick={() => setModuleTab('board')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                        ${moduleTab === 'board'
+                      ? 'bg-white shadow text-blue-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                >
+                  <ClipboardList size={16} />
+                  Board
+                </button>
+              )}
+              {canViewSchedule && (
+                <button
+                  onClick={() => setModuleTab('schedule')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                        ${moduleTab === 'schedule'
+                      ? 'bg-white shadow text-indigo-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                >
+                  <CalendarIcon size={16} />
+                  Schedule
+                </button>
+              )}
             </div>
+
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Work Details Modal */}
-      {selectedWork && (
-        <WorkDetails
-          workId={selectedWork}
-          onClose={() => setSelectedWork(null)}
-          onUpdate={fetchData}
-          onEdit={() => {
-            const work = works.find(w => w.id === selectedWork);
-            if (work) {
-              setSelectedWork(null);
-              handleEdit(work);
-            }
-          }}
-          onNavigateToCustomer={(customerId) => {
-            setSelectedWork(null);
-            setSelectedCustomerId(customerId);
-          }}
-          onNavigateToService={(serviceId) => {
-            setSelectedWork(null);
-            setSelectedServiceId(serviceId);
-          }}
-        />
-      )}
+      {/* Content based on Module Tab */}
+      {moduleTab === 'monitor' && canViewMonitor ? (
+        <AdminWorkMonitoring />
+      ) : moduleTab === 'board' && canViewBoard ? (
+        <AdminWorkBoard />
+      ) : moduleTab === 'schedule' && canViewSchedule ? (
+        <WorkCalendar onNavigate={onNavigate} />
+      ) : (
+        /* LIST VIEW CONTENT */
+        <>
+          <div className="space-y-4">
 
-      {selectedCustomerId && (
-        <CustomerDetails
-          customerId={selectedCustomerId}
-          onClose={() => setSelectedCustomerId(null)}
-          onUpdate={fetchData}
-          onNavigateToService={(serviceId) => {
-            setSelectedCustomerId(null);
-            setSelectedServiceId(serviceId);
-          }}
-          onNavigateToWork={(workId) => {
-            setSelectedCustomerId(null);
-            setSelectedWork(workId);
-          }}
-        />
-      )}
+            {/* Status Tabs and Filter Bar */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex flex-col gap-3">
+                {/* Status Tabs - Compact */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <button
+                    onClick={() => setActiveView('all')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${activeView === 'all'
+                      ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                  >
+                    <Briefcase size={16} />
+                    <span className="hidden sm:inline">All</span>
+                    <span className="sm:hidden">({stats.total})</span>
+                    <span className="hidden sm:inline">({stats.total})</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveView('pending')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${activeView === 'pending'
+                      ? 'bg-yellow-50 text-yellow-600 border-2 border-yellow-200'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                  >
+                    <Clock size={16} />
+                    <span>Pending</span>
+                    <span className="hidden sm:inline">({stats.pending})</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveView('in_progress')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${activeView === 'in_progress'
+                      ? 'bg-blue-50 text-blue-600 border-2 border-blue-200'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                  >
+                    <Clock size={16} />
+                    <span>In Progress</span>
+                    <span className="hidden sm:inline">({stats.inProgress})</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveView('completed')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${activeView === 'completed'
+                      ? 'bg-green-50 text-green-600 border-2 border-green-200'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                  >
+                    <CheckCircle size={16} />
+                    <span>Completed</span>
+                    <span className="hidden sm:inline">({stats.completed})</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveView('overdue')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${activeView === 'overdue'
+                      ? 'bg-red-50 text-red-600 border-2 border-red-200'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                  >
+                    <AlertCircle size={16} />
+                    <span>Overdue</span>
+                    <span className="hidden sm:inline">({stats.overdue})</span>
+                  </button>
+                </div>
 
-      {selectedServiceId && (
-        <ServiceDetails
-          serviceId={selectedServiceId}
-          onClose={() => setSelectedServiceId(null)}
-          onEdit={() => {}}
-          onNavigateToCustomer={(customerId) => {
-            setSelectedServiceId(null);
-            setSelectedCustomerId(customerId);
-          }}
-          onNavigateToWork={(workId) => {
-            setSelectedServiceId(null);
-            setSelectedWork(workId);
-          }}
-        />
-      )}
+                {/* Collapsible Additional Filters */}
+                {showFilters && (
+                  <WorkFilters
+                    filterCustomer={filterCustomer}
+                    setFilterCustomer={setFilterCustomer}
+                    filterCategory={filterCategory}
+                    setFilterCategory={setFilterCategory}
+                    filterService={filterService}
+                    setFilterService={setFilterService}
+                    filterPriority={filterPriority}
+                    setFilterPriority={setFilterPriority}
+                    filterBillingStatus={filterBillingStatus}
+                    setFilterBillingStatus={setFilterBillingStatus}
+                    customers={customers}
+                    categories={categories}
+                    allServices={services}
+                  />
+                )}
+              </div>
+            </div>
 
+            {/* Works List / Empty State */}
+            {filteredWorks.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+                <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No works found</h3>
+                <p className="text-gray-600 mb-6">
+                  {activeView === 'all' ? 'Get started by adding your first work' : 'No works match this filter'}
+                </p>
+                {activeView === 'all' && permissions?.works?.create !== false && (
+                  <button
+                    onClick={() => onNavigate?.('create-work')}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  >
+                    <Plus size={20} />
+                    Add Your First Work
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredWorks.map((work) => (
+                  <WorkTile
+                    key={work.id}
+                    work={work}
+                    onEdit={handleEdit}
+                    onDelete={permissions?.works?.delete ? handleDelete : undefined}
+                    onAssign={(permissions?.works?.edit || permissions?.works?.create) ? handleAssignClick : undefined}
+                    onClick={() => setSelectedWork(work.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Assignment Modals */}
+          {selectedWorkForAssignment && (
+            <>
+              <AssignStaffModal
+                isOpen={showAssignModal && !showReassignReason}
+                onClose={() => {
+                  setShowAssignModal(false);
+                  setSelectedWorkForAssignment(null);
+                }}
+                staff={staffMembers}
+                work={selectedWorkForAssignment}
+                onAssign={handleAssignStaff}
+                onRequestReassign={(staffId) => {
+                  setSelectedStaffForReassign(staffId);
+                  setShowReassignReason(true);
+                }}
+              />
+
+              <ReassignReasonModal
+                isOpen={showReassignReason}
+                onClose={() => {
+                  setShowReassignReason(false);
+                  setReassignReason('');
+                  setSelectedStaffForReassign('');
+                }}
+                reason={reassignReason}
+                setReason={setReassignReason}
+                onConfirm={handleReassignWithReason}
+              />
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 }

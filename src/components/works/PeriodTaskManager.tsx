@@ -33,10 +33,12 @@ interface Props {
   periodName: string;
   periodStatus: string;
   workId?: string;
+  periodStartDate?: string;
+  periodEndDate?: string;
   onTasksUpdate: () => void;
 }
 
-export function PeriodTaskManager({ periodId, periodName, periodStatus, workId, onTasksUpdate }: Props) {
+export function PeriodTaskManager({ periodId, periodName, periodStatus, workId, periodStartDate, periodEndDate, onTasksUpdate }: Props) {
   const [tasks, setTasks] = useState<PeriodTask[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,8 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, workId, 
           staff:staff_members!assigned_to(name)
         `)
         .eq('work_recurring_instance_id', periodId)
-        .order('sort_order');
+        .order('due_date', { ascending: true })
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
       setTasks(data || []);
@@ -309,6 +312,11 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, workId, 
           <h4 className="font-semibold text-gray-900">Tasks for {periodName}</h4>
           <p className="text-sm text-gray-600 mt-1">
             {completedTasks} of {totalTasks} tasks completed
+            {periodStartDate && periodEndDate && (
+              <span className="ml-2 pl-2 border-l border-gray-300 text-gray-500">
+                {formatDateDisplay(periodStartDate)} - {formatDateDisplay(periodEndDate)}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -370,13 +378,12 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, workId, 
             return (
               <div
                 key={task.id}
-                className={`border-2 rounded-lg transition-all ${
-                  task.status === 'completed'
-                    ? 'border-green-300 bg-green-50'
-                    : isOverdue
+                className={`border-2 rounded-lg transition-all ${task.status === 'completed'
+                  ? 'border-green-300 bg-green-50'
+                  : isOverdue
                     ? 'border-red-300 bg-red-50'
                     : 'border-gray-200 bg-white'
-                }`}
+                  }`}
               >
                 <div className="p-3">
                   <div className="flex items-start justify-between gap-3">
@@ -416,11 +423,10 @@ export function PeriodTaskManager({ periodId, periodName, periodStatus, workId, 
                             )}
                             {task.status !== 'completed' && (
                               daysUntilDue >= 0 ? (
-                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                                  daysUntilDue === 0 ? 'bg-red-100 text-red-700' :
+                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${daysUntilDue === 0 ? 'bg-red-100 text-red-700' :
                                   daysUntilDue <= 3 ? 'bg-orange-100 text-orange-700' :
-                                  'bg-blue-100 text-blue-700'
-                                }`}>
+                                    'bg-blue-100 text-blue-700'
+                                  }`}>
                                   {daysUntilDue === 0 ? 'Today' : `${daysUntilDue}d`}
                                 </span>
                               ) : (

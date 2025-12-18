@@ -173,7 +173,7 @@ export default function ReceivablesReport() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
           <div className="flex items-center justify-between">
@@ -215,10 +215,10 @@ export default function ReceivablesReport() {
               <p className="text-3xl font-bold mt-2">
                 {receivables.length > 0
                   ? (
-                      (receivables.reduce((sum, r) => sum + r.paid_amount, 0) /
-                        receivables.reduce((sum, r) => sum + r.total_amount, 0)) *
-                      100
-                    ).toFixed(1)
+                    (receivables.reduce((sum, r) => sum + r.paid_amount, 0) /
+                      receivables.reduce((sum, r) => sum + r.total_amount, 0)) *
+                    100
+                  ).toFixed(1)
                   : 0}
                 %
               </p>

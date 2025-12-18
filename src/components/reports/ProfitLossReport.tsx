@@ -129,20 +129,18 @@ export default function ProfitLossReport({
         </div>
 
         <div
-          className={`rounded-xl p-6 border-2 ${
-            netProfitLoss >= 0
+          className={`rounded-xl p-6 border-2 ${netProfitLoss >= 0
               ? 'bg-gradient-to-r from-green-100 to-green-200 border-green-400'
               : 'bg-gradient-to-r from-red-100 to-red-200 border-red-400'
-          }`}
+            }`}
         >
           <div className="flex justify-between items-center">
             <span className="font-bold text-gray-900 text-xl uppercase">
               {netProfitLoss >= 0 ? 'Net Profit' : 'Net Loss'}
             </span>
             <span
-              className={`font-bold text-3xl ${
-                netProfitLoss >= 0 ? 'text-green-800' : 'text-red-800'
-              }`}
+              className={`font-bold text-3xl ${netProfitLoss >= 0 ? 'text-green-800' : 'text-red-800'
+                }`}
             >
               ₹{Math.abs(netProfitLoss).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
@@ -324,37 +322,33 @@ export default function ProfitLossReport({
               return (
                 <tr key={rowIndex} className="hover:bg-gray-50">
                   <td
-                    className={`px-6 py-3 text-sm ${
-                      expenseRow?.type === 'category' ? 'font-bold text-gray-900 bg-red-50' :
-                      expenseRow?.type === 'total' ? 'font-semibold text-red-700 bg-red-50' :
-                      expenseRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-red-600' :
-                      ''
-                    }`}
+                    className={`px-6 py-3 text-sm ${expenseRow?.type === 'category' ? 'font-bold text-gray-900 bg-red-50' :
+                        expenseRow?.type === 'total' ? 'font-semibold text-red-700 bg-red-50' :
+                          expenseRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-red-600' :
+                            ''
+                      }`}
                     onClick={() => expenseRow?.type === 'account' && expenseRow.id && handleAccountClick(expenseRow.id)}
                   >
                     {expenseRow ? expenseRow.name : ''}
                   </td>
-                  <td className={`px-6 py-3 text-sm text-right ${
-                    expenseRow?.type === 'total' ? 'font-bold text-red-700' : 'font-medium text-gray-900'
-                  }`}>
+                  <td className={`px-6 py-3 text-sm text-right ${expenseRow?.type === 'total' ? 'font-bold text-red-700' : 'font-medium text-gray-900'
+                    }`}>
                     {expenseRow?.amount !== null && expenseRow?.amount !== undefined
                       ? `₹${expenseRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                       : ''}
                   </td>
                   <td
-                    className={`px-6 py-3 text-sm ${
-                      incomeRow?.type === 'category' ? 'font-bold text-gray-900 bg-green-50' :
-                      incomeRow?.type === 'total' ? 'font-semibold text-green-700 bg-green-50' :
-                      incomeRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-green-600' :
-                      ''
-                    }`}
+                    className={`px-6 py-3 text-sm ${incomeRow?.type === 'category' ? 'font-bold text-gray-900 bg-green-50' :
+                        incomeRow?.type === 'total' ? 'font-semibold text-green-700 bg-green-50' :
+                          incomeRow?.type === 'account' ? 'text-gray-700 cursor-pointer hover:text-green-600' :
+                            ''
+                      }`}
                     onClick={() => incomeRow?.type === 'account' && incomeRow.id && handleAccountClick(incomeRow.id)}
                   >
                     {incomeRow ? incomeRow.name : ''}
                   </td>
-                  <td className={`px-6 py-3 text-sm text-right ${
-                    incomeRow?.type === 'total' ? 'font-bold text-green-700' : 'font-medium text-gray-900'
-                  }`}>
+                  <td className={`px-6 py-3 text-sm text-right ${incomeRow?.type === 'total' ? 'font-bold text-green-700' : 'font-medium text-gray-900'
+                    }`}>
                     {incomeRow?.amount !== null && incomeRow?.amount !== undefined
                       ? `₹${incomeRow.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                       : ''}
@@ -387,7 +381,7 @@ export default function ProfitLossReport({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 lg:pl-12 lg:pr-8 lg:py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Profit & Loss Statement</h2>

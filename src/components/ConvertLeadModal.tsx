@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import CustomerFormModal from './CustomerFormModal';
-import { UserPlus, Briefcase, Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { Briefcase, Users, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -12,16 +12,16 @@ interface Lead {
   email: string;
   phone: string;
   company_name: string;
-  image_url: string;
-  contact_person: string;
-  designation: string;
-  alternate_phone: string;
-  website: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-  country: string;
+  image_url?: string | null;
+  contact_person?: string | null;
+  designation?: string | null;
+  alternate_phone?: string | null;
+  website?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  country?: string | null;
   notes: string;
   lead_services?: { service_id: string; services: { id: string; name: string } }[];
 }
@@ -32,10 +32,7 @@ interface ConvertLeadModalProps {
   onSuccess: () => void;
 }
 
-interface Service {
-  id: string;
-  name: string;
-}
+
 
 interface Staff {
   id: string;
@@ -61,36 +58,21 @@ export default function ConvertLeadModal({
   const toast = useToast();
   const [step, setStep] = useState<'customer' | 'works' | 'summary'>('customer');
   const [customerId, setCustomerId] = useState<string | null>(null);
-  
+
   // DEFAULT TO TRUE - Auto-create works for all services
   const [createWork, setCreateWork] = useState(true);
-  
-  const [services, setServices] = useState<Service[]>([]);
+
   const [staff, setStaff] = useState<Staff[]>([]);
   const [worksToCreate, setWorksToCreate] = useState<WorkToCreate[]>([]);
   const [createdWorks, setCreatedWorks] = useState<any[]>([]);
   const [isCreatingWorks, setIsCreatingWorks] = useState(false);
 
   useEffect(() => {
-    fetchServices();
     fetchStaff();
     initializeWorks();
   }, []);
 
-  const fetchServices = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .select('id, name')
-        .eq('user_id', user?.id)
-        .order('name');
 
-      if (error) throw error;
-      setServices(data || []);
-    } catch (error: any) {
-      console.error('Error fetching services:', error.message);
-    }
-  };
 
   const fetchStaff = async () => {
     try {
@@ -263,11 +245,10 @@ export default function ConvertLeadModal({
                 {createdWorks.map((work, index) => (
                   <div
                     key={index}
-                    className={`p-4 rounded-lg border-2 ${
-                      work.created
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                    }`}
+                    className={`p-4 rounded-lg border-2 ${work.created
+                      ? 'bg-green-50 border-green-200'
+                      : 'bg-red-50 border-red-200'
+                      }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -294,11 +275,10 @@ export default function ConvertLeadModal({
                         )}
                       </div>
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          work.created
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${work.created
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                          }`}
                       >
                         {work.created ? 'Created' : 'Failed'}
                       </span>
@@ -345,7 +325,7 @@ export default function ConvertLeadModal({
           <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-800">
-                <strong>Tip:</strong> Configure work details for all {worksToCreate.length} services below. 
+                <strong>Tip:</strong> Configure work details for all {worksToCreate.length} services below.
                 You can assign staff members, set priorities, and due dates for each work.
               </p>
             </div>
@@ -483,15 +463,15 @@ export default function ConvertLeadModal({
     email: lead.email,
     phone: lead.phone,
     company_name: lead.company_name,
-    image_url: lead.image_url,
-    contact_person: lead.contact_person,
-    designation: lead.designation,
-    alternate_phone: lead.alternate_phone,
-    website: lead.website,
-    address: lead.address,
-    city: lead.city,
-    state: lead.state,
-    pincode: lead.pincode,
+    image_url: lead.image_url || undefined,
+    contact_person: lead.contact_person || undefined,
+    designation: lead.designation || undefined,
+    alternate_phone: lead.alternate_phone || undefined,
+    website: lead.website || undefined,
+    address: lead.address || undefined,
+    city: lead.city || undefined,
+    state: lead.state || undefined,
+    pincode: lead.pincode || undefined,
     country: lead.country || 'IN',
     notes: lead.notes,
   };

@@ -3,6 +3,7 @@ import { Task, TimeLog, Assignment, RecurringInstance, Activity as ActivityType,
 import { ActivityTimeline } from './ActivityTimeline';
 import { RecurringPeriodManager } from './RecurringPeriodManager';
 import { WorkTaskTemplates } from './WorkTaskTemplates';
+import { formatDateDisplay } from '../../lib/dateUtils';
 
 interface OverviewTabProps {
   work: any;
@@ -21,73 +22,73 @@ export function OverviewTab({ work, tasks, timeLogs, onStatusChange, onNavigateT
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="bg-white rounded-lg px-2 py-1.5 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-1">
-            <Clock size={16} className="text-orange-600" />
+            <Clock size={14} className="text-orange-600" />
             <p className="text-xs font-medium text-gray-600">Time Tracked</p>
           </div>
-          <p className="text-2xl font-bold text-orange-600">{totalHours.toFixed(1)}h</p>
+          <p className="text-base font-bold text-orange-600">{totalHours.toFixed(1)}h</p>
           {work.estimated_hours && (
-            <p className="text-xs text-gray-500 mt-1">of {work.estimated_hours}h estimated</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">of {work.estimated_hours}h estimated</p>
           )}
         </div>
 
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-lg px-2 py-1.5 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-1">
-            <CheckCircle size={16} className="text-green-600" />
+            <CheckCircle size={14} className="text-green-600" />
             <p className="text-xs font-medium text-gray-600">Tasks</p>
           </div>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-base font-bold text-green-600">
             {completedTasks}/{tasks.length}
           </p>
-          <p className="text-xs text-gray-500 mt-1">completed</p>
+          <p className="text-[10px] text-gray-500 mt-0.5">completed</p>
         </div>
 
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-lg px-2 py-1.5 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-1">
-            <Users size={16} className="text-blue-600" />
+            <Users size={14} className="text-blue-600" />
             <p className="text-xs font-medium text-gray-600">Assigned To</p>
           </div>
-          <p className="text-lg font-semibold text-blue-600 truncate">
+          <p className="text-sm font-semibold text-blue-600 truncate">
             {work.staff_members?.name || 'Unassigned'}
           </p>
           {onAssignClick && (
             <button
               onClick={onAssignClick}
-              className="text-xs text-blue-600 hover:text-blue-700 mt-1 hover:underline"
+              className="text-[10px] text-blue-600 hover:text-blue-700 mt-0.5 hover:underline"
             >
               {work.assigned_to ? 'Reassign' : 'Assign'}
             </button>
           )}
         </div>
 
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-lg px-2 py-1.5 shadow-sm border border-gray-200">
           <div className="flex items-center gap-2 mb-1">
-            <DollarSign size={16} className="text-teal-600" />
+            <DollarSign size={14} className="text-teal-600" />
             <p className="text-xs font-medium text-gray-600">Billing Amount</p>
           </div>
-          <p className="text-2xl font-bold text-teal-600">
+          <p className="text-base font-bold text-teal-600">
             {work.billing_amount ? `₹${work.billing_amount.toLocaleString('en-IN')}` : 'N/A'}
           </p>
-          <p className="text-xs text-gray-500 mt-1 capitalize">{work.billing_status?.replace('_', ' ')}</p>
+          <p className="text-[10px] text-gray-500 mt-0.5 capitalize">{work.billing_status?.replace('_', ' ')}</p>
         </div>
       </div>
       {/* Work Information */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Briefcase size={20} className="text-orange-600" />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
+        <h3 className="text-base font-semibold text-gray-900 mb-2 flex items-center gap-2">
+          <Briefcase size={18} className="text-orange-600" />
           Work Information
         </h3>
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div>
-            <label className="text-sm font-medium text-gray-500">Title</label>
-            <p className="text-gray-900 font-medium mt-1">{work.title}</p>
+            <label className="text-xs font-medium text-gray-500">Title</label>
+            <p className="text-gray-900 font-medium text-sm">{work.title}</p>
           </div>
           {work.description && (
             <div>
-              <label className="text-sm font-medium text-gray-500">Description</label>
-              <p className="text-gray-700 mt-1 whitespace-pre-wrap">{work.description}</p>
+              <label className="text-xs font-medium text-gray-500">Description</label>
+              <p className="text-gray-700 text-sm mt-0.5 whitespace-pre-wrap">{work.description}</p>
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
@@ -119,9 +120,8 @@ export function OverviewTab({ work, tasks, timeLogs, onStatusChange, onNavigateT
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500">Priority</label>
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mt-1 ${
-                priorityColors[work.priority] || priorityColors.medium
-              }`}>
+              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mt-1 ${priorityColors[work.priority] || priorityColors.medium
+                }`}>
                 {work.priority.charAt(0).toUpperCase() + work.priority.slice(1)}
               </span>
             </div>
@@ -136,13 +136,13 @@ export function OverviewTab({ work, tasks, timeLogs, onStatusChange, onNavigateT
             {work.start_date && (
               <div>
                 <label className="text-sm font-medium text-gray-500">Start Date</label>
-                <p className="text-gray-900 mt-1">{new Date(work.start_date).toLocaleDateString()}</p>
+                <p className="text-gray-900 mt-1">{formatDateDisplay(work.start_date)}</p>
               </div>
             )}
             {work.due_date && (
               <div>
                 <label className="text-sm font-medium text-gray-500">Due Date</label>
-                <p className="text-gray-900 mt-1">{new Date(work.due_date).toLocaleDateString()}</p>
+                <p className="text-gray-900 mt-1">{formatDateDisplay(work.due_date)}</p>
               </div>
             )}
             {work.completion_date && (
@@ -150,7 +150,7 @@ export function OverviewTab({ work, tasks, timeLogs, onStatusChange, onNavigateT
                 <label className="text-sm font-medium text-gray-500">Completion Date</label>
                 <p className="text-green-600 font-semibold mt-1 flex items-center gap-1">
                   <CheckCircle size={16} />
-                  {new Date(work.completion_date).toLocaleDateString()}
+                  {formatDateDisplay(work.completion_date)}
                 </p>
               </div>
             )}
@@ -162,7 +162,7 @@ export function OverviewTab({ work, tasks, timeLogs, onStatusChange, onNavigateT
             )}
             {work.department && (
               <div>
-                <label className="text-sm font-medium text-gray-500">Department</label>
+                <label className="text-xs font-medium text-gray-500">Department</label>
                 <p className="text-gray-900 mt-1">{work.department}</p>
               </div>
             )}
@@ -194,10 +194,10 @@ export function OverviewTab({ work, tasks, timeLogs, onStatusChange, onNavigateT
 interface TasksTabProps {
   tasks: Task[];
   isRecurring?: boolean;
-  onAddTask: () => void;
-  onEditTask: (task: Task) => void;
-  onUpdateTaskStatus: (taskId: string, status: string) => void;
-  onDeleteTask: (taskId: string) => void;
+  onAddTask?: () => void;
+  onEditTask?: (task: Task) => void;
+  onUpdateTaskStatus?: (taskId: string, status: string) => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 export function TasksTab({ tasks, isRecurring = false, onAddTask, onEditTask, onUpdateTaskStatus, onDeleteTask }: TasksTabProps) {
@@ -236,106 +236,110 @@ export function TasksTab({ tasks, isRecurring = false, onAddTask, onEditTask, on
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h3 className="font-semibold text-gray-900 text-lg">Tasks & Subtasks</h3>
-        <button
-          onClick={onAddTask}
-          className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Task</span>
-        </button>
+        {onAddTask && (
+          <button
+            onClick={onAddTask}
+            className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Task</span>
+          </button>
+        )}
       </div>
 
       <div className="space-y-3">
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="bg-white border border-gray-200 rounded-xl p-4 hover:border-orange-300 transition-colors"
+            className="bg-white border border-gray-200 rounded-lg p-2 hover:border-orange-300 transition-colors"
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-medium text-gray-900">{task.title}</h4>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      priorityColors[task.priority] || priorityColors.medium
-                    }`}
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${priorityColors[task.priority] || priorityColors.medium
+                      }`}
                   >
                     {task.priority}
                   </span>
                 </div>
                 {task.description && (
-                  <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                  <p className="text-xs text-gray-600 mt-0.5">{task.description}</p>
                 )}
-                <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-600">
+                <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-gray-600">
                   {task.staff_members && (
                     <span className="flex items-center gap-1">
-                      <Users size={14} />
+                      <Users size={12} />
                       {task.staff_members.name}
                     </span>
                   )}
                   {task.due_date && (
-                    <span className={`flex items-center gap-1 ${
-                      task.status !== 'completed' && new Date(task.due_date) < new Date()
-                        ? 'text-red-600 font-medium'
-                        : 'text-blue-600'
-                    }`}>
-                      <Calendar size={14} />
-                      Due: {new Date(task.due_date).toLocaleDateString()}
+                    <span className={`flex items-center gap-1 ${task.status !== 'completed' && new Date(task.due_date) < new Date()
+                      ? 'text-red-600 font-medium'
+                      : 'text-blue-600'
+                      }`}>
+                      <Calendar size={12} />
+                      Due: {formatDateDisplay(task.due_date)}
                       {task.status !== 'completed' && new Date(task.due_date) < new Date() && (
-                        <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded ml-1">Overdue</span>
+                        <span className="text-[10px] px-1 py-0.5 bg-red-100 text-red-700 rounded ml-1">Overdue</span>
                       )}
                     </span>
                   )}
                   {task.estimated_hours && (
                     <span className="flex items-center gap-1">
-                      <Clock size={14} />
+                      <Clock size={12} />
                       Est: {task.estimated_hours}h
                     </span>
                   )}
                   {task.actual_hours > 0 && (
                     <span className="flex items-center gap-1 text-orange-600">
-                      <Clock size={14} />
+                      <Clock size={12} />
                       Actual: {task.actual_hours}h
                     </span>
                   )}
                 </div>
                 {task.remarks && (
-                  <p className="text-xs text-gray-500 mt-2 italic">{task.remarks}</p>
+                  <p className="text-[10px] text-gray-500 mt-1 italic">{task.remarks}</p>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onEditTask(task)}
-                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Edit task"
-                >
-                  <Edit2 size={16} />
-                </button>
+              <div className="flex items-center gap-1">
+                {onEditTask && (
+                  <button
+                    onClick={() => onEditTask(task)}
+                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit task"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                )}
                 <select
                   value={task.status}
-                  onChange={(e) => onUpdateTaskStatus(task.id, e.target.value)}
-                  className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer ${
-                    task.status === 'completed'
-                      ? 'bg-green-100 text-green-700'
-                      : task.status === 'in_progress'
+                  onChange={(e) => onUpdateTaskStatus?.(task.id, e.target.value)}
+                  disabled={!onUpdateTaskStatus}
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium border-0 cursor-pointer ${task.status === 'completed'
+                    ? 'bg-green-100 text-green-700'
+                    : task.status === 'in_progress'
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-yellow-100 text-yellow-700'
-                  }`}
+                    }`}
                 >
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
                 </select>
-                <button
-                  onClick={() => onDeleteTask(task.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Delete task"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {onDeleteTask && (
+                  <button
+                    onClick={() => onDeleteTask(task.id)}
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete task"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -423,7 +427,7 @@ export function TimeLogsTab({ timeLogs, onAddTimeLog, onEditTimeLog, onDeleteTim
 
 interface AssignmentsTabProps {
   assignments: Assignment[];
-  onAssign: () => void;
+  onAssign?: () => void;
   currentlyAssigned?: string | null;
 }
 
@@ -432,13 +436,15 @@ export function AssignmentsTab({ assignments, onAssign, currentlyAssigned }: Ass
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="font-semibold text-gray-900 text-lg">Assignment History</h3>
-        <button
-          onClick={onAssign}
-          className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-        >
-          <ArrowRightLeft className="w-4 h-4" />
-          <span>{currentlyAssigned ? 'Reassign' : 'Assign'}</span>
-        </button>
+        {onAssign && (
+          <button
+            onClick={onAssign}
+            className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            <ArrowRightLeft className="w-4 h-4" />
+            <span>{currentlyAssigned ? 'Reassign' : 'Assign'}</span>
+          </button>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -463,11 +469,10 @@ export function AssignmentsTab({ assignments, onAssign, currentlyAssigned }: Ass
                 )}
               </div>
               <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  assignment.status === 'completed'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-blue-100 text-blue-700'
-                }`}
+                className={`px-3 py-1 rounded-full text-sm font-medium ${assignment.status === 'completed'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-blue-100 text-blue-700'
+                  }`}
               >
                 {assignment.status}
               </span>
@@ -656,18 +661,17 @@ interface DocumentCardProps {
 function DocumentCard({ document, onEdit, onDelete, onToggleCollected, onUploadFile }: DocumentCardProps) {
   return (
     <div
-      className={`bg-white border-2 rounded-xl p-4 transition-all ${
-        document.is_required && !document.is_collected
-          ? 'border-red-300 bg-red-50'
-          : document.is_collected
+      className={`bg-white border-2 rounded-xl p-2.5 transition-all ${document.is_required && !document.is_collected
+        ? 'border-red-300 bg-red-50'
+        : document.is_collected
           ? 'border-green-300 bg-green-50'
           : 'border-gray-200'
-      }`}
+        }`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-semibold text-gray-900">{document.name}</h4>
+            <h4 className="font-medium text-sm text-gray-900">{document.name}</h4>
             {document.is_required && (
               <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
                 Required
@@ -709,11 +713,10 @@ function DocumentCard({ document, onEdit, onDelete, onToggleCollected, onUploadF
         <div className="flex items-center gap-2 ml-4">
           <button
             onClick={() => onToggleCollected(document.id, !document.is_collected)}
-            className={`p-2 rounded-lg transition-colors ${
-              document.is_collected
-                ? 'text-green-600 hover:bg-green-100'
-                : 'text-gray-400 hover:bg-gray-100'
-            }`}
+            className={`p-2 rounded-lg transition-colors ${document.is_collected
+              ? 'text-green-600 hover:bg-green-100'
+              : 'text-gray-400 hover:bg-gray-100'
+              }`}
             title={document.is_collected ? 'Mark as not collected' : 'Mark as collected'}
           >
             <CheckCircle size={18} />

@@ -15,12 +15,14 @@ import {
   Award,
   TrendingUp,
   Edit2,
+  ArrowLeft,
 } from 'lucide-react';
+import StaffFormModal from './StaffFormModal';
 
 interface StaffDetailsProps {
   staffId: string;
-  onClose: () => void;
-  onEdit: () => void;
+  onBack: () => void;
+  onUpdate?: () => void;
 }
 
 interface StaffMember {
@@ -53,12 +55,13 @@ interface Work {
 
 type TabType = 'overview' | 'current' | 'completed' | 'pending' | 'overdue' | 'performance';
 
-export default function StaffDetails({ staffId, onClose, onEdit }: StaffDetailsProps) {
+export default function StaffDetails({ staffId, onBack, onUpdate }: StaffDetailsProps) {
   const { user } = useAuth();
   const [staff, setStaff] = useState<StaffMember | null>(null);
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [showEditModal, setShowEditModal] = useState(false);
   const [statistics, setStatistics] = useState({
     totalWorks: 0,
     completedWorks: 0,
@@ -105,7 +108,7 @@ export default function StaffDetails({ staffId, onClose, onEdit }: StaffDetailsP
       });
 
       const totalHours = completed.reduce((sum, w) => sum + (w.actual_hours || 0), 0);
-      
+
       const onTimeCompleted = completed.filter((w) => {
         return new Date(w.completed_at) <= new Date(w.due_date);
       });
@@ -126,10 +129,16 @@ export default function StaffDetails({ staffId, onClose, onEdit }: StaffDetailsP
     }
   };
 
+  const handleEditSuccess = () => {
+    setShowEditModal(false);
+    fetchStaffDetails();
+    onUpdate?.();
+  };
+
   if (loading || !staff) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
       </div>
     );
   }
@@ -166,248 +175,258 @@ export default function StaffDetails({ staffId, onClose, onEdit }: StaffDetailsP
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-      <div className="fixed top-16 left-64 right-0 bottom-0 bg-white shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-teal-600 to-emerald-600 flex-shrink-0">
+    <div className="flex flex-col h-[calc(100vh-6rem)] bg-white shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-teal-600 to-emerald-600 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-white/20 rounded-full transition-colors text-white mr-2"
+            title="Back"
+          >
+            <ArrowLeft size={24} />
+          </button>
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
               <User size={28} />
-              Staff Details
+              {staff.name}
             </h2>
             <p className="text-teal-100 text-sm mt-1">
               Member since {new Date(staff.created_at).toLocaleDateString()}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onEdit}
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
-            >
-              <Edit2 size={18} />
-              Edit
-            </button>
-            <button
-              onClick={onClose}
-              className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
-            >
-              <X size={24} />
-            </button>
-          </div>
         </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+          >
+            <Edit2 size={18} />
+            Edit
+          </button>
+        </div>
+      </div>
 
-        {/* Status Badge */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <span
-              className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 ${
-                staff.is_active
-                  ? 'bg-green-100 text-green-700 border-green-200'
-                  : 'bg-gray-100 text-gray-700 border-gray-200'
+      {/* Status Badge */}
+      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <span
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 ${staff.is_active
+              ? 'bg-green-100 text-green-700 border-green-200'
+              : 'bg-gray-100 text-gray-700 border-gray-200'
               }`}
-            >
-              {staff.is_active ? 'Active' : 'Inactive'}
+          >
+            {staff.is_active ? 'Active' : 'Inactive'}
+          </span>
+          <span className="text-sm font-medium text-gray-700 uppercase px-3 py-1 bg-blue-50 rounded-lg">
+            {staff.role}
+          </span>
+          {staff.hourly_rate && (
+            <span className="text-sm font-semibold text-teal-700 bg-teal-50 px-3 py-1 rounded-lg flex items-center gap-1">
+              <DollarSign size={14} />
+              ₹{staff.hourly_rate}/hour
             </span>
-            <span className="text-sm font-medium text-gray-700 uppercase px-3 py-1 bg-blue-50 rounded-lg">
-              {staff.role}
-            </span>
-            {staff.hourly_rate && (
-              <span className="text-sm font-semibold text-teal-700 bg-teal-50 px-3 py-1 rounded-lg flex items-center gap-1">
-                <DollarSign size={14} />
-                ₹{staff.hourly_rate}/hour
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-4 p-6 bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-gray-200 flex-shrink-0">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Briefcase size={16} className="text-blue-600" />
-              <p className="text-xs font-medium text-gray-600">Total Works</p>
-            </div>
-            <p className="text-xl font-bold text-blue-600">{statistics.totalWorks}</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle size={16} className="text-green-600" />
-              <p className="text-xs font-medium text-gray-600">Completed</p>
-            </div>
-            <p className="text-xl font-bold text-green-600">{statistics.completedWorks}</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock size={16} className="text-yellow-600" />
-              <p className="text-xs font-medium text-gray-600">Pending</p>
-            </div>
-            <p className="text-xl font-bold text-yellow-600">{statistics.pendingWorks}</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertCircle size={16} className="text-red-600" />
-              <p className="text-xs font-medium text-gray-600">Overdue</p>
-            </div>
-            <p className="text-xl font-bold text-red-600">{statistics.overdueWorks}</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock size={16} className="text-teal-600" />
-              <p className="text-xs font-medium text-gray-600">Hours Worked</p>
-            </div>
-            <p className="text-xl font-bold text-teal-600">{statistics.totalHoursWorked.toFixed(1)}</p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp size={16} className="text-purple-600" />
-              <p className="text-xs font-medium text-gray-600">Avg Time</p>
-            </div>
-            <p className="text-xl font-bold text-purple-600">
-              {statistics.averageCompletionTime.toFixed(1)}h
-            </p>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Award size={16} className="text-emerald-600" />
-              <p className="text-xs font-medium text-gray-600">On-Time Rate</p>
-            </div>
-            <p className="text-xl font-bold text-emerald-600">
-              {statistics.onTimeCompletionRate.toFixed(0)}%
-            </p>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-emerald-50 flex-shrink-0 overflow-x-auto">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-white text-teal-700 shadow-sm border-t-2 border-teal-600'
-                    : 'text-gray-600 hover:bg-white/50'
-                }`}
-              >
-                <Icon size={18} className="text-teal-600" />
-                {tab.label}
-                {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-teal-100 text-teal-700 text-xs px-2 py-0.5 rounded-full">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Personal Information */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <User size={20} className="text-teal-600" />
-                  Personal Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Name</label>
-                    <p className="text-gray-900 font-medium mt-1">{staff.name}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Role</label>
-                    <p className="text-gray-900 font-medium mt-1 capitalize">{staff.role}</p>
-                  </div>
-                  {staff.email && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                        <Mail size={14} />
-                        Email
-                      </label>
-                      <p className="text-gray-900 mt-1">
-                        <a href={`mailto:${staff.email}`} className="text-teal-600 hover:underline">
-                          {staff.email}
-                        </a>
-                      </p>
-                    </div>
-                  )}
-                  {staff.phone && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                        <Phone size={14} />
-                        Phone
-                      </label>
-                      <p className="text-gray-900 mt-1">
-                        <a href={`tel:${staff.phone}`} className="text-teal-600 hover:underline">
-                          {staff.phone}
-                        </a>
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Skills */}
-              {staff.skills && staff.skills.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Award size={20} className="text-teal-600" />
-                    Skills & Expertise
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {staff.skills.map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="px-4 py-2 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg font-medium"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Notes */}
-              {staff.notes && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Notes</h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">{staff.notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'current' && (
-            <WorksList works={currentWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No works in progress" />
-          )}
-
-          {activeTab === 'completed' && (
-            <WorksList works={completedWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No completed works" />
-          )}
-
-          {activeTab === 'pending' && (
-            <WorksList works={pendingWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No pending works" />
-          )}
-
-          {activeTab === 'overdue' && (
-            <WorksList works={overdueWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No overdue works" />
-          )}
-
-          {activeTab === 'performance' && (
-            <PerformanceTab statistics={statistics} works={works} />
           )}
         </div>
       </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-4 p-6 bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-gray-200 flex-shrink-0">
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <Briefcase size={16} className="text-blue-600" />
+            <p className="text-xs font-medium text-gray-600">Total Works</p>
+          </div>
+          <p className="text-xl font-bold text-blue-600">{statistics.totalWorks}</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <CheckCircle size={16} className="text-green-600" />
+            <p className="text-xs font-medium text-gray-600">Completed</p>
+          </div>
+          <p className="text-xl font-bold text-green-600">{statistics.completedWorks}</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <Clock size={16} className="text-yellow-600" />
+            <p className="text-xs font-medium text-gray-600">Pending</p>
+          </div>
+          <p className="text-xl font-bold text-yellow-600">{statistics.pendingWorks}</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertCircle size={16} className="text-red-600" />
+            <p className="text-xs font-medium text-gray-600">Overdue</p>
+          </div>
+          <p className="text-xl font-bold text-red-600">{statistics.overdueWorks}</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <Clock size={16} className="text-teal-600" />
+            <p className="text-xs font-medium text-gray-600">Hours Worked</p>
+          </div>
+          <p className="text-xl font-bold text-teal-600">{statistics.totalHoursWorked.toFixed(1)}</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp size={16} className="text-purple-600" />
+            <p className="text-xs font-medium text-gray-600">Avg Time</p>
+          </div>
+          <p className="text-xl font-bold text-purple-600">
+            {statistics.averageCompletionTime.toFixed(1)}h
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <Award size={16} className="text-emerald-600" />
+            <p className="text-xs font-medium text-gray-600">On-Time Rate</p>
+          </div>
+          <p className="text-xl font-bold text-emerald-600">
+            {statistics.onTimeCompletionRate.toFixed(0)}%
+          </p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 px-6 pt-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-emerald-50 flex-shrink-0 overflow-x-auto">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-6 py-3 font-medium rounded-t-lg transition-all whitespace-nowrap ${activeTab === tab.id
+                ? 'bg-white text-teal-700 shadow-sm border-t-2 border-teal-600'
+                : 'text-gray-600 hover:bg-white/50'
+                }`}
+            >
+              <Icon size={18} className="text-teal-600" />
+              {tab.label}
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className="bg-teal-100 text-teal-700 text-xs px-2 py-0.5 rounded-full">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Personal Information */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <User size={20} className="text-teal-600" />
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Name</label>
+                  <p className="text-gray-900 font-medium mt-1">{staff.name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Role</label>
+                  <p className="text-gray-900 font-medium mt-1 capitalize">{staff.role}</p>
+                </div>
+                {staff.email && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                      <Mail size={14} />
+                      Email
+                    </label>
+                    <p className="text-gray-900 mt-1">
+                      <a href={`mailto:${staff.email}`} className="text-teal-600 hover:underline">
+                        {staff.email}
+                      </a>
+                    </p>
+                  </div>
+                )}
+                {staff.phone && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                      <Phone size={14} />
+                      Phone
+                    </label>
+                    <p className="text-gray-900 mt-1">
+                      <a href={`tel:${staff.phone}`} className="text-teal-600 hover:underline">
+                        {staff.phone}
+                      </a>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Skills */}
+            {staff.skills && staff.skills.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Award size={20} className="text-teal-600" />
+                  Skills & Expertise
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {staff.skills.map((skill, idx) => (
+                    <span
+                      key={idx}
+                      className="px-4 py-2 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg font-medium"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            {staff.notes && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Notes</h3>
+                <p className="text-gray-700 whitespace-pre-wrap">{staff.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'current' && (
+          <WorksList works={currentWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No works in progress" />
+        )}
+
+        {activeTab === 'completed' && (
+          <WorksList works={completedWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No completed works" />
+        )}
+
+        {activeTab === 'pending' && (
+          <WorksList works={pendingWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No pending works" />
+        )}
+
+        {activeTab === 'overdue' && (
+          <WorksList works={overdueWorks} statusColors={statusColors} priorityColors={priorityColors} emptyMessage="No overdue works" />
+        )}
+
+        {activeTab === 'performance' && (
+          <PerformanceTab statistics={statistics} works={works} />
+        )}
+      </div>
+
+      {showEditModal && (
+        <StaffFormModal
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleEditSuccess}
+          initialData={staff}
+          mode="edit"
+          staffId={staffId}
+          title={`Edit Staff: ${staff.name}`}
+        />
+      )}
     </div>
   );
 }
@@ -446,9 +465,8 @@ function WorksList({
               <p className="text-sm text-gray-500">{work.customers?.name}</p>
             </div>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 border ${
-                statusColors[work.status] || statusColors.pending
-              }`}
+              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 border ${statusColors[work.status] || statusColors.pending
+                }`}
             >
               {work.status.replace('_', ' ')}
             </span>
@@ -460,9 +478,8 @@ function WorksList({
 
           <div className="flex items-center justify-between text-sm">
             <span
-              className={`px-2 py-1 rounded text-xs font-medium ${
-                priorityColors[work.priority] || priorityColors.medium
-              }`}
+              className={`px-2 py-1 rounded text-xs font-medium ${priorityColors[work.priority] || priorityColors.medium
+                }`}
             >
               {work.priority}
             </span>
@@ -491,7 +508,7 @@ function WorksList({
 
 function PerformanceTab({ statistics, works }: { statistics: any; works: Work[] }) {
   const completedWorks = works.filter((w) => w.status === 'completed');
-  
+
   const worksByMonth = completedWorks.reduce((acc: any, work) => {
     const month = new Date(work.completed_at).toLocaleDateString('en-US', {
       month: 'short',
